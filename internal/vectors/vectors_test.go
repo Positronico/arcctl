@@ -2,7 +2,9 @@ package vectors
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
+	"hash/crc32"
 	"strings"
 	"testing"
 )
@@ -81,6 +83,34 @@ func TestNamedExpectations(t *testing.T) {
 	addr := fmt.Sprintf("%02x %02x %02x", reply[8], reply[7], reply[6])
 	if note := byName["Offline cmd-3 reply"].Note; !strings.Contains(note, "("+addr+")") {
 		t.Errorf("offline cmd-3 reply: address %s (bytes 8, 7, 6) is not the one the note names: %q", addr, note)
+	}
+
+	counting := make([]byte, 512)
+	for i := range counting {
+		counting[i] = byte(i)
+	}
+	crcs := []struct {
+		entry, write string
+		layer        []byte
+	}{
+		{"kb SyncCRC entry (512 x ff)", "kb SyncCRC write idx 0 (512 x ff)", bytes.Repeat([]byte{0xff}, 512)},
+		{"kb SyncCRC entry (counting 0..511)", "kb SyncCRC write idx 0 (counting)", counting},
+	}
+	for _, c := range crcs {
+		entry := get(c.entry, 8)
+		want := binary.BigEndian.AppendUint32(nil, crc32.ChecksumIEEE(c.layer))
+		if !bytes.Equal(entry[:4], want) || !bytes.Equal(entry[4:], make([]byte, 4)) {
+			t.Errorf("%s = % x, want % x then 4 zero bytes", c.entry, entry, want)
+		}
+		w := get(c.write, 16)
+		if w[0] != 7 || w[2] != 0x25 || w[3] != 0x20 || w[4] != 0x88 || !bytes.Equal(w[5:13], entry) {
+			t.Errorf("%s = % x, want a write of %s at 9504 with the keyboard flag", c.write, w, c.entry)
+		}
+	}
+
+	winL := get("kb Win+L slot", 4)
+	if winL[0] != 7 || winL[1] != 0x08 || winL[2] != 0x0f {
+		t.Errorf("kb Win+L slot: type %d, lo %#02x, hi %#02x; want type 7, lo 0x08 (Win), hi 0x0f (L)", winL[0], winL[1], winL[2])
 	}
 
 	slot := get("kb F1 slot 0x82", 4)

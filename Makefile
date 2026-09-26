@@ -1,10 +1,12 @@
 GO ?= go
 BINARY := arcctl
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+FUZZTIME ?= 5s
+PLATFORMS := darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64
 
-.PHONY: check vendorguard fmt vet test mirror-only build clean
+.PHONY: check vendorguard fmt vet staticcheck test fuzz cross mirror-only drift oracle generate build clean
 
-check: vendorguard fmt vet test mirror-only
+check: vendorguard fmt vet staticcheck test fuzz cross mirror-only
 
 vendorguard:
 	@bash scripts/vendorguard.sh
@@ -17,18 +19,39 @@ fmt:
 vet:
 	$(GO) vet ./...
 
-test:
-	$(GO) test ./...
+staticcheck:
+	$(GO) tool staticcheck ./...
 
-mirror-only:
-	@if [ -z "$$ARCCTL_MIRROR" ]; then \
-		echo "mirror-only: skipped (ARCCTL_MIRROR unset)"; \
-	elif [ ! -d "$$ARCCTL_MIRROR" ]; then \
-		echo "mirror-only: skipped (ARCCTL_MIRROR not found: $$ARCCTL_MIRROR)"; \
-	else \
-		echo "mirror-only: using $$ARCCTL_MIRROR"; \
-		echo "mirror-only: nothing to run yet; M1 adds the vendor-to-facts drift check and the oracle vector rerun"; \
-	fi
+test:
+	$(GO) test -race ./...
+
+fuzz:
+	@set -e; log=$$(mktemp); trap 'rm -f "$$log"' EXIT; \
+	for pkg in $$($(GO) list ./...); do \
+		for f in $$($(GO) test -list '^Fuzz' $$pkg | grep '^Fuzz' || true); do \
+			echo "fuzz: $$pkg $$f ($(FUZZTIME))"; \
+			if ! $(GO) test -run '^$$' -fuzz "^$$f$$" -fuzztime $(FUZZTIME) $$pkg >"$$log" 2>&1; then \
+				tail -40 "$$log"; exit 1; \
+			fi; \
+		done; \
+	done
+
+cross:
+	@set -e; for p in $(PLATFORMS); do \
+		echo "cross: $$p"; \
+		CGO_ENABLED=0 GOOS=$${p%/*} GOARCH=$${p#*/} $(GO) build ./...; \
+	done
+
+mirror-only: drift oracle
+
+drift:
+	@GO="$(GO)" bash scripts/drift.sh
+
+oracle:
+	@bash scripts/oracle.sh
+
+generate:
+	$(GO) generate ./internal/catalog/...
 
 build:
 	@if [ -d cmd/arcctl ]; then \

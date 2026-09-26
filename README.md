@@ -6,7 +6,7 @@ arcctl is unofficial. It is not affiliated with, endorsed by, or supported by Pr
 
 ## Status
 
-Pre-alpha, milestone M0: repository scaffolding only. Nothing in this repo talks to a device or changes any setting yet.
+Pre-alpha. Milestone M1, the pure core, is done: packet framing, the flash image, the device catalog, key tables, mouse codecs and the write planner, all tested offline. Nothing talks to a device or changes any setting yet.
 
 ## Planned scope
 
@@ -32,11 +32,14 @@ brew install Positronico/tap/arcctl
 ## Build and test
 
 ```sh
-make check   # vendor-file guard, gofmt, go vet, go test, mirror-only checks
+make check      # vendor-file guard, gofmt, go vet, staticcheck, go test -race, short fuzz runs, cross-builds, mirror-only checks
+make generate   # regenerate the Go tables and udev rules from internal/catalog/facts
 make build
 ```
 
-`ARCCTL_MIRROR` is for maintainers only. It points at a private checkout; when set, `make check` also compares every public file's SHA-256 with the vendor and research files there, and from M1 it runs the drift checks. Without it those steps are skipped.
+staticcheck is pinned in `go.mod` and runs as `go tool staticcheck`. `make fuzz FUZZTIME=1m` runs each fuzz target for longer (5 s by default).
+
+`ARCCTL_MIRROR` is for maintainers only. It points at a private checkout; when set, `make check` also compares every public file's SHA-256 with the vendor and research files there, and runs `make drift` (regenerates the device facts from the vendor files and diffs them against `internal/catalog/facts`) and `make oracle` (regenerates `testdata/oracle` and diffs it). Without it those steps are skipped.
 
 ## License
 

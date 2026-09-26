@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "generator": "protoarc-hub-mirror tools/oracle",
+  "seed": 1,
+  "area": "report_rate",
+  "cases": [
+    {"in":{"hz":125},"writes":[{"addr":0,"hex":"08 4d"}],"packets":["07 00 00 00 02 08 4d 00 00 00 00 00 00 00 00 ef"]},
+    {"in":{"hz":250},"writes":[{"addr":0,"hex":"04 51"}],"packets":["07 00 00 00 02 04 51 00 00 00 00 00 00 00 00 ef"]},
+    {"in":{"hz":500},"writes":[{"addr":0,"hex":"02 53"}],"packets":["07 00 00 00 02 02 53 00 00 00 00 00 00 00 00 ef"]},
+    {"in":{"hz":1000},"writes":[{"addr":0,"hex":"01 54"}],"packets":["07 00 00 00 02 01 54 00 00 00 00 00 00 00 00 ef"]},
+    {"in":{"hz":2000},"writes":[{"addr":0,"hex":"10 45"}],"packets":["07 00 00 00 02 10 45 00 00 00 00 00 00 00 00 ef"]},
+    {"in":{"hz":4000},"writes":[{"addr":0,"hex":"20 35"}],"packets":["07 00 00 00 02 20 35 00 00 00 00 00 00 00 00 ef"]},
+    {"in":{"hz":8000},"writes":[{"addr":0,"hex":"40 15"}],"packets":["07 00 00 00 02 40 15 00 00 00 00 00 00 00 00 ef"]}
+  ]
+}

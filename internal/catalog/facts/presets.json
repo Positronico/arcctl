@@ -1,0 +1,185 @@
+{
+  "shortcuts": {
+    "win": [
+      {
+        "id": "diy1",
+        "label": "preset.dictation",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "KeyH", "kind": 1, "value": 11}]
+      },
+      {
+        "id": "diy2",
+        "label": "preset.action_center",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "KeyA", "kind": 1, "value": 4}]
+      },
+      {
+        "id": "diy3",
+        "label": "preset.task_view",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "Tab", "kind": 1, "value": 43}]
+      },
+      {
+        "id": "diy4",
+        "label": "preset.desktop",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "KeyD", "kind": 1, "value": 7}]
+      },
+      {
+        "id": "diy5",
+        "label": "preset.screenshot",
+        "keys": [
+          {"code": "MetaLeft", "kind": 0, "value": 8},
+          {"code": "ShiftLeft", "kind": 0, "value": 2},
+          {"code": "KeyS", "kind": 1, "value": 22}
+        ]
+      },
+      {
+        "id": "diy6",
+        "label": "preset.close_window",
+        "keys": [{"code": "AltLeft", "kind": 0, "value": 4}, {"code": "F4", "kind": 1, "value": 61}]
+      },
+      {
+        "id": "diy7",
+        "label": "preset.maximize",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "ArrowUp", "kind": 1, "value": 82}]
+      },
+      {
+        "id": "diy8",
+        "label": "preset.minimize",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "ArrowDown", "kind": 1, "value": 81}]
+      },
+      {
+        "id": "diy9",
+        "label": "preset.cut",
+        "keys": [{"code": "ControlLeft", "kind": 0, "value": 1}, {"code": "KeyX", "kind": 1, "value": 27}]
+      },
+      {
+        "id": "diy10",
+        "label": "preset.copy",
+        "keys": [{"code": "ControlLeft", "kind": 0, "value": 1}, {"code": "KeyC", "kind": 1, "value": 6}]
+      },
+      {
+        "id": "diy11",
+        "label": "preset.paste",
+        "keys": [{"code": "ControlLeft", "kind": 0, "value": 1}, {"code": "KeyV", "kind": 1, "value": 25}]
+      },
+      {
+        "id": "diy12",
+        "label": "preset.undo",
+        "keys": [{"code": "ControlLeft", "kind": 0, "value": 1}, {"code": "KeyZ", "kind": 1, "value": 29}]
+      },
+      {
+        "id": "diy14",
+        "label": "preset.zoom_in",
+        "keys": [{"code": "ControlLeft", "kind": 0, "value": 1}, {"code": "Equal", "kind": 1, "value": 46}]
+      },
+      {
+        "id": "diy15",
+        "label": "preset.zoom_out",
+        "keys": [{"code": "ControlLeft", "kind": 0, "value": 1}, {"code": "Minus", "kind": 1, "value": 45}]
+      },
+      {
+        "id": "diy16",
+        "label": "preset.new_tab",
+        "keys": [{"code": "ControlLeft", "kind": 0, "value": 1}, {"code": "KeyT", "kind": 1, "value": 23}]
+      },
+      {
+        "id": "diy17",
+        "label": "preset.lock",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "KeyL", "kind": 1, "value": 15}]
+      }
+    ],
+    "mac": [
+      {
+        "id": "diy1",
+        "label": "preset.dictation",
+        "keys": [{"code": "AltLeft", "kind": 0, "value": 4}, {"code": "Escape", "kind": 1, "value": 41}]
+      },
+      {
+        "id": "diy2",
+        "label": "preset.action_center",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "Space", "kind": 1, "value": 44}]
+      },
+      {
+        "id": "diy3",
+        "label": "preset.task_view",
+        "keys": [{"code": "ControlLeft", "kind": 0, "value": 1}, {"code": "ArrowUp", "kind": 1, "value": 82}]
+      },
+      {
+        "id": "diy5",
+        "label": "preset.screenshot",
+        "keys": [
+          {"code": "ShiftLeft", "kind": 0, "value": 2},
+          {"code": "MetaLeft", "kind": 0, "value": 8},
+          {"code": "Digit3", "kind": 1, "value": 32}
+        ]
+      },
+      {
+        "id": "diy6",
+        "label": "preset.close_window",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "KeyW", "kind": 1, "value": 26}]
+      },
+      {
+        "id": "diy7",
+        "label": "preset.maximize",
+        "keys": [
+          {"code": "ControlLeft", "kind": 0, "value": 1},
+          {"code": "MetaLeft", "kind": 0, "value": 8},
+          {"code": "KeyF", "kind": 1, "value": 9}
+        ]
+      },
+      {
+        "id": "diy8",
+        "label": "preset.minimize",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "KeyM", "kind": 1, "value": 16}]
+      },
+      {
+        "id": "diy9",
+        "label": "preset.cut",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "KeyX", "kind": 1, "value": 27}]
+      },
+      {
+        "id": "diy10",
+        "label": "preset.copy",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "KeyC", "kind": 1, "value": 6}]
+      },
+      {
+        "id": "diy11",
+        "label": "preset.paste",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "KeyV", "kind": 1, "value": 25}]
+      },
+      {
+        "id": "diy12",
+        "label": "preset.undo",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "KeyZ", "kind": 1, "value": 29}]
+      },
+      {
+        "id": "diy14",
+        "label": "preset.zoom_in",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "Equal", "kind": 1, "value": 46}]
+      },
+      {
+        "id": "diy15",
+        "label": "preset.zoom_out",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "Minus", "kind": 1, "value": 45}]
+      },
+      {
+        "id": "diy16",
+        "label": "preset.new_tab",
+        "keys": [{"code": "MetaLeft", "kind": 0, "value": 8}, {"code": "KeyT", "kind": 1, "value": 23}]
+      },
+      {
+        "id": "diy17",
+        "label": "preset.lock",
+        "keys": [
+          {"code": "ControlLeft", "kind": 0, "value": 1},
+          {"code": "MetaLeft", "kind": 0, "value": 8},
+          {"code": "KeyQ", "kind": 1, "value": 20}
+        ]
+      }
+    ]
+  },
+  "macroRepeat": [
+    {"value": 254, "mode": "untilReleased", "label": "repeat.until_released"},
+    {"value": 255, "mode": "untilAnyKey", "label": "repeat.until_any_key"},
+    {"value": 253, "mode": "untilPressedAgain", "label": "repeat.until_pressed_again"},
+    {"value": 1, "mode": "count", "label": "repeat.count"}
+  ]
+}

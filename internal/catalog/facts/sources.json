@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "cfgVersion": "1.0.4",
+  "bundle": "index-B-NBYECN.js",
+  "tools": [
+    {"name": "tools/catalog", "version": "1"},
+    {
+      "name": "tools/research/extract_bundle.py",
+      "sha256": "518a8f402e960aa2d8d9f0af98b6fae77cfb391d250d3b887345f27269b45a3a"
+    }
+  ],
+  "inputs": [
+    {
+      "path": "site/assets/index-B-NBYECN.js",
+      "sha256": "aec7b5360cd8bf5bc558bbceb59fc94d8ffc9d16be8db1f022c15b6bd4a0bb09"
+    },
+    {"path": "site/cfg.json", "sha256": "2d59a796ead2617c4a07a9fcda5f1ad03e24fea0d897b4bac565e8f361955690"},
+    {
+      "path": "site/img/devices/keyboard/0301.png",
+      "sha256": "1ad78e320bb84afbbe6ec1cff123dd03ee148e6b4e4cf0a4fb1328012b9cc538"
+    },
+    {
+      "path": "site/img/devices/keyboard/0303.png",
+      "sha256": "1ad78e320bb84afbbe6ec1cff123dd03ee148e6b4e4cf0a4fb1328012b9cc538"
+    },
+    {
+      "path": "site/img/devices/keyboard/0304.png",
+      "sha256": "dfefe32e8789a1b5b744398f5ae9caa12a5a9531d7ad58bcc44de5737e62af93"
+    },
+    {"path": "site/lang/en.json", "sha256": "ae4d23ae54b1713526246a23a0157c54cda4074230443ae3018f82b0eeae787e"},
+    {"path": "site/sensor.json", "sha256": "7ae8b0e13ea09c163157be9c9ddc67116802e6cd7de9ad63dfdefae68c45384a"},
+    {
+      "path": "tools/research/extracts/br.json",
+      "sha256": "04a37b55885e1d4375d43e803d0faa4cbf9d03ae45dfe6139195fd29e70150bd"
+    },
+    {
+      "path": "tools/research/extracts/hr.json",
+      "sha256": "d17491cd069f1fe46fcefb088ac4aa9e4d3e9209cee4b9fe6c323897e6f6b35c"
+    },
+    {
+      "path": "tools/research/extracts/manifest.json",
+      "sha256": "a545ece749437fa232faa3bd70d655448e51cadf77b98a42f58155297d8ea523"
+    },
+    {
+      "path": "tools/research/extracts/p0.json",
+      "sha256": "75d6ac4e210189236541cabe75bbef24e69b3b06a642a908f9b5f1afd2655c06"
+    },
+    {
+      "path": "tools/research/extracts/w_.json",
+      "sha256": "febdbc6734b0e7e2315fd8866362f8be6ea23670d5485343537bfb7ba2a32a7a"
+    },
+    {
+      "path": "tools/research/extracts/wr.json",
+      "sha256": "3e9fc2afc722e0c4a3a8398ac63713515996b14d80b885cfe7f2e4411070401d"
+    },
+    {
+      "path": "tools/research/extracts/ye.json",
+      "sha256": "b37058e4db2119e324bb3996d7413bca436a35da3542d21b0500a42170d145d6"
+    }
+  ]
+}

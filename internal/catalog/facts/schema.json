@@ -1,0 +1,456 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/positronico/arcctl/internal/catalog/facts/schema.json",
+  "title": "arcctl device facts",
+  "description": "Validates the facts directory as one object whose property names are the file names. SCHEMA.md describes each field.",
+  "type": "object",
+  "properties": {
+    "models.json": {"$ref": "#/$defs/modelsFile"},
+    "ids.json": {"$ref": "#/$defs/idsFile"},
+    "sensors.json": {"$ref": "#/$defs/sensorsFile"},
+    "media.json": {"$ref": "#/$defs/mediaFile"},
+    "keys.json": {"$ref": "#/$defs/keysFile"},
+    "presets.json": {"$ref": "#/$defs/presetsFile"},
+    "offsets.json": {"$ref": "#/$defs/offsetsFile"},
+    "brightness.json": {"$ref": "#/$defs/brightnessFile"},
+    "labels.json": {"$ref": "#/$defs/labelsFile"},
+    "sources.json": {"$ref": "#/$defs/sourcesFile"}
+  },
+  "required": [
+    "models.json", "ids.json", "sensors.json", "media.json", "keys.json",
+    "presets.json", "offsets.json", "brightness.json", "labels.json", "sources.json"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "u8": {"type": "integer", "minimum": 0, "maximum": 255},
+    "u16": {"type": "integer", "minimum": 0, "maximum": 65535},
+    "count": {"type": "integer", "minimum": 0},
+    "positive": {"type": "integer", "minimum": 1},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "text": {"type": "string", "minLength": 1, "maxLength": 40},
+    "labelKey": {
+      "type": "string",
+      "maxLength": 40,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+){1,3}$"
+    },
+    "u16List": {"type": "array", "items": {"$ref": "#/$defs/u16"}, "uniqueItems": true},
+
+    "modelsFile": {
+      "type": "object",
+      "properties": {
+        "models": {"type": "array", "items": {"$ref": "#/$defs/model"}, "minItems": 1}
+      },
+      "required": ["models"],
+      "additionalProperties": false
+    },
+    "model": {
+      "type": "object",
+      "properties": {
+        "group": {"enum": ["mouse", "officeMouse", "keyboard"]},
+        "cid": {"$ref": "#/$defs/u8"},
+        "mids": {"type": "array", "items": {"$ref": "#/$defs/u8"}, "minItems": 1, "uniqueItems": true},
+        "name": {"type": ["string", "null"], "minLength": 1},
+        "mouse": {"$ref": "#/$defs/mouse"},
+        "keyboard": {"$ref": "#/$defs/keyboard"}
+      },
+      "required": ["group", "cid", "mids", "name"],
+      "additionalProperties": false,
+      "if": {"properties": {"group": {"const": "keyboard"}}},
+      "then": {"required": ["keyboard"], "not": {"required": ["mouse"]}},
+      "else": {"required": ["mouse"], "not": {"required": ["keyboard"]}}
+    },
+    "mouse": {
+      "type": "object",
+      "properties": {
+        "sensor": {"type": "string", "minLength": 1},
+        "maxDpi": {"$ref": "#/$defs/positive"},
+        "dpis": {"type": "array", "items": {"$ref": "#/$defs/dpiStage"}, "minItems": 1, "maxItems": 8},
+        "currentDpi": {"type": "integer", "minimum": 0, "maximum": 7},
+        "keys": {"type": "array", "items": {"$ref": "#/$defs/mouseKey"}, "maxItems": 16},
+        "debounce": {"$ref": "#/$defs/count"},
+        "tipsDebounce": {"$ref": "#/$defs/count"},
+        "maxDebounce": {"$ref": "#/$defs/count"},
+        "reportRate": {"$ref": "#/$defs/positive"},
+        "sensorMode": {"$ref": "#/$defs/count"},
+        "lod": {"type": ["integer", "null"], "minimum": 0},
+        "performanceState": {"type": "boolean"},
+        "performance": {"$ref": "#/$defs/count"},
+        "ripple": {"type": "boolean"},
+        "angle": {"type": "boolean"},
+        "motionSync": {"type": "boolean"},
+        "sleepTime": {"$ref": "#/$defs/count"},
+        "dpiEffect": {
+          "type": "object",
+          "properties": {
+            "mode": {"$ref": "#/$defs/count"},
+            "brightness": {"$ref": "#/$defs/count"},
+            "speed": {"$ref": "#/$defs/count"},
+            "show": {"type": "boolean"}
+          },
+          "required": ["mode", "brightness", "speed", "show"],
+          "additionalProperties": false
+        },
+        "lightEffect": {
+          "type": "object",
+          "properties": {
+            "mode": {"$ref": "#/$defs/count"},
+            "brightness": {"$ref": "#/$defs/count"},
+            "speed": {"$ref": "#/$defs/count"},
+            "movingOffState": {"type": "boolean"}
+          },
+          "required": ["mode", "brightness", "speed", "movingOffState"],
+          "additionalProperties": false
+        },
+        "longDistance": {"type": "boolean"},
+        "firmware": {"type": "object", "additionalProperties": {"type": "string"}}
+      },
+      "required": [
+        "sensor", "maxDpi", "dpis", "currentDpi", "keys", "debounce", "tipsDebounce", "maxDebounce",
+        "reportRate", "sensorMode", "lod", "performanceState", "performance", "ripple", "angle",
+        "motionSync", "sleepTime", "dpiEffect", "lightEffect", "longDistance"
+      ],
+      "additionalProperties": false
+    },
+    "dpiStage": {
+      "type": "object",
+      "properties": {
+        "dpi": {"$ref": "#/$defs/positive"},
+        "color": {"type": "array", "items": {"$ref": "#/$defs/u8"}, "minItems": 3, "maxItems": 3}
+      },
+      "required": ["dpi", "color"],
+      "additionalProperties": false
+    },
+    "mouseKey": {
+      "type": "object",
+      "properties": {
+        "index": {"type": "integer", "minimum": 0, "maximum": 15},
+        "type": {"$ref": "#/$defs/u8"},
+        "param": {"$ref": "#/$defs/u16"},
+        "media": {"$ref": "#/$defs/u16"},
+        "visible": {"type": "boolean"},
+        "label": {"$ref": "#/$defs/labelKey"}
+      },
+      "required": ["index", "type", "param", "visible"],
+      "additionalProperties": false,
+      "if": {"required": ["media"]},
+      "then": {"properties": {"type": {"const": 5}, "param": {"const": 0}}, "not": {"required": ["label"]}},
+      "else": {"required": ["label"]}
+    },
+    "keyboard": {
+      "type": "object",
+      "properties": {
+        "systems": {"type": "array", "items": {"enum": ["win", "mac", "iOS", "android"]}, "minItems": 1, "uniqueItems": true},
+        "layouts": {"type": "array", "items": {"enum": ["normal", "fn", "fn2"]}, "minItems": 1, "uniqueItems": true},
+        "image": {
+          "type": "object",
+          "properties": {"width": {"$ref": "#/$defs/positive"}, "height": {"$ref": "#/$defs/positive"}},
+          "required": ["width", "height"],
+          "additionalProperties": false
+        },
+        "rects": {"type": "array", "items": {"$ref": "#/$defs/rect"}, "minItems": 1},
+        "maps": {"type": "array", "items": {"$ref": "#/$defs/layer"}, "minItems": 1}
+      },
+      "required": ["systems", "layouts", "image", "rects", "maps"],
+      "additionalProperties": false
+    },
+    "rect": {
+      "type": "object",
+      "properties": {
+        "left": {"type": "integer"},
+        "top": {"type": "integer"},
+        "width": {"$ref": "#/$defs/count"},
+        "height": {"$ref": "#/$defs/count"}
+      },
+      "required": ["left", "top", "width", "height"],
+      "additionalProperties": false
+    },
+    "layer": {
+      "type": "object",
+      "properties": {
+        "system": {"enum": ["win", "mac", "iOS", "android"]},
+        "layout": {"enum": ["normal", "fn", "fn2"]},
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {"type": {"$ref": "#/$defs/u8"}, "value": {"$ref": "#/$defs/u16"}},
+            "required": ["type", "value"],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "required": ["system", "layout", "slots"],
+      "additionalProperties": false
+    },
+
+    "idsFile": {
+      "type": "object",
+      "properties": {
+        "vids": {"allOf": [{"$ref": "#/$defs/u16List"}, {"minItems": 1}]},
+        "pids": {
+          "type": "object",
+          "properties": {
+            "mouse": {"$ref": "#/$defs/pidClass"},
+            "keyboard": {"$ref": "#/$defs/pidClass"},
+            "composite": {"$ref": "#/$defs/pidClass"}
+          },
+          "required": ["mouse", "keyboard", "composite"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["vids", "pids"],
+      "additionalProperties": false
+    },
+    "pidClass": {
+      "type": "object",
+      "properties": {"wireless": {"$ref": "#/$defs/u16List"}, "wired": {"$ref": "#/$defs/u16List"}},
+      "required": ["wireless", "wired"],
+      "additionalProperties": false
+    },
+
+    "sensorsFile": {
+      "type": "object",
+      "properties": {
+        "sensors": {"type": "array", "items": {"$ref": "#/$defs/sensor"}, "minItems": 1},
+        "gates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "sensors": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+            },
+            "required": ["name", "sensors"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["sensors", "gates"],
+      "additionalProperties": false
+    },
+    "sensor": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "ranges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "min": {"$ref": "#/$defs/positive"},
+              "max": {"$ref": "#/$defs/positive"},
+              "step": {"$ref": "#/$defs/positive"},
+              "dpiEx": {"$ref": "#/$defs/u8"}
+            },
+            "required": ["min", "max", "step", "dpiEx"],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "values": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 1023}, "minItems": 1}
+      },
+      "required": ["id", "ranges"],
+      "additionalProperties": false
+    },
+
+    "mediaFile": {
+      "type": "object",
+      "properties": {
+        "usages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {"$ref": "#/$defs/u16"},
+              "name": {"type": "string", "minLength": 1},
+              "label": {"$ref": "#/$defs/text"}
+            },
+            "required": ["code", "name", "label"],
+            "additionalProperties": false
+          }
+        },
+        "mouse": {"$ref": "#/$defs/u16List"},
+        "keyboard": {"$ref": "#/$defs/u16List"}
+      },
+      "required": ["usages", "mouse", "keyboard"],
+      "additionalProperties": false
+    },
+
+    "keysFile": {
+      "type": "object",
+      "properties": {
+        "keys": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*$"},
+              "value": {"$ref": "#/$defs/u8"},
+              "kind": {"type": "integer", "minimum": 0, "maximum": 15},
+              "win": {"$ref": "#/$defs/text"},
+              "mac": {"$ref": "#/$defs/text"}
+            },
+            "required": ["code", "value", "kind", "win", "mac"],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "required": ["keys"],
+      "additionalProperties": false
+    },
+
+    "presetsFile": {
+      "type": "object",
+      "properties": {
+        "shortcuts": {
+          "type": "object",
+          "properties": {
+            "win": {"type": "array", "items": {"$ref": "#/$defs/preset"}},
+            "mac": {"type": "array", "items": {"$ref": "#/$defs/preset"}}
+          },
+          "required": ["win", "mac"],
+          "additionalProperties": false
+        },
+        "macroRepeat": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "value": {"$ref": "#/$defs/u8"},
+              "mode": {"enum": ["count", "untilPressedAgain", "untilReleased", "untilAnyKey"]},
+              "label": {"$ref": "#/$defs/labelKey"}
+            },
+            "required": ["value", "mode", "label"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["shortcuts", "macroRepeat"],
+      "additionalProperties": false
+    },
+    "preset": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "string", "pattern": "^diy[0-9]+$"},
+        "label": {"$ref": "#/$defs/labelKey"},
+        "keys": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*$"},
+              "kind": {"type": "integer", "minimum": 0, "maximum": 15},
+              "value": {"$ref": "#/$defs/u8"}
+            },
+            "required": ["code", "kind", "value"],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 5
+        }
+      },
+      "required": ["id", "label", "keys"],
+      "additionalProperties": false
+    },
+
+    "offsetsFile": {
+      "type": "object",
+      "properties": {
+        "mouse": {"$ref": "#/$defs/offsetTable"},
+        "keyboard": {"$ref": "#/$defs/offsetTable"},
+        "officeKeyboard": {"$ref": "#/$defs/offsetTable"}
+      },
+      "required": ["mouse", "keyboard", "officeKeyboard"],
+      "additionalProperties": false
+    },
+    "offsetTable": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*$"},
+          "value": {"type": ["integer", "null"], "minimum": 0, "maximum": 16383},
+          "vendor": {"type": "integer", "minimum": 0, "maximum": 16383}
+        },
+        "required": ["name", "value"],
+        "additionalProperties": false,
+        "if": {"properties": {"value": {"type": "null"}}},
+        "then": {"required": ["vendor"]}
+      },
+      "minItems": 1
+    },
+
+    "brightnessFile": {
+      "type": "object",
+      "properties": {
+        "levels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {"level": {"$ref": "#/$defs/positive"}, "value": {"$ref": "#/$defs/u8"}},
+            "required": ["level", "value"],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "default": {"$ref": "#/$defs/u8"}
+      },
+      "required": ["levels", "default"],
+      "additionalProperties": false
+    },
+
+    "labelsFile": {
+      "type": "object",
+      "properties": {
+        "labels": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/labelKey"},
+          "additionalProperties": {"$ref": "#/$defs/text"}
+        }
+      },
+      "required": ["labels"],
+      "additionalProperties": false
+    },
+
+    "sourcesFile": {
+      "type": "object",
+      "properties": {
+        "schema": {"const": 1},
+        "cfgVersion": {"type": "string", "minLength": 1},
+        "bundle": {"type": "string", "minLength": 1},
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "version": {"type": "string", "minLength": 1},
+              "sha256": {"$ref": "#/$defs/sha256"}
+            },
+            "required": ["name"],
+            "anyOf": [{"required": ["version"]}, {"required": ["sha256"]}],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {"type": "string", "minLength": 1},
+              "sha256": {"$ref": "#/$defs/sha256"}
+            },
+            "required": ["path", "sha256"],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "required": ["schema", "cfgVersion", "bundle", "tools", "inputs"],
+      "additionalProperties": false
+    }
+  }
+}
