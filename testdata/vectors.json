@@ -1,0 +1,390 @@
+{
+  "version": 1,
+  "generator": "protoarc-hub-mirror tools/vectors/make_vectors.py",
+  "vectors": [
+    {
+      "name": "lt(0,4)",
+      "group": "packet",
+      "hex": "07 00 00 00 02 04 51 00 00 00 00 00 00 00 00 ef",
+      "check": "packet",
+      "source": "WE,dump",
+      "note": "pair write at 0 (report rate), value 4 = 250 Hz; data equals flash-dump bytes 0-1"
+    },
+    {
+      "name": "ND(6)",
+      "group": "packet",
+      "hex": "07 00 00 02 02 06 4f 00 00 00 00 00 00 00 00 ed",
+      "check": "packet",
+      "source": "WE",
+      "note": "pair write at 2: 6 active DPI stages"
+    },
+    {
+      "name": "FD(2)",
+      "group": "packet",
+      "hex": "07 00 00 04 02 02 53 00 00 00 00 00 00 00 00 eb",
+      "check": "packet",
+      "source": "WE",
+      "note": "pair write at 4: current stage index 2"
+    },
+    {
+      "name": "CurrentDPI identity (H1)",
+      "group": "packet",
+      "hex": "07 00 00 04 02 03 52 00 00 00 00 00 00 00 00 eb",
+      "check": "packet",
+      "source": "WE,dump",
+      "note": "pair write at 4 with value 3, the bytes already in flash, so an accepted write changes nothing"
+    },
+    {
+      "name": "H1 NAK probe",
+      "group": "packet",
+      "hex": "07 00 00 04 02 03 52 00 00 00 00 00 00 00 00 ea",
+      "check": "none",
+      "source": "WE",
+      "note": "the H1 identity write with byte 15 = ea instead of the valid eb; the packet checksum is wrong on purpose (hwtest raw path only)"
+    },
+    {
+      "name": "DPI 800 at stage 0",
+      "group": "packet",
+      "hex": "07 00 00 0c 04 15 15 00 2b 00 00 00 00 00 00 e1",
+      "check": "packet",
+      "source": "WE,dump",
+      "note": "sensor 3104 stage record at 12; data equals flash-dump bytes 12-15"
+    },
+    {
+      "name": "DPI 4800 at stage 5",
+      "group": "packet",
+      "hex": "07 00 00 20 04 3f 3f 11 c6 00 00 00 00 00 00 cd",
+      "check": "packet",
+      "source": "WE,MC",
+      "note": "sensor 3104 stage record at 32, high range: raw 0x3f with the X and Y x2 flags (0x11)"
+    },
+    {
+      "name": "Red, colour stage 0",
+      "group": "packet",
+      "hex": "07 00 00 2c 04 ff 00 00 56 00 00 00 00 00 00 c1",
+      "check": "packet",
+      "source": "WE,dump",
+      "note": "stage colour record at 44, rgb ff 00 00; data equals flash-dump bytes 44-47"
+    },
+    {
+      "name": "btn0 Left",
+      "group": "packet",
+      "hex": "07 00 00 60 04 01 01 00 53 00 00 00 00 00 00 8d",
+      "check": "packet",
+      "source": "WE,dump",
+      "note": "KeyFunction slot 0 at 96: type 1 (mouse button), param 0x0100 (left)"
+    },
+    {
+      "name": "btn5 DPI cycle",
+      "group": "packet",
+      "hex": "07 00 00 74 04 02 01 00 52 00 00 00 00 00 00 79",
+      "check": "packet",
+      "source": "WE,GM",
+      "note": "KeyFunction slot 5 at 116: type 2 (DPI switch), param 0x0100 (cycle)"
+    },
+    {
+      "name": "btn5 Cmd+C write/1",
+      "group": "packet",
+      "hex": "07 00 01 a0 0a 04 80 08 00 81 06 00 41 06 00 41",
+      "check": "packet",
+      "source": "WE",
+      "note": "chunk 1 of 2 of the 14-byte Cmd+C shortcut body for slot 5 (base 416), 10 data bytes at 416"
+    },
+    {
+      "name": "btn5 Cmd+C write/2",
+      "group": "packet",
+      "hex": "07 00 01 aa 04 40 08 00 b3 00 00 00 00 00 00 9c",
+      "check": "packet",
+      "source": "WE",
+      "note": "chunk 2 of 2 of the 14-byte Cmd+C shortcut body for slot 5 (base 416), 4 data bytes at 426"
+    },
+    {
+      "name": "cmd 3",
+      "group": "packet",
+      "hex": "03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 4a",
+      "check": "packet",
+      "source": "TS,GO",
+      "note": "online query, no payload"
+    },
+    {
+      "name": "cmd 4",
+      "group": "packet",
+      "hex": "04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 49",
+      "check": "packet",
+      "source": "TS",
+      "note": "battery query, no payload"
+    },
+    {
+      "name": "Read 0x60/10",
+      "group": "packet",
+      "hex": "08 00 00 60 0a 00 00 00 00 00 00 00 00 00 00 db",
+      "check": "packet",
+      "source": "TS,WE",
+      "note": "flash read (cmd 8) of 10 bytes at 0x60"
+    },
+    {
+      "name": "Restore",
+      "group": "packet",
+      "hex": "09 00 00 00 00 00 00 00 00 00 00 00 00 00 00 44",
+      "check": "packet",
+      "source": "WE,UI",
+      "note": "cmd 9 factory reset request, no payload"
+    },
+    {
+      "name": "Long range on",
+      "group": "packet",
+      "hex": "16 00 00 00 0a 01 00 00 00 00 00 00 00 00 00 2c",
+      "check": "packet",
+      "source": "WE,MC",
+      "note": "cmd 22 with data [1, 0 x9]; length 10"
+    },
+    {
+      "name": "Offline cmd-3 reply",
+      "group": "packet",
+      "hex": "03 00 00 00 04 00 33 22 11 00 00 00 00 00 00 e0",
+      "check": "packet",
+      "source": "GO",
+      "note": "cmd-3 reply while the mouse sleeps: byte 5 = 0 (offline), bytes 6-8 hold the address in reverse (11 22 33); the address is a placeholder because real addresses stay out of public files; same checksum rule as outbound packets"
+    },
+    {
+      "name": "3104 DPI 800",
+      "group": "record",
+      "hex": "15 15 00 2b",
+      "check": "sum55",
+      "source": "WE,GM,dump",
+      "note": "sensor 3104 stage record [X raw, Y raw, flags, cks] with X == Y"
+    },
+    {
+      "name": "3104 DPI 1600",
+      "group": "record",
+      "hex": "2a 2a 00 01",
+      "check": "sum55",
+      "source": "MC,dump",
+      "note": "sensor 3104 stage record [X raw, Y raw, flags, cks] with X == Y"
+    },
+    {
+      "name": "3104 DPI 4000",
+      "group": "record",
+      "hex": "69 69 00 83",
+      "check": "sum55",
+      "source": "MC,GM",
+      "note": "sensor 3104 stage record [X raw, Y raw, flags, cks] with X == Y"
+    },
+    {
+      "name": "3104 DPI 4200",
+      "group": "record",
+      "hex": "37 37 11 d6",
+      "check": "sum55",
+      "source": "MC",
+      "note": "sensor 3104 stage record [X raw, Y raw, flags, cks] with X == Y"
+    },
+    {
+      "name": "3104 DPI 4800",
+      "group": "record",
+      "hex": "3f 3f 11 c6",
+      "check": "sum55",
+      "source": "WE,GM",
+      "note": "sensor 3104 stage record [X raw, Y raw, flags, cks] with X == Y"
+    },
+    {
+      "name": "3104 DPI 7200",
+      "group": "record",
+      "hex": "5f 5f 11 86",
+      "check": "sum55",
+      "source": "WE,MC",
+      "note": "sensor 3104 stage record [X raw, Y raw, flags, cks] with X == Y"
+    },
+    {
+      "name": "3104 DPI 8000",
+      "group": "record",
+      "hex": "69 69 11 72",
+      "check": "sum55",
+      "source": "MC,GM",
+      "note": "sensor 3104 stage record [X raw, Y raw, flags, cks] with X == Y"
+    },
+    {
+      "name": "3212 DPI 1600",
+      "group": "record",
+      "hex": "2a 2a 00 01",
+      "check": "sum55",
+      "source": "MC",
+      "note": "sensor 3212 stage record [X raw, Y raw, flags, cks] with X == Y"
+    },
+    {
+      "name": "3212 DPI 2400",
+      "group": "record",
+      "hex": "3f 3f 00 d7",
+      "check": "sum55",
+      "source": "MC",
+      "note": "sensor 3212 stage record [X raw, Y raw, flags, cks] with X == Y"
+    },
+    {
+      "name": "Cmd+C shortcut",
+      "group": "record",
+      "hex": "04 80 08 00 81 06 00 41 06 00 40 08 00 b3",
+      "check": "sum55",
+      "source": "WE",
+      "note": "shortcut body: count 4, press LWin (kind 0, 0x08) then C (kind 1, 0x06), releases in reverse"
+    },
+    {
+      "name": "Cmd+V shortcut",
+      "group": "record",
+      "hex": "04 80 08 00 81 19 00 41 19 00 40 08 00 8d",
+      "check": "sum55",
+      "source": "WE",
+      "note": "shortcut body: count 4, press LWin (kind 0, 0x08) then V (kind 1, 0x19), releases in reverse"
+    },
+    {
+      "name": "Ctrl+Tab shortcut",
+      "group": "record",
+      "hex": "04 80 01 00 81 2b 00 41 2b 00 40 01 00 77",
+      "check": "sum55",
+      "source": "WE",
+      "note": "shortcut body: count 4, press LCtrl (kind 0, 0x01) then Tab (kind 1, 0x2b), releases in reverse"
+    },
+    {
+      "name": "Cmd+Tab shortcut",
+      "group": "record",
+      "hex": "04 80 08 00 81 2b 00 41 2b 00 40 08 00 69",
+      "check": "sum55",
+      "source": "WE",
+      "note": "shortcut body: count 4, press LWin (kind 0, 0x08) then Tab (kind 1, 0x2b), releases in reverse"
+    },
+    {
+      "name": "P0 win diy5 (LWin, LShift, S)",
+      "group": "record",
+      "hex": "06 80 08 00 80 02 00 81 16 00 41 16 00 40 02 00 40 08 00 cd",
+      "check": "sum55",
+      "source": "WE,UI",
+      "note": "preset shortcut body, presses in the exact preset order, releases in reverse"
+    },
+    {
+      "name": "P0 mac diy5 (LShift, LWin, 3)",
+      "group": "record",
+      "hex": "06 80 02 00 80 08 00 81 20 00 41 20 00 40 08 00 40 02 00 b9",
+      "check": "sum55",
+      "source": "WE,UI",
+      "note": "preset shortcut body, presses in the exact preset order, releases in reverse"
+    },
+    {
+      "name": "P0 mac diy17 (LCtrl, LWin, Q)",
+      "group": "record",
+      "hex": "06 80 01 00 80 08 00 81 14 00 41 14 00 40 08 00 40 01 00 d3",
+      "check": "sum55",
+      "source": "WE,UI",
+      "note": "preset shortcut body, presses in the exact preset order, releases in reverse"
+    },
+    {
+      "name": "Media Play/Pause",
+      "group": "record",
+      "hex": "02 82 cd 00 42 cd 00 f5",
+      "check": "sum55",
+      "source": "WE",
+      "note": "consumer body: one kind-2 press and release of usage 0x00cd, little-endian"
+    },
+    {
+      "name": "Macro \"ab\"",
+      "group": "record",
+      "hex": "02 61 62 ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff 02 81 04 00 00 32 41 04 00 00 0a 4d",
+      "check": "sum55_from:31",
+      "source": "WE",
+      "note": "macro body: name 'ab' padded with ff to 30 bytes, 2 events (press A then 50 ms, release A then 10 ms); the checksum covers offset 31 to the end"
+    },
+    {
+      "name": "Macro binding",
+      "group": "record",
+      "hex": "06 04 01 4a",
+      "check": "sum55",
+      "source": "WE",
+      "note": "KeyFunction record type 6 for slot 4: macro slot 4, 1 cycle"
+    },
+    {
+      "name": "Drag Scroll",
+      "group": "record",
+      "hex": "08 05 00 48",
+      "check": "sum55",
+      "source": "GM",
+      "note": "KeyFunction record type 8, param 0x0500"
+    },
+    {
+      "name": "Rate Switch",
+      "group": "record",
+      "hex": "07 00 00 4e",
+      "check": "sum55",
+      "source": "GM",
+      "note": "KeyFunction record type 7, param 0"
+    },
+    {
+      "name": "Disable",
+      "group": "record",
+      "hex": "00 00 00 55",
+      "check": "sum55",
+      "source": "WE,dump",
+      "note": "KeyFunction record type 0, param 0; equals flash-dump slots 12-15"
+    },
+    {
+      "name": "kb cmd 3",
+      "group": "keyboard",
+      "hex": "03 00 00 00 80 00 00 00 00 00 00 00 00 00 00 ca",
+      "check": "packet",
+      "source": "KP",
+      "note": "keyboard online query; byte 4 carries the 0x80 keyboard flag"
+    },
+    {
+      "name": "kb read 9408/10",
+      "group": "keyboard",
+      "hex": "08 00 24 c0 8a 00 00 00 00 00 00 00 00 00 00 d7",
+      "check": "packet",
+      "source": "KP",
+      "note": "keyboard flash read of 10 bytes at 9408 (settings block); length 0x0a with the 0x80 flag"
+    },
+    {
+      "name": "kb Win+L slot",
+      "group": "keyboard",
+      "hex": "07 08 0f 37",
+      "check": "sum55",
+      "source": "KP",
+      "note": "keyboard key slot [type, lo, hi, cks], little-endian: kind 7 (combination), modifiers 0x08 (Win) in lo, usage 0x0f (L) in hi"
+    },
+    {
+      "name": "kb F1 slot 0x82",
+      "group": "keyboard",
+      "hex": "82 3a 00 99",
+      "check": "sum55",
+      "source": "KP",
+      "note": "keyboard key slot with type 0x82: kind = type & 0x0f = 2 (HID usage), flag 0x80 set, usage 0x3a (F1)"
+    },
+    {
+      "name": "kb SyncCRC entry (512 x ff)",
+      "group": "keyboard",
+      "hex": "bd 7b c3 9f 00 00 00 00",
+      "check": "none",
+      "source": "KP",
+      "note": "CRC-32/IEEE of a 512-byte key layer filled with ff, big-endian in bytes 0-3, then 4 zero bytes; a CRC entry carries no additive checksum"
+    },
+    {
+      "name": "kb SyncCRC write idx 0 (512 x ff)",
+      "group": "keyboard",
+      "hex": "07 00 25 20 88 bd 7b c3 9f 00 00 00 00 00 00 df",
+      "check": "packet",
+      "source": "KP",
+      "note": "the entry above written at 9504 (index 0, win normal layer); length 8 with the 0x80 flag"
+    },
+    {
+      "name": "kb SyncCRC entry (counting 0..511)",
+      "group": "keyboard",
+      "hex": "1c 61 35 76 00 00 00 00",
+      "check": "none",
+      "source": "KP",
+      "note": "CRC-32/IEEE of a synthetic 512-byte key layer whose byte i is i & 0xff, big-endian in bytes 0-3, then 4 zero bytes; the non-uniform input pins byte order and window; no additive checksum"
+    },
+    {
+      "name": "kb SyncCRC write idx 0 (counting)",
+      "group": "keyboard",
+      "hex": "07 00 25 20 88 1c 61 35 76 00 00 00 00 00 00 51",
+      "check": "packet",
+      "source": "KP",
+      "note": "the counting entry above written at 9504 (index 0, win normal layer); length 8 with the 0x80 flag"
+    }
+  ]
+}
