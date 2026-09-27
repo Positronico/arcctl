@@ -1,0 +1,5 @@
+ProtoArc EM11 Pro, identity 260d-1282-7b04
+--- stderr
+arcctl: journal recover: "$RUN1" is not an unfinished
+  run of this mouse; 'arcctl journal status' lists them
+  Run 'arcctl help journal' for its subcommands and flags.

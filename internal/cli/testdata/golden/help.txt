@@ -10,19 +10,31 @@ Commands:
   show        decode a backup, web .bin or dump; no device needed
   diff        compare two backups, or a backup with the device, per record
   export-bin  write a web app compatible .bin (16448 bytes)
+  journal     list writes a crash left unfinished, and settle them
   redact      copy a --record transcript with private bytes masked, for sharing
   version     show the version, catalog inputs, verified stages, usbhid patches
   help        show help
 
 Global flags (before or after the command):
+  -allow-foreign-client
+      write even while another program has the receiver open
+  -allow-untested
+      let a write include features no hardware test has verified yet; a typed
+      confirmation is still needed
   -ascii
       print only ASCII
   -backend backend
       HID backend: usbhid, or hidapi in builds with that tag
   -device path
       use the interface at this path (required when several answer)
+  -dry-run
+      writes go to an in-memory overlay and their exact packets are printed;
+      nothing reaches the mouse
   -emulate file
       no hardware: emulate a mouse holding this backup, web .bin or dump file
+  -experimental
+      let a write include experimental features that have a hardware-test
+      record; a typed confirmation is still needed
   -log file
       append the session log to file
   -model key
@@ -41,5 +53,6 @@ Global flags (before or after the command):
       (default 10s)
 
 Exit codes: 0 ok, 1 error, 2 usage, 3 no receiver, 4 mouse offline,
-5 permission, 6 locked, seized, other client or stalled, 8 aborted,
-9 several devices answer (pass --device).
+5 permission, 6 locked, seized, other client or stalled, 7 a write stopped
+or the journal needs recovery, 8 aborted, 9 several devices answer
+(pass --device).

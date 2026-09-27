@@ -309,15 +309,24 @@ func TestVersion(t *testing.T) {
 func TestHelp(t *testing.T) {
 	h := newHarness(t)
 	for name, args := range map[string][]string{
-		"no-args":   nil,
-		"help":      {"help"},
-		"help-dump": {"help", "dump"},
-		"help-flag": {"dump", "-h"},
+		"no-args":              nil,
+		"help":                 {"help"},
+		"help-dump":            {"help", "dump"},
+		"help-flag":            {"dump", "-h"},
+		"help-journal":         {"help", "journal"},
+		"help-journal-recover": {"journal", "recover", "-h"},
 	} {
 		out, errs, code := h.run(args...)
 		expect(t, code, cli.ExitOK, errs)
-		if name == "help-flag" {
+		switch name {
+		case "help-flag":
 			name = "help-dump"
+		case "help-journal-recover":
+			name = "help-journal"
+		}
+		// The hwtest build lists one more command.
+		if hwtestBuild && (name == "no-args" || name == "help") {
+			name += ".hwtest"
 		}
 		golden(t, name, out)
 	}
@@ -518,6 +527,13 @@ func TestExitCodes(t *testing.T) {
 		{"missing-file", nil, []string{"show", "/nonexistent/backup.json"}, cli.ExitFailure},
 		{"emulated-backup-without-o", func(h *harness) {}, []string{"--emulate", "$DUMP", "backup"}, cli.ExitUsage},
 		{"export-without-o", nil, []string{"export-bin", "$DUMP"}, cli.ExitUsage},
+		{"journal-missing-subcommand", nil, []string{"journal"}, cli.ExitUsage},
+		{"journal-unknown-subcommand", nil, []string{"journal", "undo"}, cli.ExitUsage},
+		{"journal-two-choices", nil, []string{"journal", "recover", "--forward", "--back"}, cli.ExitUsage},
+		{"journal-emulated", nil, []string{"--emulate", "$DUMP", "journal", "recover"}, cli.ExitUsage},
+		{"journal-unknown-run", func(h *harness) {
+			h.add(receiver(em11Mouse(h.t, dumpImage(h.t, h.root))))
+		}, []string{"journal", "recover", "--run", "20260926T120000.000000000Z-1/1", "--forward"}, cli.ExitUsage},
 		{"writes-time-out", func(h *harness) {
 			d := h.add(receiver(em11Mouse(h.t, dumpImage(h.t, h.root))))
 			d.Inject(emu.Fault{Cmd: wire.CmdOnline, Action: emu.Fail, Err: emu.IOError(0xE00002D6)})

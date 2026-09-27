@@ -1,0 +1,22 @@
+ProtoArc EM11 Pro, identity 260d-1282-7b04
+
+Unfinished apply $RUN1
+  started $TIME on profile 0
+  did not end: arcctl stopped during the write
+
+  Record     Now   What
+  112+4      mid   restore binding 4
+  384+20     torn  shortcut 4
+  12+4       old   DPI stage 1: 900
+
+  old: as before the run; new: as the run meant to leave; mid: a step in
+  between, such as a binding disabled while its body is rewritten; torn:
+  neither, the write was cut short.
+
+  --forward  finish it: write what the run meant to leave (3 writes)
+  --back     roll it back: write what the records held before it (2 writes)
+  --leave    refused while a record is torn
+--- stderr
+arcctl: run $RUN1 needs a decision
+  Run 'arcctl journal recover' again with --forward, --back or --leave. Add
+  --dry-run to see the packets first.

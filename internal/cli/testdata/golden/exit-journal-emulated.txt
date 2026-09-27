@@ -1,0 +1,3 @@
+arcctl: journal recover: only real devices have a journal; --emulate and
+  --replay keep none
+  Run 'arcctl help journal' for its subcommands and flags.

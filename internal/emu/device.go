@@ -271,7 +271,9 @@ func (d *Device) process(cl *client, p wire.Packet, act Action, f *fault) {
 	if cl.iface != d.answering {
 		return
 	}
+	undo := d.misstore(p, act)
 	replies := d.respond(p)
+	undo()
 	switch act {
 	case Drop:
 		replies = nil
@@ -291,6 +293,22 @@ func (d *Device) process(cl *client, p wire.Packet, act Action, f *fault) {
 		}
 		d.send(cl.iface, r.p, delay)
 	}
+}
+
+// misstore arms Ignore and Corrupt for a cmd 7 the mouse takes: the returned
+// func, run after the mouse answered, puts in the bytes the fault keeps.
+func (d *Device) misstore(p wire.Packet, act Action) func() {
+	m := d.mouse
+	e, ok := extent(p)
+	if act != Ignore && act != Corrupt || p.Cmd() != wire.CmdWrite || m == nil || !m.awake || !ok {
+		return func() {}
+	}
+	keep, _ := m.image.Get(e)
+	if act == Corrupt {
+		keep = slices.Clone(p[5 : 5+e.Len])
+		keep[0] ^= 0x01
+	}
+	return func() { _ = m.image.Set(e.Addr, keep) }
 }
 
 func (d *Device) send(iface int, p wire.Packet, delay time.Duration) {

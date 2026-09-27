@@ -1,14 +1,17 @@
 // Package session owns the connection to one receiver or device: it finds and
 // probes the interfaces, runs one strict transaction at a time, loads and
 // re-reads the flash, polls, follows the device's pushes and watches for other
-// clients. Everything runs on the goroutine of Run; the rest of arcctl sees
-// immutable snapshots and asks for work through the API.
+// clients. When writes are enabled it also checks, backs up and writes plans
+// through the safety executor, and settles what its journal left unfinished.
+// Everything runs on the goroutine of Run; the rest of arcctl sees immutable
+// snapshots and asks for work through the API.
 package session
 
 import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -16,6 +19,7 @@ import (
 	"github.com/positronico/arcctl/internal/flash"
 	"github.com/positronico/arcctl/internal/hidio"
 	"github.com/positronico/arcctl/internal/plan"
+	"github.com/positronico/arcctl/internal/safety"
 	"github.com/positronico/arcctl/internal/wire"
 )
 
@@ -33,16 +37,22 @@ type API interface {
 	// Backup captures what is loaded; with full it first reads every
 	// backup range that is still unknown.
 	Backup(ctx context.Context, full bool) (Capture, error)
-	Apply(ctx context.Context, p plan.Plan, on func(OpEvent)) error
+	// Apply checks p (§6.3), saves the backups I1 requires, writes p through
+	// the executor and queues a reload. With g.DryRun nothing is written:
+	// the packets go to an overlay instead. Cancelling ctx asks the write to
+	// stop after its current op; the call still returns the outcome.
+	Apply(ctx context.Context, p plan.Plan, g safety.Gates, on func(safety.OpEvent)) (Outcome, error)
+	// Recover settles an unfinished run of the journal (Snapshot.Journal).
+	Recover(ctx context.Context, run string, how safety.Strategy, g safety.Gates, on func(safety.OpEvent)) (Outcome, error)
+	// Revert undoes the last run that changed the device.
+	Revert(ctx context.Context, g safety.Gates, on func(safety.OpEvent)) (Outcome, error)
+	// Preflight runs the checks of an apply of p and writes nothing.
+	Preflight(ctx context.Context, p plan.Plan, g safety.Gates) error
+	// Abort asks a running write to stop after its current op.
+	Abort()
 	// ClearConflict leaves Conflict once the device has been quiet for
 	// Timing.ConflictQuiet; the user confirms it.
 	ClearConflict(ctx context.Context) error
-}
-
-// OpEvent reports the progress of one op of an Apply.
-type OpEvent struct {
-	Op  plan.Op
-	Err error
 }
 
 type Session struct {
@@ -97,6 +107,17 @@ type Session struct {
 	stats         Stats
 
 	due struct{ scan, retry, online, battery, suspect time.Time }
+
+	task       *writeTask
+	wl         *writeLink // the executor's link while a write, its checks or an inspection run
+	writing    *writeProgress
+	abort      atomic.Bool
+	journals   map[string]*safety.Journal // by identity key
+	saved      map[string]*savedBackups   // by identity key and profile
+	jstate     *JournalState
+	journalDue bool
+	overlay    *safety.Overlay // the dry runs' writes
+	overlayKey string
 }
 
 func New(opt Options) *Session {
@@ -108,14 +129,16 @@ func New(opt Options) *Session {
 		log = slog.New(slog.DiscardHandler)
 	}
 	s := &Session{
-		opt:     opt,
-		tm:      opt.Timing.withDefaults(),
-		log:     log,
-		guard:   hidio.NewGuard(wire.Mouse),
-		reqs:    make(chan request),
-		changed: make(chan struct{}, 1),
-		done:    make(chan struct{}),
-		since:   time.Now(),
+		opt:      opt,
+		tm:       opt.Timing.withDefaults(),
+		log:      log,
+		guard:    hidio.NewGuard(wire.Mouse),
+		reqs:     make(chan request),
+		changed:  make(chan struct{}, 1),
+		done:     make(chan struct{}),
+		since:    time.Now(),
+		journals: map[string]*safety.Journal{},
+		saved:    map[string]*savedBackups{},
 	}
 	s.snap.Store(s.snapshot())
 	return s
@@ -174,9 +197,6 @@ func (s *Session) Backup(ctx context.Context, full bool) (Capture, error) {
 	return r.capture, r.err
 }
 
-// Apply is refused: this build only reads.
-func (s *Session) Apply(context.Context, plan.Plan, func(OpEvent)) error { return ErrReadOnly }
-
 func (s *Session) ClearConflict(ctx context.Context) error {
 	return s.call(ctx, request{kind: reqClearConflict}).err
 }
@@ -203,6 +223,8 @@ const (
 	reqRead
 	reqBackup
 	reqClearConflict
+	reqWrite
+	reqPreflight
 )
 
 type request struct {
@@ -211,15 +233,26 @@ type request struct {
 	path    string
 	full    bool
 	extents []flash.Extent
+	task    *writeTask
 	reply   chan result
+	// then takes the result in place of reply, on the owner goroutine: a
+	// write waits this way for the backup it asked for.
+	then func(result)
 }
 
 type result struct {
 	capture Capture
+	outcome Outcome
 	err     error
 }
 
-func (r request) answer(res result) { r.reply <- res }
+func (r request) answer(res result) {
+	if r.then != nil {
+		r.then(res)
+		return
+	}
+	r.reply <- res
+}
 
 func (s *Session) call(ctx context.Context, r request) result {
 	r.ctx, r.reply = ctx, make(chan result, 1)
@@ -266,6 +299,10 @@ func (s *Session) handle(ctx context.Context, r request) {
 		}
 	case reqClearConflict:
 		r.answer(result{err: s.clearConflict()})
+	case reqWrite:
+		s.startWrite(ctx, r)
+	case reqPreflight:
+		s.preflight(ctx, r)
 	}
 }
 
@@ -340,6 +377,14 @@ func (s *Session) useWakeHint() {
 // work runs one unit of pending work: a scan, a handshake or one job step.
 func (s *Session) work(ctx context.Context) bool {
 	s.useWakeHint()
+	if t := s.task; t != nil && (t.job == nil || t.req.ctx.Err() != nil || s.abort.Load()) {
+		s.advance(ctx)
+		return true
+	}
+	if s.journalDue && s.base == Ready && s.task == nil && !slices.ContainsFunc(s.jobs, func(j *job) bool { return j.kind == jobLoad }) {
+		s.checkJournal(ctx)
+		return true
+	}
 	switch s.base {
 	case Offline:
 		if s.online {
@@ -378,6 +423,14 @@ func (s *Session) flush() {
 
 func (s *Session) shutdown() {
 	s.failJobs(ErrStopped)
+	if s.task != nil {
+		s.endTask(ErrStopped)
+	}
+	for _, j := range s.journals {
+		if err := j.Close(); err != nil {
+			s.log.Error("closing the journal", "err", err)
+		}
+	}
 	s.closeChoices(nil)
 	if s.dev != nil {
 		s.dev.close()

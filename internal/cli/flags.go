@@ -13,6 +13,8 @@ import (
 
 	"github.com/positronico/arcctl/internal/flash"
 	"github.com/positronico/arcctl/internal/keys"
+	"github.com/positronico/arcctl/internal/safety"
+	"github.com/positronico/arcctl/internal/session"
 )
 
 // runner is one invocation: the environment, the global flags and the
@@ -24,6 +26,8 @@ type runner struct {
 	errw io.Writer
 	g    globals
 	cmd  string
+	// writes enables the session's writes, for the commands that write.
+	writes *session.Writes
 }
 
 type globals struct {
@@ -38,6 +42,11 @@ type globals struct {
 	wait    time.Duration
 	ascii   bool
 	noColor bool
+
+	dryRun             bool
+	allowUntested      bool
+	experimental       bool
+	allowForeignClient bool
 }
 
 const defaultWait = 10 * time.Second
@@ -56,6 +65,15 @@ func (g *globals) define(fs *flag.FlagSet) {
 	fs.DurationVar(&g.wait, "wait", g.wait, "how long to wait for a sleeping mouse, or while replies go missing")
 	fs.BoolVar(&g.ascii, "ascii", g.ascii, "print only ASCII")
 	fs.BoolVar(&g.noColor, "no-color", g.noColor, "no colour (the CLI prints none)")
+	fs.BoolVar(&g.dryRun, "dry-run", g.dryRun, "writes go to an in-memory overlay and their exact packets are printed; nothing reaches the mouse")
+	fs.BoolVar(&g.allowUntested, "allow-untested", g.allowUntested, "let a write include features no hardware test has verified yet; a typed confirmation is still needed")
+	fs.BoolVar(&g.experimental, "experimental", g.experimental, "let a write include experimental features that have a hardware-test record; a typed confirmation is still needed")
+	fs.BoolVar(&g.allowForeignClient, "allow-foreign-client", g.allowForeignClient, "write even while another program has the receiver open")
+}
+
+// gates are what the global flags allow a write.
+func (g *globals) gates() safety.Gates {
+	return safety.Gates{DryRun: g.dryRun, AllowUntested: g.allowUntested, Experimental: g.experimental, AllowForeignClient: g.allowForeignClient}
 }
 
 // flagSet makes a flag set that also takes the global flags, so they can come

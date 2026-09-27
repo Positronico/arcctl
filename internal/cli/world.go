@@ -17,6 +17,7 @@ import (
 	"github.com/positronico/arcctl/internal/emu"
 	"github.com/positronico/arcctl/internal/hidio"
 	"github.com/positronico/arcctl/internal/platform"
+	"github.com/positronico/arcctl/internal/safety"
 	"github.com/positronico/arcctl/internal/session"
 )
 
@@ -83,7 +84,29 @@ func (r *runner) options(w *world) session.Options {
 	if _, err := w.host.Clients(); !errors.Is(err, errors.ErrUnsupported) {
 		o.Clients = foreignClients(w.host)
 	}
+	if r.writes != nil {
+		wr := *r.writes
+		wr.Console = func() (safety.Console, error) { return consoleOf(w.host) }
+		o.Writes = &wr
+	}
 	return o
+}
+
+// consoleOf is the screen lock and the Secure Input holder as the preflight
+// takes them; an OS without either reports neither.
+func consoleOf(h Host) (safety.Console, error) {
+	c, err := h.Console()
+	switch {
+	case errors.Is(err, errors.ErrUnsupported):
+		return safety.Console{}, nil
+	case err != nil:
+		return safety.Console{}, err
+	}
+	out := safety.Console{ScreenLocked: c.ScreenLocked}
+	if c.SecureInput.PID != 0 {
+		out.SecureInput = c.SecureInput.String()
+	}
+	return out, nil
 }
 
 // preflight refuses to open devices when the OS says access is denied.

@@ -1,0 +1,16 @@
+Journal $TMP/journal
+
+ProtoArc EM11 Pro, identity 260d-1282-7b04
+  Unfinished apply $RUN1
+    started $TIME on profile 0
+    did not end: arcctl stopped during the write
+     Op  Record     State         What
+      1  112+4      verified      disable binding 4 while its body is rewritten
+      2  384+20     sending       shortcut 4
+      3  112+4      planned       restore binding 4
+      4  12+4       planned       DPI stage 1: 900
+  Last change: none
+--- stderr
+arcctl: 1 unfinished run needs recovery
+  Connect the mouse and run 'arcctl journal recover': it reads the records again
+  and shows the choices.

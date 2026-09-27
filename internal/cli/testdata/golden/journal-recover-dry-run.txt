@@ -1,0 +1,14 @@
+ProtoArc EM11 Pro, identity 260d-1282-7b04
+Dry run: the packets go to an overlay and the read-back reads from it; nothing
+reaches the mouse.
+Finishing apply $RUN1
+   Op  Record     State         What
+    1  384+20     verified      finish: shortcut 4
+    2  112+4      verified      finish: disable binding 4 while its body is
+                                rewritten
+    3  12+4       verified      finish: DPI stage 1: 900
+Dry run: nothing was written. The recovery would send 4 packets:
+  07 00 01 80 0a 06 80 08 00 80 04 00 81 2b 00 fd
+  07 00 01 8a 0a 41 2b 00 40 04 00 40 08 00 9f 1a
+  07 00 00 70 04 05 00 00 50 00 00 00 00 00 00 7d
+  07 00 00 0c 04 17 17 00 27 00 00 00 00 00 00 e1

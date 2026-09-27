@@ -1,0 +1,7 @@
+ProtoArc EM11 Pro, identity 260d-1282-7b04
+Finishing apply $RUN1
+--- stderr
+arcctl: the recovery is blocked
+  - the screen is locked: unlock the Mac, then retry
+  - another program has the receiver open: Google Chrome Helper (pid 4242); quit
+    it or pass --allow-foreign-client

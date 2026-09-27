@@ -221,7 +221,7 @@ func (r *runner) printInfo(w io.Writer, sn *session.Snapshot, in infoJSON) {
 	if len(in.OtherClients) > 0 {
 		line("Others", strings.Join(in.OtherClients, ", "))
 	}
-	line("Writes", "off: this build only reads")
+	line("Writes", "journal recovery only; editing arrives with the TUI")
 	if len(in.Tiers) > 0 {
 		fmt.Fprintln(w, "\nFeature tiers")
 		for _, t := range []catalog.Tier{catalog.Verified, catalog.Untested, catalog.Experimental, catalog.ReadOnly, catalog.Off} {

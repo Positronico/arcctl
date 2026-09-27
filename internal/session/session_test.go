@@ -11,6 +11,7 @@ import (
 	"github.com/positronico/arcctl/internal/flash"
 	"github.com/positronico/arcctl/internal/mouse"
 	"github.com/positronico/arcctl/internal/plan"
+	"github.com/positronico/arcctl/internal/safety"
 	"github.com/positronico/arcctl/internal/session"
 	"github.com/positronico/arcctl/internal/wire"
 )
@@ -416,7 +417,7 @@ func TestReloadAndApply(t *testing.T) {
 		t.Errorf("reload read %d chunks, want %d", got, len(workingSet()))
 	}
 	n := len(d.Writes())
-	if err := s.Apply(ctxT(t), plan.Plan{}, nil); !errors.Is(err, session.ErrReadOnly) {
+	if _, err := s.Apply(ctxT(t), plan.Plan{}, safety.Gates{}, nil); !errors.Is(err, session.ErrReadOnly) {
 		t.Errorf("Apply = %v", err)
 	}
 	if len(d.Writes()) != n {

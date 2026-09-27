@@ -1,0 +1,9 @@
+Journal $TMP/journal
+
+Identity 260d-1282-7b04
+  unreadable: journal is corrupt: 20260926T120000.000000000Z-1.jsonl line 1: op
+    entry for unknown run ""
+--- stderr
+arcctl: 1 device journal could not be read
+  arcctl does not write to a device whose journal it cannot read. Keep the
+  files: they hold the bytes of every write.

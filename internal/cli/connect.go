@@ -90,7 +90,9 @@ func (r *runner) attach(w *world, st stage) (*conn, *session.Snapshot, error) {
 
 	s := session.New(opt)
 	first := s.Snapshot().Seq
-	ctx, cancel := context.WithCancel(r.ctx)
+	// The session outlives an interrupt until the command has taken the
+	// outcome of a write, which then stops after its current record.
+	ctx, cancel := context.WithCancel(context.WithoutCancel(r.ctx))
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -234,7 +236,7 @@ func (r *runner) await(c *conn, first uint64, st stage) (*session.Snapshot, erro
 			if st == probed {
 				return sn, nil
 			}
-		case session.Ready:
+		case session.Ready, session.Recovering:
 			if st == probed || sn.Progress.Job == "" {
 				return sn, nil
 			}

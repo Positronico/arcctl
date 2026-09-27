@@ -1,6 +1,7 @@
-// Package cli is arcctl's command line: read-only commands that inspect the
-// receiver and the mouse, back them up and decode backups, against the real
-// device, the emulator (--emulate) or a recorded transcript (--replay).
+// Package cli is arcctl's command line: commands that inspect the receiver
+// and the mouse, back them up and decode backups, against the real device,
+// the emulator (--emulate) or a recorded transcript (--replay), and the
+// journal commands that settle writes a crash left unfinished.
 package cli
 
 import (
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/positronico/arcctl/internal/platform"
+	"github.com/positronico/arcctl/internal/safety"
 	"github.com/positronico/arcctl/internal/session"
 )
 
@@ -28,7 +30,7 @@ const (
 	ExitOffline    = 4 // the receiver answers, the mouse does not
 	ExitPermission = 5
 	ExitBlocked    = 6 // locked, seized, another client, suspected conflict or stalled
-	ExitVerify     = 7
+	ExitVerify     = 7 // a write stopped, or the journal holds an unfinished run
 	ExitAborted    = 8
 	ExitChoose     = 9 // several devices answer; pass --device
 )
@@ -43,14 +45,23 @@ type Env struct {
 	// HID opens the real devices of a backend.
 	HID    func(backend string) (session.Devices, error)
 	Timing session.Timing
+	// Executor tunes the writes; zero fields take the executor's defaults.
+	Executor safety.Options
 	// Interactive shows progress on Stderr.
 	Interactive bool
 }
 
 // Main runs arcctl with the process's arguments and returns its exit code.
+// The first interrupt cancels the command, which lets a write stop after its
+// current record; a second one ends the process at once, as a crash would,
+// and the journal settles the write later.
 func Main(version string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	go func() {
+		<-ctx.Done()
+		stop()
+	}()
 	return Run(ctx, os.Args[1:], DefaultEnv(version))
 }
 
@@ -108,6 +119,7 @@ func init() {
 		{"show", "[--json] <backup|.bin|dump>", "decode a backup, web .bin or dump; no device needed", runShow},
 		{"diff", "<backup> [<backup2>]", "compare two backups, or a backup with the device, per record", runDiff},
 		{"export-bin", "<backup|.bin|dump> -o file.bin [--allow-partial]", "write a web app compatible .bin (16448 bytes)", runExportBin},
+		{"journal", "status | recover [--run id] [--forward|--back|--leave]", "list writes a crash left unfinished, and settle them", runJournal},
 		{"redact", "<transcript> -o file", "copy a --record transcript with private bytes masked, for sharing", runRedact},
 		{"version", "", "show the version, catalog inputs, verified stages, usbhid patches", runVersion},
 		{"help", "[command]", "show help", runHelp},
@@ -196,8 +208,9 @@ func (r *runner) usage(w io.Writer) {
 	g.define(fs)
 	fs.VisitAll(func(f *flag.Flag) { printFlag(w, f) })
 	fmt.Fprint(w, "\nExit codes: 0 ok, 1 error, 2 usage, 3 no receiver, 4 mouse offline,\n"+
-		"5 permission, 6 locked, seized, other client or stalled, 8 aborted,\n"+
-		"9 several devices answer (pass --device).\n")
+		"5 permission, 6 locked, seized, other client or stalled, 7 a write stopped\n"+
+		"or the journal needs recovery, 8 aborted, 9 several devices answer\n"+
+		"(pass --device).\n")
 }
 
 func (r *runner) commandList(w io.Writer) {

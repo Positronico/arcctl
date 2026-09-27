@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/positronico/arcctl/internal/hidio"
+	"github.com/positronico/arcctl/internal/safety"
 )
 
 // Devices finds and opens HID interfaces. hidio provides one per backend
@@ -48,8 +49,32 @@ type Options struct {
 	// TrustAddress keys the identity on the cmd-3 address; leave it off until
 	// the hardware tests show the address is stable.
 	TrustAddress bool
-	Timing       Timing
-	Log          *slog.Logger
+	// Writes enables Apply, Recover and Revert; without it they return
+	// ErrReadOnly.
+	Writes *Writes
+	Timing Timing
+	Log    *slog.Logger
+}
+
+// Writes is what the session needs before it writes to a device.
+type Writes struct {
+	Journal string  // the journal folder, <data>/journal
+	Backups Backups // where the backups I1 requires are saved
+	// Lock reports whether this process holds the single-instance lock: nil
+	// when it does, or when no other process can reach the device (the
+	// emulator). A nil Lock blocks every write.
+	Lock func() error
+	// Console reports the screen lock and the Secure Input holder; nil where
+	// the OS has neither.
+	Console func() (safety.Console, error)
+	// Executor tunes the executor; its Log defaults to the session's.
+	Executor safety.Options
+}
+
+// Backups saves the backups I1 requires before a write and returns where
+// each went; backup.Store implements it.
+type Backups interface {
+	Save(c Capture, label string) (string, error)
 }
 
 // Timing holds every delay and cadence the session uses. Zero fields take

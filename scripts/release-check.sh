@@ -13,6 +13,10 @@ if [ "$(uname -s)" != Darwin ]; then
 	exit 0
 fi
 
+# Symbols only a -tags hwtest build has: the hwtest package, its CLI command
+# and host, and the unguarded opens of the raw path in hidio and the emulator.
+hwtest_symbols='hwtest|cli\.\(?\*?hwHost\)?\.|cli\.\(\*runner\)\.hwSummary|hidio\.OpenRaw|emu\.\(\*Bus\)\.OpenRaw'
+
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/release-check.XXXXXX")"
 trap 'rm -rf "$tmp"' EXIT
 
@@ -26,7 +30,7 @@ for arch in arm64 amd64; do
 		fail=1
 	fi
 	CGO_ENABLED=0 GOOS=darwin GOARCH=$arch "$go" build -trimpath -o "$bin.syms" ./cmd/arcctl
-	if "$go" tool nm "$bin.syms" | grep -i hwtest; then
+	if "$go" tool nm "$bin.syms" | grep -iE "$hwtest_symbols"; then
 		echo "release-check: darwin/$arch contains hardware-test code" >&2
 		fail=1
 	fi

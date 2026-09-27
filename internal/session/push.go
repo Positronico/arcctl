@@ -42,6 +42,10 @@ func (s *Session) onPush(l *link, p wire.Packet) {
 	if l != s.dev || p.Status() != wire.StatusOK {
 		return
 	}
+	if s.wl != nil {
+		s.wl.push(f1, f2)
+		return
+	}
 	if s.base == Offline {
 		s.wakeHint = true
 	}

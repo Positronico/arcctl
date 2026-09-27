@@ -1,0 +1,3 @@
+arcctl: journal: missing subcommand; usage: arcctl journal status | recover
+  [--run id] [--forward|--back|--leave]
+  Run 'arcctl help journal' for its subcommands and flags.

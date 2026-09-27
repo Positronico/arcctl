@@ -163,6 +163,36 @@ func targets(slot int, b []byte) []ref {
 	return nil
 }
 
+// Unread returns what im lacks before a binding at slot holding b can be
+// checked: the event count of a body b points at, then the whole record that
+// count declares. ok is false once every such body is known, or holds no
+// valid record whatever its unread bytes.
+func (l Layout) Unread(im *flash.Image, slot int, b []byte) (e flash.Extent, ok bool) {
+	if slot < 0 || slot >= l.Bindings.Count || len(b) != len(disable) {
+		return flash.Extent{}, false
+	}
+	for _, t := range targets(slot, b) {
+		tb := l.table(t.kind)
+		if t.slot < 0 || t.slot >= tb.Count {
+			continue
+		}
+		head, event := frame(t.kind)
+		s := tb.slot(t.slot)
+		n, known := im.Byte(s.Addr + head)
+		if !known {
+			return flash.Extent{Addr: s.Addr, Len: head + 1}, true
+		}
+		size := head + 2 + event*int(n)
+		if n == 0 || size > s.Len {
+			continue
+		}
+		if rec := (flash.Extent{Addr: s.Addr, Len: size}); !im.Known(rec) {
+			return rec, true
+		}
+	}
+	return flash.Extent{}, false
+}
+
 func (l Layout) body(im *flash.Image, r ref) (known, valid bool) {
 	t := l.table(r.kind)
 	if r.slot < 0 || r.slot >= t.Count {

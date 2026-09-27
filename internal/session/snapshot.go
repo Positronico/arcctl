@@ -9,6 +9,7 @@ import (
 	"github.com/positronico/arcctl/internal/flash"
 	"github.com/positronico/arcctl/internal/hidio"
 	"github.com/positronico/arcctl/internal/plan"
+	"github.com/positronico/arcctl/internal/safety"
 	"github.com/positronico/arcctl/internal/wire"
 )
 
@@ -17,8 +18,8 @@ import (
 type Snapshot struct {
 	Seq   uint64
 	State State
-	// Link is the device state under a Conflict or SuspectedConflict; it
-	// equals State otherwise.
+	// Link is the device state under a Conflict, a SuspectedConflict or
+	// Recovering; it equals State otherwise.
 	Link  State
 	Since time.Time
 	Err   error // why the session is in State, when that is an error
@@ -38,6 +39,12 @@ type Snapshot struct {
 	Image    *flash.Image   // the last complete load, with later re-reads; nil before the first
 	Unread   []flash.Extent // chunks the last load could not read
 	Progress Progress
+	// DryRun is Image with every dry-run write of this session on top; nil
+	// when no dry run wrote anything.
+	DryRun *flash.Image
+	// Journal is the device's journal at the last check, after each load;
+	// nil before the first check or when the session does not write.
+	Journal *JournalState
 
 	ConflictSince time.Time
 	LastForeign   time.Time
@@ -95,10 +102,27 @@ type Probe struct {
 }
 
 type Progress struct {
-	Job    string // "load", "reread", "backup" or "read"; empty when idle
-	Done   int    // transactions finished
-	Total  int    // transactions known so far; a load adds more as it learns the bindings
-	Paused bool   // waiting for the mouse to wake
+	Job    string // "load", "reread", "backup", "read", "journal" (the check after a load), or "apply", "revert" and "recover" while Applying; empty when idle
+	Done   int    // transactions finished, or ops verified while Applying
+	Total  int    // transactions known so far (a load adds more as it learns the bindings), or the ops of the run
+	Paused bool   // waiting for the mouse to wake, or for the screen to unlock while Applying
+}
+
+// JournalState is what the device's journal holds: the runs a crash or a
+// failed write left unfinished, each read again from the device, and the run
+// Revert would undo.
+type JournalState struct {
+	Open []OpenRun
+	Last *safety.Run
+	Err  error // the journal could not be read
+}
+
+// OpenRun is an unfinished run and what its extents hold now. Inspection is
+// nil when they could not be read; Err says why.
+type OpenRun struct {
+	Run        *safety.Run
+	Inspection *safety.Inspection
+	Err        error
 }
 
 type Stats struct {
@@ -119,15 +143,16 @@ type Stats struct {
 // Capture is what a backup is made from: the bytes read so far or for it,
 // and the identity and profile they belong to.
 type Capture struct {
-	Device   plan.Identity
-	Model    *catalog.Model
-	Profile  Probe
-	Versions Versions
-	Image    *flash.Image
-	Full     bool
-	Missing  []flash.Extent // chunks that could not be read
-	Started  time.Time
-	Finished time.Time
+	Device    plan.Identity
+	Model     *catalog.Model
+	Profile   Probe
+	Versions  Versions
+	Image     *flash.Image
+	Full      bool
+	Missing   []flash.Extent // chunks that could not be read
+	Handshake *Handshake     // the handshake of the mouse the bytes came from
+	Started   time.Time
+	Finished  time.Time
 }
 
 func (s *Session) snapshot() *Snapshot {
@@ -146,6 +171,7 @@ func (s *Session) snapshot() *Snapshot {
 		Image:         s.shown,
 		Unread:        slices.Clone(s.unread),
 		Progress:      s.progress(),
+		Journal:       s.jstate,
 		ConflictSince: s.conflictSince,
 		LastForeign:   s.lastForeign,
 		Clients:       slices.Clone(s.clients),
@@ -167,6 +193,9 @@ func (s *Session) snapshot() *Snapshot {
 		b := *s.battery
 		sn.Battery = &b
 	}
+	if s.overlay != nil && s.shown != nil && s.overlayKey == sn.Identity.Key() {
+		sn.DryRun = s.overlay.Apply(s.shown)
+	}
 	for _, l := range s.choices {
 		a := Answer{Candidate: l.c, Online: l.online, Model: l.model}
 		if l.hs != nil {
@@ -179,8 +208,11 @@ func (s *Session) snapshot() *Snapshot {
 }
 
 func (s *Session) state() State {
-	if s.conflict != 0 && s.base.attached() {
+	switch {
+	case s.conflict != 0 && s.base.attached():
 		return s.conflict
+	case s.base == Ready && s.jstate != nil && len(s.jstate.Open) > 0:
+		return Recovering
 	}
 	return s.base
 }

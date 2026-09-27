@@ -1,0 +1,26 @@
+Usage: arcctl journal status
+       arcctl journal recover [--run id] [--forward|--back|--leave]
+
+List writes a crash left unfinished, and settle them.
+
+status   lists, for each device arcctl wrote to, the runs that need recovery and
+         the last run that changed it. It reads only the journal files.
+recover  reads the records of the mouse's unfinished run again and shows what
+         each one holds; with --forward, --back or --leave it settles the run.
+         Runs whose records all hold the old or all the new bytes are settled
+         without asking.
+
+Flags of recover:
+  -back
+      roll the run back: write what its records held before it
+  -forward
+      finish the run: write what it meant to leave
+  -leave
+      record the run as settled and write nothing; refused while a record is
+      torn
+  -run id
+      settle the unfinished run with this id, as 'journal status' names it;
+      needed when several are unfinished
+
+Global flags: see 'arcctl help'. Of the write flags, --dry-run and
+--allow-foreign-client apply to recover.

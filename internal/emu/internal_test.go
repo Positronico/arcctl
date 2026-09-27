@@ -262,3 +262,61 @@ func FuzzRespond(f *testing.F) {
 		}
 	})
 }
+
+// Ignore acks a write and keeps the old bytes; Corrupt acks it and keeps
+// other bytes than the ones sent. Both answer as a good write would, so only
+// a read-back tells.
+func TestIgnoredAndCorruptedWrites(t *testing.T) {
+	p := wire.MustBuild(wire.Mouse, wire.CmdWrite, 0x60, []byte{1, 2, 0, 0x52})
+	e := flash.Extent{Addr: 0x60, Len: 4}
+	for _, act := range []Action{Ignore, Corrupt} {
+		t.Run(act.String(), func(t *testing.T) {
+			_, d, h := rawOpen(t, Options{}, Config{Mouse: em11()})
+			was, _ := d.Image().Get(e)
+			d.Inject(Fault{Cmd: wire.CmdWrite, Times: 1, Action: act})
+			if got := send(t, h, p); !slices.Equal(got, []wire.Packet{p}) {
+				t.Fatalf("replies %v, want the echo", got)
+			}
+			now, _ := d.Image().Get(e)
+			switch {
+			case act == Ignore && !bytes.Equal(now, was):
+				t.Fatalf("flash at 0x60 = % x, want the old % x", now, was)
+			case act == Corrupt && (bytes.Equal(now, p.Data()) || bytes.Equal(now, was)):
+				t.Fatalf("flash at 0x60 = % x, want neither % x nor % x", now, p.Data(), was)
+			}
+			send(t, h, p)
+			if now, _ := d.Image().Get(e); !bytes.Equal(now, p.Data()) {
+				t.Fatalf("the next write left % x", now)
+			}
+		})
+	}
+}
+
+// Store and SetProfile change the mouse without a push, as a change the host
+// never hears of would.
+func TestSilentChanges(t *testing.T) {
+	m := em11()
+	m.Profile = new(byte)
+	_, d, h := rawOpen(t, Options{}, Config{Mouse: m})
+	if err := d.Store(0x60, []byte{0x0b, 0x01, 0x00, 0x49}); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.SetProfile(3); err != nil {
+		t.Fatal(err)
+	}
+	if got := drain(h); len(got) != 0 {
+		t.Fatalf("pushes %v, want none", got)
+	}
+	if b, _ := d.Image().Get(flash.Extent{Addr: 0x60, Len: 4}); !bytes.Equal(b, []byte{0x0b, 0x01, 0x00, 0x49}) {
+		t.Fatalf("flash at 0x60 = % x", b)
+	}
+	if rep := send(t, h, wire.MustBuild(wire.Mouse, wire.CmdGetProfile, 0, nil)); len(rep) != 1 || rep[0][5] != 3 {
+		t.Fatalf("cmd 14 replies %v, want profile 3", rep)
+	}
+	if err := d.Store(flash.Size-1, []byte{1, 2}); err == nil {
+		t.Fatal("Store past the end succeeded")
+	}
+	if err := (&Device{bus: d.bus}).SetProfile(1); err == nil {
+		t.Fatal("SetProfile with nothing paired succeeded")
+	}
+}

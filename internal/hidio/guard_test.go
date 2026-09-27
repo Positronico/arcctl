@@ -49,13 +49,13 @@ func TestGuardZeroValueIsReadOnlyMouse(t *testing.T) {
 	}
 }
 
-func TestGuardSetEnablesOnlyReadOnly(t *testing.T) {
+func TestGuardSetEnablesReadOnlyAndEdit(t *testing.T) {
 	tests := []struct {
 		policy wire.Policy
 		ok     bool
 	}{
 		{wire.ReadOnly, true},
-		{wire.Edit, false},
+		{wire.Edit, true},
 		{wire.Reset, false},
 		{wire.Experimental, false},
 		{wire.Policy(9), false},
@@ -70,8 +70,8 @@ func TestGuardSetEnablesOnlyReadOnly(t *testing.T) {
 			if !tt.ok && !errors.Is(err, hidio.ErrForbidden) {
 				t.Fatalf("Set(%s) = %v, want ErrForbidden", tt.policy, err)
 			}
-			if g.Policy() != wire.ReadOnly {
-				t.Fatalf("policy after Set(%s) is %s", tt.policy, g.Policy())
+			if want := map[bool]wire.Policy{true: tt.policy, false: wire.ReadOnly}[tt.ok]; g.Policy() != want {
+				t.Fatalf("policy after Set(%s) is %s, want %s", tt.policy, g.Policy(), want)
 			}
 			log := g.Changes()
 			if len(log) != 1 || log[0].Reason != "test" || (log[0].Err == nil) != tt.ok {
@@ -156,14 +156,44 @@ func TestGuardedPassesReads(t *testing.T) {
 
 func TestGuardedRefusedPolicyChangeKeepsWritesOut(t *testing.T) {
 	tr, s, g := guarded(t, wire.Mouse)
-	if err := g.Set(wire.Edit, "M2 must stay read-only"); err == nil {
-		t.Fatal("Set(Edit) succeeded")
+	if err := g.Set(wire.Reset, "reset stays off until H7"); err == nil {
+		t.Fatal("Set(Reset) succeeded")
 	}
-	if err := tr.Write(wire.MustBuild(wire.Mouse, wire.CmdWrite, 0x60, []byte{1, 1, 0, 0x53})); !errors.Is(err, hidio.ErrForbidden) {
-		t.Fatalf("cmd 7 after a refused Set(Edit) = %v", err)
+	if err := tr.Write(wire.MustBuild(wire.Mouse, wire.CmdClear, 0, nil)); !errors.Is(err, hidio.ErrForbidden) {
+		t.Fatalf("cmd 9 after a refused Set(Reset) = %v", err)
 	}
 	if len(s.sent) != 0 {
-		t.Fatal("cmd 7 reached the Raw")
+		t.Fatal("cmd 9 reached the Raw")
+	}
+}
+
+// Edit lets cmd 7 through to the mouse and nothing else new: no cmd 9 or 22,
+// and no keyboard write.
+func TestGuardedEditAllowsOnlyMouseWrites(t *testing.T) {
+	tr, s, g := guarded(t, wire.Mouse)
+	if err := g.Set(wire.Edit, "apply"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.Write(wire.MustBuild(wire.Mouse, wire.CmdWrite, 0x60, []byte{1, 1, 0, 0x53})); err != nil {
+		t.Fatalf("cmd 7 under Edit = %v", err)
+	}
+	for _, p := range []wire.Packet{
+		wire.MustBuild(wire.Mouse, wire.CmdClear, 0, nil),
+		wire.MustBuild(wire.Mouse, wire.CmdSetLongRange, 0, []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0}),
+		wire.MustBuild(wire.Mouse, wire.CmdSetProfile, 0, []byte{1}),
+	} {
+		if err := tr.Write(p); !errors.Is(err, hidio.ErrForbidden) {
+			t.Fatalf("%v under Edit = %v, want ErrForbidden", p.Cmd(), err)
+		}
+	}
+	if err := g.SetTarget(wire.Keyboard, "keyboard"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.Write(wire.MustBuild(wire.Keyboard, wire.CmdWrite, 0x24c0, []byte{1})); !errors.Is(err, hidio.ErrForbidden) {
+		t.Fatalf("keyboard cmd 7 under Edit = %v, want ErrForbidden", err)
+	}
+	if len(s.sent) != 1 {
+		t.Fatalf("%d packets reached the Raw, want the one mouse write", len(s.sent))
 	}
 }
 

@@ -9,9 +9,10 @@ import (
 	"github.com/positronico/arcctl/internal/wire"
 )
 
-// enabled lists the policies this build lets a session switch to. M2 ships
-// read-only, so no path can send a state-changing command.
-var enabled = []wire.Policy{wire.ReadOnly}
+// enabled lists the policies this build lets a session switch to. Reset stays
+// off until H7 (D4), and Experimental, which adds cmd 22, until long range has
+// an H8 measurement (D5).
+var enabled = []wire.Policy{wire.ReadOnly, wire.Edit}
 
 // Change is one entry of a Guard's log: the policy and target after the call,
 // or the refusal.

@@ -1,0 +1,27 @@
+Usage: arcctl hwtest --stage name [--dry-run] [--repo dir] [--trace-for d]
+                     [--debug-abort-after-chunk n]
+
+Run a hardware test stage, with you at the mouse. A write stage takes a fresh
+full backup, prints every step with its exact packets, and writes only after you
+confirm.
+
+Flags:
+  -debug-abort-after-chunk n
+      end the process right after chunk n of a record is acknowledged, as a
+      crash would; the journal settles the write on the next start
+  -repo string
+      the arcctl checkout that gets the transcripts, the log entry and
+      verified.json (default: the one around the current folder; a rehearsal
+      with --emulate records to a temporary folder)
+  -stage stage
+      the stage to run: H0, H1, H2, H3, H3b
+  -trace-for duration
+      how long H0 listens while the web app is connected (default 20s)
+
+With --dry-run, a write stage (H1, H2, H3, H3b) prints only that preview and
+exits: it takes no backup, asks nothing, writes nothing and records nothing, and
+needs no tier flag. H0 writes nothing and has no dry run.
+
+Global flags: see 'arcctl help'. The write flags --allow-untested,
+--experimental and --allow-foreign-client apply to the stage's writes; --emulate
+runs it as a rehearsal.

@@ -1,0 +1,11 @@
+ProtoArc EM11 Pro, identity 260d-1282-7b04
+Finishing apply $RUN1
+   Op  Record     State         What
+    1  384+20     failed, old   finish: shortcut 4
+Backup saved before the write:
+  $TMP/backups/em11-pro-260d-1282-7b04/20260926T120000Z-auto-before-write.json
+--- stderr
+arcctl: the recovery stopped at 384+20 (finish: shortcut 4) with 0 of 2 chunks
+  acknowledged; the record is old: cmd 7 (write): rejected by the device
+  The journal keeps the old and new bytes of every record. Run 'arcctl journal
+  recover' again once the cause is cleared.

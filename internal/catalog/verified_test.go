@@ -8,12 +8,19 @@ import (
 	"github.com/positronico/arcctl/internal/mouse"
 )
 
-func TestVerifiedIsEmpty(t *testing.T) {
+// verified.json fills as the hardware stages pass; whatever it holds, each
+// entry covers its own model, feature and firmware and nothing else.
+func TestVerifiedCoversOnlyWhatItNames(t *testing.T) {
 	v := catalog.VerifiedStages()
-	if v == nil || len(v) != 0 {
-		t.Errorf("verified.json holds %v, want an empty list", v)
+	if v == nil {
+		t.Fatal("VerifiedStages is nil, want at least an empty list")
 	}
-	if v.Covers("7B04", "dpi.value", "v1.07") {
+	for _, x := range v {
+		if !v.Covers(x.Model, x.Feature, x.Firmware) || v.Covers(x.Model, x.Feature, "v0.00") {
+			t.Errorf("%+v", x)
+		}
+	}
+	if (catalog.Verifications{}).Covers("7B04", "dpi.value", "v1.07") {
 		t.Error("an empty list covers a feature")
 	}
 }

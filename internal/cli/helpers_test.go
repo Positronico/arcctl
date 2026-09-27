@@ -23,6 +23,7 @@ import (
 	"github.com/positronico/arcctl/internal/keys"
 	"github.com/positronico/arcctl/internal/mouse"
 	"github.com/positronico/arcctl/internal/platform"
+	"github.com/positronico/arcctl/internal/safety"
 	"github.com/positronico/arcctl/internal/session"
 	"github.com/positronico/arcctl/internal/vectors"
 	"github.com/positronico/arcctl/internal/wire"
@@ -82,23 +83,35 @@ func newHarness(t *testing.T) *harness {
 
 func (h *harness) env(stdout, stderr *bytes.Buffer) cli.Env {
 	return cli.Env{
-		Stdout:  stdout,
-		Stderr:  stderr,
-		Version: "test",
-		Now:     func() time.Time { return now },
-		Paths:   func() (platform.Paths, error) { return h.paths, nil },
-		Host:    h.host,
-		HID:     func(string) (session.Devices, error) { return h.bus, nil },
-		Timing:  fast(),
+		Stdout:   stdout,
+		Stderr:   stderr,
+		Version:  "test",
+		Now:      func() time.Time { return now },
+		Paths:    func() (platform.Paths, error) { return h.paths, nil },
+		Host:     h.host,
+		HID:      func(string) (session.Devices, error) { return h.bus, nil },
+		Timing:   fast(),
+		Executor: execOptions(),
 	}
+}
+
+// execOptions keeps the write executor's waits short.
+func execOptions() safety.Options {
+	return safety.Options{OfflineWait: 300 * time.Millisecond, LockWait: 300 * time.Millisecond, Poll: 5 * time.Millisecond}
 }
 
 // run runs one command line and returns its output with the harness's paths
 // replaced by $TMP and $ROOT.
 func (h *harness) run(args ...string) (stdout, stderr string, code int) {
 	h.t.Helper()
+	return h.runCtx(context.Background(), args...)
+}
+
+// runCtx is run with a context the test may cancel, as an interrupt does.
+func (h *harness) runCtx(ctx context.Context, args ...string) (stdout, stderr string, code int) {
+	h.t.Helper()
 	var out, errb bytes.Buffer
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	code = cli.Run(ctx, args, h.env(&out, &errb))
 	return h.clean(out.String()), h.clean(errb.String()), code
@@ -109,10 +122,26 @@ func (h *harness) clean(s string) string {
 	s = strings.ReplaceAll(s, h.root, "$ROOT")
 	s = strings.ReplaceAll(s, runtime.GOOS+"/"+runtime.GOARCH, "$PLATFORM")
 	s = strings.ReplaceAll(s, "pid "+strconv.Itoa(os.Getpid())+")", "pid $PID)")
+	s = started.ReplaceAllString(s, "started $$TIME")
+	ids := map[string]string{}
+	s = runID.ReplaceAllStringFunc(s, func(id string) string {
+		if n, ok := ids[id]; ok {
+			return n
+		}
+		ids[id] = "$RUN" + strconv.Itoa(len(ids)+1)
+		return ids[id]
+	})
 	return goVersion.ReplaceAllString(s, "$$GO")
 }
 
-var goVersion = regexp.MustCompile(regexp.QuoteMeta(runtime.Version()))
+var (
+	goVersion = regexp.MustCompile(regexp.QuoteMeta(runtime.Version()))
+	// runID matches journal run IDs, which hold the time a session started
+	// and its pid; clean numbers them in order of appearance. Runs start at
+	// the real time, unlike backups.
+	runID   = regexp.MustCompile(`\d{8}T\d{6}\.\d{9}Z-\d+(?:-\d+)?/\d+`)
+	started = regexp.MustCompile(`started \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC`)
+)
 
 func (h *harness) dump() string { return filepath.Join(h.root, "testdata", "flash-dump.bin") }
 

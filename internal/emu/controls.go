@@ -136,6 +136,33 @@ func (d *Device) SwitchProfile(p byte) error {
 	return nil
 }
 
+// SetProfile changes the onboard profile without a push, as a switch the
+// host never hears of would: one made while the mouse sleeps, say.
+func (d *Device) SetProfile(p byte) error {
+	d.bus.mu.Lock()
+	defer d.bus.mu.Unlock()
+	m := d.mouse
+	switch {
+	case m == nil:
+		return ErrNotPaired
+	case m.profile == nil:
+		return errors.New("emu: the mouse has no profiles")
+	}
+	*m.profile = p
+	return nil
+}
+
+// Store changes the mouse's flash at addr without a push, as a write by
+// another program would.
+func (d *Device) Store(addr int, b []byte) error {
+	d.bus.mu.Lock()
+	defer d.bus.mu.Unlock()
+	if d.mouse == nil {
+		return ErrNotPaired
+	}
+	return d.mouse.image.Set(addr, b)
+}
+
 // SetBattery changes what cmd 4 reports.
 func (d *Device) SetBattery(b Battery) {
 	d.bus.mu.Lock()

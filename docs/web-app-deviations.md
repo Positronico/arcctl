@@ -18,7 +18,14 @@ arcctl speaks the same protocol as the vendor's web app but does not copy its be
 
 ## Writes
 
-TODO (M3): online check before each record, read-back verification, the journal, body-before-binding order, commands arcctl never sends, restore behaviour.
+- **Online check per record.** The web app sends cmd 3 once per setting, and not every setter does [WE](v). arcctl sends cmd 3 before every record and needs a matching reply that says online. A write that goes unanswered asks again: a sleeping mouse pauses the write, and the record is then written again from its first chunk.
+- **Read-back.** The web app never reads a record back, and after a rejected write (status 1) it still updates its copy as if the write went through [WE](v). arcctl reads back every record it writes and compares it byte for byte. A NAK or a mismatch stops the write; the reply to a write is only logged.
+- **Journal and backups.** The web app writes each change as soon as it is made and keeps nothing on disk. arcctl saves a backup before its first write to a mouse and profile (a full one before the first write ever), puts each record's old and new bytes in a journal on disk before the first packet, and settles an interrupted write the next time it loads the mouse. See [safety.md](safety.md).
+- **Body before binding.** On this mouse, the web app's button page writes a macro's binding before its body, and saving an edited macro that a button already runs rewrites the body while the button points at it [WE](v). arcctl writes a new body before the binding that runs it. When it rewrites a body a button uses, it disables that binding first, writes and reads back the body, and then binds it again, so an interrupted write leaves the button disabled instead of running half a macro.
+- **Pushes during a write.** In the web app, the re-read a push starts can run while a write is under way [TS](v). arcctl holds pushes until the write ends. A profile switch stops the write before its next packet; a push that re-reads a range the write has yet to reach stops it after the current record.
+- **Blocked writes.** arcctl does not write while another program has the receiver open (unless you pass `--allow-foreign-client`), while replies go missing or arrive unasked, while the screen is locked or Secure Input is on, or while its journal holds an unfinished write. The web app has no such checks.
+- **Commands arcctl does not send.** Factory reset (cmd 9) stays disabled until hardware test H7 has documented what it clears, and the long-range switch (cmd 22) until a test has measured it. arcctl never sends the pairing commands (cmds 5 and 6), the profile switch (cmd 15) or the receiver lighting commands, and never writes the button-behaviour field at address 8.
+- **Restore.** TODO (M5): how a restore differs from the web app's import.
 
 ## Decoding
 

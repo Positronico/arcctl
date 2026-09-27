@@ -1,0 +1,4 @@
+ProtoArc EM11 Pro, identity 260d-1282-7b04
+Settled apply $RUN1 forward:
+  every record already held what the run meant to leave; nothing was written.
+Nothing to recover: the journal of this mouse is clean.

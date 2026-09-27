@@ -18,9 +18,11 @@ const (
 	Hang                        // the write blocks until Release; then the packet goes through
 	Fail                        // the write fails with Fault.Err and the packet is lost
 	Unplug                      // the device goes away; the write fails with ErrGone
+	Ignore                      // a cmd 7 is answered as usual, but the flash keeps its old bytes
+	Corrupt                     // a cmd 7 is answered as usual, but the flash takes its data with the first byte's low bit flipped
 )
 
-var actionNames = [...]string{"none", "drop", "nak", "duplicate", "late", "asleep", "hang", "fail", "unplug"}
+var actionNames = [...]string{"none", "drop", "nak", "duplicate", "late", "asleep", "hang", "fail", "unplug", "ignore", "corrupt"}
 
 func (a Action) String() string {
 	if int(a) < len(actionNames) {

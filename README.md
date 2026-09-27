@@ -6,11 +6,11 @@ arcctl is unofficial. It is not affiliated with, endorsed by, or supported by Pr
 
 ## Status
 
-M2 read-only CLI; hardware check H0 pending.
+M3 write engine code complete; hardware stages H0-H3 pending.
 
-Pre-alpha. The pure core (M1) and the read-only transport, session and CLI (M2) are built and tested against an emulator. arcctl can read a mouse but cannot change any setting: this build refuses every command that writes, and the read-only hardware check (H0) on a real receiver has not been signed off yet.
+Pre-alpha. The pure core (M1), the read-only transport, session and CLI (M2) and the write engine (M3: preflight, executor, journal, recovery, revert and dry run) are built and tested against an emulator, including a fault-injection matrix. No command changes a setting yet; editing arrives with the TUI (M4). The only command that writes is `arcctl journal recover`, which settles a write a crash left unfinished. None of this has run on a real receiver: the hardware stages H0 to H3 have not been signed off.
 
-Read-only commands:
+Commands:
 
 | Command | What it does |
 |---|---|
@@ -21,9 +21,11 @@ Read-only commands:
 | `arcctl show FILE`, `arcctl diff A [B]` | decode a backup or web `.bin`, or compare two (or one with the mouse) |
 | `arcctl export-bin BACKUP -o FILE` | write a file the web app can import |
 | `arcctl trace [--for 60s]` | print every report the receiver sends; sends nothing |
+| `arcctl journal status` | list writes a crash left unfinished, and the last write that changed each mouse |
+| `arcctl journal recover [--forward\|--back\|--leave]` | settle an unfinished write: finish it, roll it back, or record it as settled |
 | `arcctl redact IN -o OUT` | strip addresses and shortcut and macro content from a `--record` transcript |
 
-On macOS, arcctl first checks that the terminal app has Input Monitoring (System Settings, Privacy & Security); `arcctl doctor` names the app to grant it to. `--emulate FILE` runs any command against an emulated mouse, with no hardware.
+On macOS, arcctl first checks that the terminal app has Input Monitoring (System Settings, Privacy & Security); `arcctl doctor` names the app to grant it to. `--emulate FILE` runs a command against an emulated mouse, with no hardware; the `journal` commands refuse it, because only a real mouse has a journal.
 
 ## Planned scope
 

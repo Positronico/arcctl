@@ -473,6 +473,8 @@ func (s *Session) forgetMouse() {
 	s.image, s.shown, s.unread = nil, nil, nil
 	s.battery, s.profile, s.longRange = nil, Probe{}, Probe{}
 	s.versions.Mouse = ""
+	s.overlay, s.overlayKey, s.jstate, s.journalDue = nil, "", nil, false
+	s.forgetBackups("the mouse is forgotten")
 	s.dirty = true
 }
 

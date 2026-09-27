@@ -11,7 +11,7 @@ Profile     onboard profile 0
 Long range  on
 Identity    260d-1282-7b04 (without the address until it is confirmed stable)
 Loaded      544 bytes
-Writes      off: this build only reads
+Writes      journal recovery only; editing arrives with the TUI
 
 Feature tiers
   untested     dpi.stages dpi.current dpi.value button.system button.media

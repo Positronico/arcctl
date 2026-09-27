@@ -63,7 +63,9 @@ type job struct {
 	done    int
 	total   int
 	begun   time.Time
-	moved   time.Time // the last reply, for the load watchdog
+	moved   time.Time    // the last reply, for the load watchdog
+	own     bool         // a load after the session's own write
+	was     *flash.Image // the working image when the load started
 }
 
 func (s *Session) addJob(j *job) {
@@ -106,8 +108,14 @@ func (j *job) abandoned() bool {
 }
 
 func (s *Session) progress() Progress {
+	if w := s.writing; w != nil {
+		return Progress{Job: w.kind.String(), Done: w.done, Total: w.total, Paused: w.paused}
+	}
 	j := s.nextJob()
 	if j == nil {
+		if s.journalDue {
+			return Progress{Job: "journal", Paused: s.base != Ready}
+		}
 		return Progress{}
 	}
 	return Progress{Job: jobNames[j.kind], Done: j.done, Total: j.total, Paused: s.base != Loading && s.base != Ready}
@@ -168,6 +176,9 @@ func (s *Session) start(j *job) bool {
 	case jobLoad:
 		j.im = flash.New()
 		j.ops = reads(loadSettings, loadExtended)
+		if s.image != nil {
+			j.was = s.image.Clone()
+		}
 	case jobReread:
 		j.ops = reads(j.want...)
 	default:
@@ -242,6 +253,8 @@ func (s *Session) runOp(ctx context.Context, j *job) {
 		j.failed = append(j.failed, o.e)
 		j.pop()
 	case errors.Is(t.err, ErrOffline), ctx.Err() != nil:
+	case errors.Is(t.err, ErrNoReply) && s.othersOpen():
+		s.log.Info("another program holds the receiver and took the replies; reading the chunk again", "job", jobNames[j.kind], "extent", o.e)
 	case errors.Is(t.err, ErrNoReply), transient(t.err):
 		if transient(t.err) {
 			if s.writeFailed(t.err); !slices.Contains(s.jobs, j) {
@@ -322,9 +335,13 @@ func (s *Session) finish(j *job, err error) {
 	if err == nil {
 		switch j.kind {
 		case jobLoad:
+			if !j.own && j.was != nil && drifted(j.was, j.im) {
+				s.forgetBackups("the reload found bytes the backups before a write do not hold")
+			}
 			s.image, s.unread = j.im, j.failed
 			s.log.Info("loaded", "unread", len(j.failed))
 			s.ready()
+			s.journalDue = s.opt.Writes != nil
 		case jobBackup, jobRead:
 			res.capture = s.capture(j)
 		}
@@ -338,23 +355,63 @@ func (s *Session) finish(j *job, err error) {
 }
 
 func (s *Session) capture(j *job) Capture {
-	return Capture{
+	return s.captureOf(j.im, j.full, j.failed, j.begun)
+}
+
+func (s *Session) captureOf(im *flash.Image, full bool, missing []flash.Extent, started time.Time) Capture {
+	c := Capture{
 		Device:   s.identity(),
 		Model:    s.model,
 		Profile:  s.profile,
 		Versions: s.versions,
-		Image:    j.im,
-		Full:     j.full,
-		Missing:  slices.Clone(j.failed),
-		Started:  j.begun,
+		Image:    im,
+		Full:     full,
+		Missing:  slices.Clone(missing),
+		Started:  started,
 		Finished: time.Now(),
 	}
+	if s.hs != nil {
+		h := *s.hs
+		c.Handshake = &h
+	}
+	return c
+}
+
+// drifted reports whether now knows a byte that was does not, or differs
+// from it.
+func drifted(was, now *flash.Image) bool {
+	for _, e := range now.KnownExtents() {
+		a, _ := now.Get(e)
+		for i, x := range a {
+			if y, ok := was.Byte(e.Addr + i); !ok || x != y {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// othersOpen reports whether the client scan finds another program on the
+// device's interface: a read it left unanswered was most likely taken by
+// that program, so the read is not given up (§10 item 6).
+func (s *Session) othersOpen() bool {
+	if s.opt.Clients == nil || s.dev == nil {
+		return false
+	}
+	cs, err := s.opt.Clients(s.dev.c)
+	if err != nil {
+		return false
+	}
+	s.clients, s.dirty = cs, true
+	return len(cs) > 0
 }
 
 // profileSwitched restarts the load, since every byte may have changed, and
 // fails backups, which would mix two profiles.
 func (s *Session) profileSwitched() {
 	s.log.Info("onboard profile switched")
+	s.overlay = nil
+	s.forgetBackups("the onboard profile switched")
 	var load *job
 	s.jobs = slices.DeleteFunc(s.jobs, func(j *job) bool {
 		switch j.kind {

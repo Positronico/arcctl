@@ -1,0 +1,2 @@
+arcctl: journal: unknown subcommand "undo"; use status or recover
+  Run 'arcctl help journal' for its subcommands and flags.

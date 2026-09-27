@@ -1,0 +1,2 @@
+arcctl: journal recover: choose one of --forward, --back and --leave
+  Run 'arcctl help journal' for its subcommands and flags.

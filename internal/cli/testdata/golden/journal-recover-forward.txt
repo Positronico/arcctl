@@ -1,0 +1,12 @@
+ProtoArc EM11 Pro, identity 260d-1282-7b04
+Finishing apply $RUN1
+   Op  Record     State         What
+    1  384+20     verified      finish: shortcut 4
+    2  112+4      verified      finish: disable binding 4 while its body is
+                                rewritten
+    3  12+4       verified      finish: DPI stage 1: 900
+Backup saved before the write:
+  $TMP/backups/em11-pro-260d-1282-7b04/20260926T120000Z-auto-before-write.json
+Run $RUN1 is settled forward.
+Recovery run $RUN2: 3 writes verified.
+The journal of this mouse is clean.

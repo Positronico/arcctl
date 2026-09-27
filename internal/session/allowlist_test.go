@@ -11,6 +11,7 @@ import (
 	"github.com/positronico/arcctl/internal/emu"
 	"github.com/positronico/arcctl/internal/flash"
 	"github.com/positronico/arcctl/internal/plan"
+	"github.com/positronico/arcctl/internal/safety"
 	"github.com/positronico/arcctl/internal/session"
 	"github.com/positronico/arcctl/internal/wire"
 )
@@ -105,7 +106,7 @@ func chaos(t *testing.T, seed uint64) {
 			}
 		case 15:
 			call(func(ctx context.Context) {
-				if err := s.Apply(ctx, plan.Plan{Ops: []plan.Op{{New: []byte{1}}}}, nil); !errors.Is(err, session.ErrReadOnly) {
+				if _, err := s.Apply(ctx, plan.Plan{Ops: []plan.Op{{New: []byte{1}}}}, safety.Gates{}, nil); !errors.Is(err, session.ErrReadOnly) {
 					t.Errorf("Apply = %v", err)
 				}
 			})

@@ -22,6 +22,7 @@ import (
 const (
 	hidioPath   = module + "/internal/hidio"
 	sessionPath = module + "/internal/session"
+	safetyPath  = module + "/internal/safety"
 )
 
 type goPackage struct {
@@ -33,7 +34,8 @@ type goPackage struct {
 }
 
 // TestGuardWiring enforces the guard wiring in docs/decisions.md. Only the
-// session (and hidio's own tests) may call Guard.Set, no exported function
+// session (and the tests of hidio and safety, whose emulator link stands in
+// for the session) may call Guard.Set, no exported function
 // outside hidio returns a hidio.Raw, and no type outside hidio that embeds a
 // Transport replaces its Write. So a packet reaches a device only through a
 // Transport that Guarded made, under the policy the session chose. The device
@@ -63,7 +65,11 @@ func TestGuardWiring(t *testing.T) {
 			pkg, info := typeCheck(t, fset, imp, path, p.Dir, names)
 			if p.ImportPath != sessionPath {
 				for _, pos := range guardSets(info, guard) {
-					t.Errorf("%s calls hidio.Guard.Set; only the session may switch the policy", fset.Position(pos))
+					where := fset.Position(pos)
+					if p.ImportPath == safetyPath && strings.HasSuffix(where.Filename, "_test.go") {
+						continue
+					}
+					t.Errorf("%s calls hidio.Guard.Set; only the session may switch the policy", where)
 				}
 			}
 			if path == p.ImportPath {

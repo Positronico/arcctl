@@ -4,9 +4,9 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 FUZZTIME ?= 5s
 PLATFORMS := darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64
 
-.PHONY: check vendorguard fmt tidy vet staticcheck test fuzz cross usbhid-patches notices release-check mirror-only drift oracle generate build clean
+.PHONY: check vendorguard fmt tidy vet staticcheck test test-hwtest fuzz cross usbhid-patches notices release-check mirror-only drift oracle generate build clean
 
-check: vendorguard fmt tidy vet staticcheck test fuzz cross usbhid-patches notices release-check mirror-only
+check: vendorguard fmt tidy vet staticcheck test test-hwtest fuzz cross usbhid-patches notices release-check mirror-only
 
 vendorguard:
 	@bash scripts/vendorguard.sh
@@ -27,6 +27,9 @@ staticcheck:
 
 test:
 	$(GO) test -race ./...
+
+test-hwtest:
+	$(GO) test -race -tags hwtest ./...
 
 fuzz:
 	@set -e; log=$$(mktemp); trap 'rm -f "$$log"' EXIT; \
