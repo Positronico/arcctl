@@ -66,6 +66,9 @@ type Options struct {
 	Backups session.Backups
 	// DataDir is where the journal and the backups go; Info shows it.
 	DataDir string
+	// Library is the macro library file of the Macros tab; empty means
+	// none.
+	Library string
 	// Notes are what arcctl said before the TUI started: the first notice,
 	// and kept on the Info tab.
 	Notes []string
@@ -80,20 +83,40 @@ type Options struct {
 	Review func(c *Context) Dialog
 }
 
-// Run shows the TUI until the user quits or ctx ends.
+// saveWait is how long quitting waits for the tabs' last background saves,
+// such as the macro library's.
+const saveWait = 5 * time.Second
+
+// Run shows the TUI until the user quits or ctx ends, then waits up to
+// saveWait for the saves still running; a save that failed or did not finish
+// is in the error.
 func Run(ctx context.Context, o Options) error {
+	var opts []tea.ProgramOption
+	if o.NoColor {
+		opts = append(opts, tea.WithColorProfile(colorprofile.ASCII))
+	}
+	return run(ctx, o, saveWait, opts...)
+}
+
+// run is Run with the program's options and the wait for the saves given.
+func run(ctx context.Context, o Options, wait time.Duration, opts ...tea.ProgramOption) error {
 	if o.Session == nil {
 		return errors.New("tui: no session")
 	}
 	app := New(ctx, o)
 	defer app.Close()
-	opts := []tea.ProgramOption{tea.WithContext(ctx)}
-	if o.NoColor {
-		opts = append(opts, tea.WithColorProfile(colorprofile.ASCII))
-	}
-	_, err := tea.NewProgram(app, opts...).Run()
+	_, err := tea.NewProgram(app, append([]tea.ProgramOption{tea.WithContext(ctx)}, opts...)...).Run()
 	if errors.Is(err, tea.ErrProgramKilled) && ctx.Err() != nil {
-		return ctx.Err()
+		err = ctx.Err()
 	}
-	return err
+	fctx, cancel := context.WithTimeout(context.Background(), wait)
+	defer cancel()
+	switch ferr := app.flush(fctx); {
+	case ferr == nil:
+		return err
+	case err == nil || ctx.Err() != nil:
+		return ferr
+	default:
+		return errors.Join(err, ferr)
+	}
 }

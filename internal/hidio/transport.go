@@ -10,7 +10,8 @@ import (
 // Transport is the only way arcctl sends packets to a device. Only Guarded
 // makes one.
 //
-// Write checks p against the guard before any I/O. Reports carries only
+// Write checks p against the guard before any I/O, and sends the gated packet
+// of a gated policy with no resend. Reports carries only
 // report-8 frames of 16 bytes; every other input report, and any activity the
 // Raw coalesced itself, becomes one pending signal on Wake. Reports is closed
 // when input stops, and Err then says why (nil after Close). Dropped counts the
@@ -58,11 +59,14 @@ type transport struct {
 func (*transport) guarded() {}
 
 func (t *transport) Write(p wire.Packet) error {
-	if err := t.guard.Check(p); err != nil {
+	once, err := t.guard.check(p)
+	switch {
+	case err != nil:
 		return err
-	}
-	if t.closed.Load() {
+	case t.closed.Load():
 		return ErrClosed
+	case once:
+		return t.raw.WriteRawOnce(p)
 	}
 	return t.raw.WriteRaw(p)
 }

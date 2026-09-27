@@ -405,8 +405,8 @@ func TestErrorsNameTheOp(t *testing.T) {
 
 func TestPhaseString(t *testing.T) {
 	for p, want := range map[plan.Phase]string{
-		plan.Neutralise: "neutralise", plan.Body: "body", plan.Bind: "bind", plan.Record: "record",
-		0: "Phase(0)", 5: "Phase(5)",
+		plan.Neutralise: "neutralise", plan.Body: "body", plan.Bind: "bind", plan.Record: "record", plan.Captured: "captured",
+		0: "Phase(0)", 6: "Phase(6)",
 	} {
 		if got := p.String(); got != want {
 			t.Errorf("Phase(%d).String() = %q, want %q", p, got, want)

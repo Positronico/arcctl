@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/positronico/arcctl/internal/catalog"
+	"github.com/positronico/arcctl/internal/flash"
 	"github.com/positronico/arcctl/internal/hidio"
 	"github.com/positronico/arcctl/internal/safety"
 )
@@ -69,12 +71,17 @@ type Writes struct {
 	Console func() (safety.Console, error)
 	// Executor tunes the executor; its Log defaults to the session's.
 	Executor safety.Options
+	// verified replaces, in tests only, the hardware records compiled from
+	// verified.json that open the factory reset (D4).
+	verified catalog.Verifications
 }
 
 // Backups saves the backups I1 requires before a write and returns where
 // each went; backup.Store implements it.
 type Backups interface {
 	Save(c Capture, label string) (string, error)
+	// Image reads back the bytes the backup saved at path holds.
+	Image(path string) (*flash.Image, error)
 }
 
 // Timing holds every delay and cadence the session uses. Zero fields take
@@ -96,6 +103,7 @@ type Timing struct {
 	Suspect       time.Duration // cmd 3 and client scan while SuspectedConflict
 	ConflictQuiet time.Duration // silence needed before a Conflict can be cleared
 	LoadWatchdog  time.Duration // a job with no successful read this long gives up its remaining reads
+	ResetReply    time.Duration // how long a factory reset waits for its reply; it is never sent again
 }
 
 func DefaultTiming() Timing {
@@ -116,6 +124,7 @@ func DefaultTiming() Timing {
 		Suspect:       5 * time.Second,
 		ConflictQuiet: 10 * time.Second,
 		LoadWatchdog:  30 * time.Second,
+		ResetReply:    3 * time.Second,
 	}
 }
 
@@ -125,7 +134,7 @@ func (t Timing) withDefaults() Timing {
 		{&t.Try, &d.Try}, {&t.ProbeTry, &d.ProbeTry}, {&t.Window, &d.Window}, {&t.Debounce, &d.Debounce},
 		{&t.Rescan, &d.Rescan}, {&t.RescanMax, &d.RescanMax}, {&t.Retry, &d.Retry}, {&t.RetryMax, &d.RetryMax},
 		{&t.Offline, &d.Offline}, {&t.Online, &d.Online}, {&t.Battery, &d.Battery}, {&t.Suspect, &d.Suspect},
-		{&t.ConflictQuiet, &d.ConflictQuiet}, {&t.LoadWatchdog, &d.LoadWatchdog},
+		{&t.ConflictQuiet, &d.ConflictQuiet}, {&t.LoadWatchdog, &d.LoadWatchdog}, {&t.ResetReply, &d.ResetReply},
 	}
 	for _, x := range durations {
 		if *x.v <= 0 {

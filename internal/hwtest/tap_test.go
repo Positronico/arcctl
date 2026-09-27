@@ -81,3 +81,43 @@ func TestOnlineCheckShares(t *testing.T) {
 		t.Fatal("the session did not see the cmd-3 reply")
 	}
 }
+
+type pipeRaws struct {
+	pipes []*hidio.Pipe
+}
+
+func (p *pipeRaws) Enumerate() ([]hidio.Candidate, error) { return nil, nil }
+
+func (p *pipeRaws) OpenRaw(hidio.Candidate) (hidio.Raw, error) {
+	pipe := hidio.NewPipe(func(wire.Packet) error { return nil })
+	p.pipes = append(p.pipes, pipe)
+	return pipe, nil
+}
+
+// A reply to the reset that comes after the stage opened a new session is
+// kept from that session too, and counted late.
+func TestLateResetRepliesReachNoSession(t *testing.T) {
+	raws := &pipeRaws{}
+	d := newDevices(raws)
+	d.expect(isCmd(wire.CmdClear), time.Minute)
+	tr, err := d.Open(hidio.Candidate{Path: "a"}, hidio.NewGuard(wire.Mouse), nil)
+	must(t, err)
+	defer tr.Close()
+	tp, err := d.tap("a")
+	must(t, err)
+	late := resetPacket()
+	raws.pipes[0].Deliver(wire.ReportID, late[:])
+	other := wire.MustBuild(wire.Mouse, wire.CmdOnline, 0, nil)
+	raws.pipes[0].Deliver(wire.ReportID, other[:])
+	select {
+	case r := <-tr.Reports():
+		if p, _ := r.Packet(); p.Cmd() != wire.CmdOnline {
+			t.Fatalf("the session got %v", r)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("the session got nothing")
+	}
+	if tp.lateReplies() != 1 {
+		t.Errorf("late replies %d", tp.lateReplies())
+	}
+}

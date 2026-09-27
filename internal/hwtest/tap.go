@@ -37,6 +37,14 @@ type devices struct {
 	raw  RawDevices
 	mu   sync.Mutex
 	taps map[string]*tap
+	late []lateClaim
+}
+
+// lateClaim keeps frames match accepts from every session until until: the
+// late replies to a raw packet, which may reach a tap opened after it.
+type lateClaim struct {
+	match func(wire.Packet) bool
+	until time.Time
 }
 
 func newDevices(r RawDevices) *devices {
@@ -56,8 +64,23 @@ func (d *devices) Open(c hidio.Candidate, g *hidio.Guard, rec *hidio.Recorder) (
 	t := newTap(r)
 	d.mu.Lock()
 	d.taps[c.Path] = t
+	for _, l := range d.late {
+		t.keep(l)
+	}
 	d.mu.Unlock()
 	return hidio.Guarded(t, g), nil
+}
+
+// expect keeps the frames match accepts from the sessions of every tap,
+// open now or later, for d: they are late replies to the raw path.
+func (d *devices) expect(match func(wire.Packet) bool, dur time.Duration) {
+	l := lateClaim{match: match, until: time.Now().Add(dur)}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.late = append(d.late, l)
+	for _, t := range d.taps {
+		t.keep(l)
+	}
 }
 
 // tap returns the open tap of the interface at path.
@@ -99,6 +122,16 @@ func newTap(r hidio.Raw) *tap {
 // WriteRaw is the session's write. Replies of the shape it asks for belong
 // to the session from now on: claims that would take them give them up.
 func (t *tap) WriteRaw(p wire.Packet) error {
+	t.yield(p)
+	return t.raw.WriteRaw(p)
+}
+
+func (t *tap) WriteRawOnce(p wire.Packet) error {
+	t.yield(p)
+	return t.raw.WriteRawOnce(p)
+}
+
+func (t *tap) yield(p wire.Packet) {
 	t.mu.Lock()
 	now := time.Now()
 	for _, c := range t.claims {
@@ -110,7 +143,6 @@ func (t *tap) WriteRaw(p wire.Packet) error {
 		}
 	}
 	t.mu.Unlock()
-	return t.raw.WriteRaw(p)
 }
 
 func (t *tap) Reports() <-chan hidio.Report { return t.out }
@@ -241,10 +273,12 @@ func (t *tap) take(r hidio.Report) bool {
 // exchangeOpts shape one raw exchange: first is how long it waits for the
 // first answer, listen how long it keeps listening after it for more, and
 // linger how long afterwards a swallowing claim still keeps late answers from
-// the session.
+// the session. once sends the packet with no resend, even after an error the
+// OS calls transient.
 type exchangeOpts struct {
 	match   func(wire.Packet) bool
 	swallow bool
+	once    bool
 	first   time.Duration
 	listen  time.Duration
 	linger  time.Duration
@@ -283,7 +317,11 @@ func (t *tap) exchange(ctx context.Context, p wire.Packet, o exchangeOpts) (x ex
 		t.mu.Unlock()
 	}()
 	x.at = time.Now()
-	if err := t.raw.WriteRaw(p); err != nil {
+	send := t.raw.WriteRaw
+	if o.once {
+		send = t.raw.WriteRawOnce
+	}
+	if err := send(p); err != nil {
 		return x, err
 	}
 	wait := time.NewTimer(o.first)
@@ -305,6 +343,17 @@ func (t *tap) exchange(ctx context.Context, p wire.Packet, o exchangeOpts) (x ex
 	case <-wait.C:
 	}
 	return x, nil
+}
+
+// keep adds a claim that swallows the frames of l until it expires, and
+// counts them as late replies.
+func (t *tap) keep(l lateClaim) {
+	if time.Now().After(l.until) {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.claims = append(t.claims, &claim{match: l.match, swallow: true, expires: l.until})
 }
 
 // lateReplies counts the frames only claims whose exchange had ended took:

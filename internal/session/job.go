@@ -51,7 +51,9 @@ type op struct {
 // on, and everything read so far is kept.
 type job struct {
 	kind    jobKind
+	name    string // shown in Progress in place of the kind's name
 	full    bool
+	fresh   bool // a backup that reads every byte again, known or not
 	want    []flash.Extent
 	im      *flash.Image
 	ops     []op
@@ -118,7 +120,7 @@ func (s *Session) progress() Progress {
 		}
 		return Progress{}
 	}
-	return Progress{Job: jobNames[j.kind], Done: j.done, Total: j.total, Paused: s.base != Loading && s.base != Ready}
+	return Progress{Job: j.label(), Done: j.done, Total: j.total, Paused: s.base != Loading && s.base != Ready}
 }
 
 func (s *Session) reload(r request) {
@@ -172,14 +174,17 @@ func (s *Session) step(ctx context.Context) bool {
 
 func (s *Session) start(j *job) bool {
 	j.started, j.begun, j.moved = true, time.Now(), time.Now()
-	switch j.kind {
-	case jobLoad:
+	switch {
+	case j.kind == jobLoad:
 		j.im = flash.New()
 		j.ops = reads(loadSettings, loadExtended)
 		if s.image != nil {
 			j.was = s.image.Clone()
 		}
-	case jobReread:
+	case j.kind == jobReread:
+		j.ops = reads(j.want...)
+	case j.fresh:
+		j.im = flash.New()
 		j.ops = reads(j.want...)
 	default:
 		if s.image == nil {
@@ -272,6 +277,13 @@ func (s *Session) runOp(ctx context.Context, j *job) {
 		s.fail(t.err)
 	}
 	s.dirty = true
+}
+
+func (j *job) label() string {
+	if j.name != "" {
+		return j.name
+	}
+	return jobNames[j.kind]
 }
 
 func (j *job) pop() {

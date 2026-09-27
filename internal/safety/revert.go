@@ -37,7 +37,7 @@ func RevertPlan(r *Run, d Device) (plan.Plan, error) {
 		if !bytes.Equal(cur, s.After) {
 			return plan.Plan{}, fmt.Errorf("%w: %s holds % x, run %s left % x", ErrDiverged, s.Extent, cur, r.ID, s.After)
 		}
-		changes = append(changes, plan.Change{Addr: s.Extent.Addr, New: s.Before, Tier: s.Tier, Desc: "revert: " + s.Desc})
+		changes = append(changes, plan.Change{Addr: s.Extent.Addr, New: s.Before, Tier: s.Tier, Desc: "revert: " + s.Desc, Captured: s.Captured})
 	}
 	return plan.New(d.Identity, d.Profile, im, d.Layout, changes)
 }

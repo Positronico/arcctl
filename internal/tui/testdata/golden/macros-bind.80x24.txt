@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Macros]
+────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ Bind "Hello" until any key to a button
+   Button       Slot Now
+   Left Click   0    Left Click (guarded: the last Left Click)
+   Right Click  1    Right Click
+   Wheel Click  2    Cmd+V (Paste)
+ › Forward      4    Macro "Hello" until any key
+   Backward     3    Ctrl+Tab
+   DPI Cycle    5    Cmd+C (Copy)
+
+  writes the macro into slot 4 (@2304), then binds Forward (slot 4)
+  Forward (slot 4) may run that slot now, so it is disabled while the body is
+    rewritten, then bound again
+  tier untested: writes need --allow-untested
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter stage   ↑/↓ button   o win labels   ? all keys   esc back

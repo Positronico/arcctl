@@ -72,7 +72,10 @@ func (s *Session) checkJournal(ctx context.Context) {
 			}
 		}
 	}
-	js.Last = st.Last
+	js.Last, js.Resets = st.Last, st.Unsettled
+	if len(st.Unsettled) > 0 {
+		s.settleResets(j, st.Unsettled)
+	}
 	legacy, err := s.legacyRuns(id)
 	if err != nil {
 		js.Err = err

@@ -102,7 +102,7 @@ type Probe struct {
 }
 
 type Progress struct {
-	Job    string // "load", "reread", "backup", "read", "journal" (the check after a load), or "apply", "revert" and "recover" while Applying; empty when idle
+	Job    string // "load", "reread", "backup", "read", "journal" (the check after a load), "reset check" (the read after a factory reset), or "apply", "revert", "recover" and "reset" while Applying; empty when idle
 	Done   int    // transactions finished, or ops verified while Applying
 	Total  int    // transactions known so far (a load adds more as it learns the bindings), or the ops of the run
 	Paused bool   // waiting for the mouse to wake, or for the screen to unlock while Applying
@@ -114,7 +114,11 @@ type Progress struct {
 type JournalState struct {
 	Open []OpenRun
 	Last *safety.Run
-	Err  error // the journal could not be read
+	// Resets are the factory resets a process ended before it checked what
+	// they did; the session checks them after the load (the "reset check"
+	// job) and journals what it finds.
+	Resets []*safety.Run
+	Err    error // the journal could not be read
 }
 
 // OpenRun is an unfinished run and what its extents hold now. Inspection is

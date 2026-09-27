@@ -128,6 +128,7 @@ func TestWriteErrors(t *testing.T) {
 		{"seized", emu.Fault{Action: emu.Fail, Err: emu.ErrSeized, Times: 1}, hidio.ClassSeized, 0},
 		{"transient error retried", emu.Fault{Action: emu.Fail, Times: 2}, hidio.ClassNone, 1},
 		{"persistent general error", emu.Fault{Action: emu.Fail}, hidio.ClassRetry, 0},
+		{"taken, then a transient error", emu.Fault{Action: emu.Taken, Times: 1}, hidio.ClassNone, 2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

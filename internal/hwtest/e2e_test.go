@@ -288,8 +288,8 @@ func TestDebugAbortLeavesTheJournalToSettle(t *testing.T) {
 		panic(exit{c})
 	}
 	res := r.run("H1")
-	if code != abortCode || res.Passed || !errors.Is(res.Err, session.ErrPanic) {
-		t.Fatalf("exit %d, passed %v, err %v", code, res.Passed, res.Err)
+	if code != abortCode || res.Passed || res.Recorded || !errors.Is(res.Err, ErrEnded) {
+		t.Fatalf("exit %d, passed %v, recorded %v, err %v", code, res.Passed, res.Recorded, res.Err)
 	}
 	cur, _ := r.dev.Image().Get(pairExtent(4))
 	if !bytes.Equal(cur, []byte{0x02, 0x53}) {

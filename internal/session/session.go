@@ -120,6 +120,8 @@ type Session struct {
 	journalDue bool
 	overlay    *safety.Overlay // the dry runs' writes
 	overlayKey string
+	resetAt    time.Time // when this session last sent a factory reset
+	settling   bool      // a reset check of unsettled factory resets is queued
 }
 
 func New(opt Options) *Session {

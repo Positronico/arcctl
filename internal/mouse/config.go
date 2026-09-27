@@ -73,6 +73,17 @@ type hiddenSpec struct {
 	domain  func(m *catalog.Model, v byte) bool
 }
 
+// FieldFeature is the feature of the hidden field at addr: the one a write
+// of it takes; false when no hidden field starts there.
+func FieldFeature(addr int) (Feature, bool) {
+	for _, h := range hiddenFields {
+		if h.addr == addr {
+			return h.feature, true
+		}
+	}
+	return "", false
+}
+
 // The setting domains are the values the web app's own setters write.
 var (
 	onOff      = oneOf(0, 1)

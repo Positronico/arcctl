@@ -213,6 +213,9 @@ func (s *Session) dispatch(l *link, p wire.Packet) {
 	case l.explains(p, true, s.tm.Window):
 		s.stats.Late++
 		s.log.Info("late reply", "reply", p)
+	case p.Cmd() == wire.CmdClear && l == s.dev && !s.resetAt.IsZero() && time.Since(s.resetAt) < resetLate:
+		s.stats.Late++
+		s.log.Info("late reply to the factory reset", "reply", p)
 	case p.Cmd() == wire.CmdOnline:
 		s.stats.PossiblePushes++
 		s.log.Info("unrequested cmd-3 report", "report", p)

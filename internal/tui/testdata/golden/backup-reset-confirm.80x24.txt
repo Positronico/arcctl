@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Backup]
+────────────────────────────────────────────────────────────────────────────────
+ Reset ProtoArc EM11 Pro 7B/04 (260d-1282-7b04) to its factory settings?
+
+   ! Any setting may go back to its factory value. The full backup taken first
+     is the way back.
+   ! A restore never writes back the report rate, the DPI colours, DPI stages 7
+     to 8, button slots 6 to 15, KeyOperation, LOD, DPIEffectMode,
+     DPIEffectBrightness, DPIEffectSpeed, DPIEffectState, Light, DebounceTime,
+     MotionSync, SleepTime, Angle, Ripple, MovingOffLight, PerformanceState,
+     Performance, SensorMode and the bytes arcctl knows no field for. If the
+     reset changes them, they stay as it leaves them; hardware test H7 records
+     which it changes.
+   ✓ The preflight passed just now; the reset runs it again.
+
+ Type "reset" and press enter to reset the mouse; esc goes back.
+ > _
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter confirm   esc back

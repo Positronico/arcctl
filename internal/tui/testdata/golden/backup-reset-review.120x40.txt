@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Backup]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Review the factory reset
+ ProtoArc EM11 Pro 7B/04 (260d-1282-7b04) · profile none · firmware v1.00
+ Ready: enter runs the checks, then asks you to confirm.
+
+ What it does
+   · First a full backup: arcctl reads the whole configuration afresh and saves it, labelled "auto before reset". The
+     reset stops there if any range cannot be read.
+   · Then one factory reset (cmd 9), sent once and never again; arcctl waits up to 3 s for its reply.
+   · With or without a reply, arcctl reads the whole configuration again and compares it with the backup: the
+     comparison says what the reset changed.
+   · Nothing else is sent: no long-range or receiver-light command follows it.
+   ✓ Hardware test H7 recorded the reset on this model with firmware v1.00 on 2026-10-01.
+   ! If the mouse stops answering afterwards, it may need pairing again: see "Re-pairing without arcctl" in
+     docs/safety.md. Keep another pointing device at hand; the mouse's Bluetooth channel keeps working.
+   · The backup puts back what a restore writes: select it on this tab and press w.
+   ! A restore never writes back the report rate, the DPI colours, DPI stages 7 to 8, button slots 6 to 15,
+     KeyOperation, LOD, DPIEffectMode, DPIEffectBrightness, DPIEffectSpeed, DPIEffectState, Light, DebounceTime,
+     MotionSync, SleepTime, Angle, Ripple, MovingOffLight, PerformanceState, Performance, SensorMode and the bytes
+     arcctl knows no field for. If the reset changes them, they stay as it leaves them; hardware test H7 records which
+     it changes.
+
+ Before sending
+   ✓ The mouse is online and ready.
+   ✓ The journal holds no unfinished write.
+   ✓ No other program had the receiver open at the last scan.
+   · Before the packet arcctl checks again, before and after the backup: the same mouse, profile and firmware, other
+     programs on the receiver, the screen lock and Secure Input.
+   · You type "reset" to send it.
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter check   esc close

@@ -1,0 +1,25 @@
+$ arcctl restore $TMP/other.json
+arcctl: the source is from another device: the backup is of 7b04-445566, the
+  mouse answering is 260d-1282-7b04
+  Pass --other-device to restore it to this mouse anyway.
+$ arcctl restore $TMP/profile1.json
+arcctl: the source is from another onboard profile: the source was read on
+  onboard profile 1, the mouse is on onboard profile 0
+  Switch the mouse to the profile the source was read on, or pass
+  --other-profile.
+$ arcctl restore $TMP/b0.bin
+arcctl: the source is from another device: a web .bin does not record which
+  mouse it came from
+  Pass --other-device to restore it to this mouse anyway.
+$ arcctl restore $TMP/b0.bin --other-device
+arcctl: the source is from another onboard profile: the source was read on an
+  unknown onboard profile, the mouse is on onboard profile 0
+  Switch the mouse to the profile the source was read on, or pass
+  --other-profile.
+$ arcctl restore $ROOT/testdata/flash-dump.bin
+arcctl: a raw dump records no device, and arcctl does not restore from one
+  Restore from an arcctl backup, or from a web .bin.
+$ arcctl restore $TMP/b0.json --replay $ROOT/testdata/flash-dump.bin
+arcctl: restore: --replay is read-only; restore to the mouse, or to the emulator
+  with --emulate
+  Run 'arcctl help' for the commands and their flags.

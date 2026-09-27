@@ -28,6 +28,8 @@ const (
 	listenFor  = 2 * time.Second
 	lingerFor  = 3 * time.Second
 	probeFirst = 1500 * time.Millisecond
+	// resetWait is how long the factory reset waits for its reply (§5).
+	resetWait = 3 * time.Second
 )
 
 // rawPath talks to the attached interface past the session's guard. Reads
@@ -159,7 +161,7 @@ func (r *rawPath) identity(ctx context.Context, e flash.Extent, want []byte) (id
 		if err := wire.Edit.Check(p, wire.Mouse); err != nil {
 			return res, err
 		}
-		r.note("raw path: identity write " + p.String())
+		r.note("raw path: identity write " + shownPacket(p))
 		w, err := r.write(ctx, p, rawTry)
 		res.writes = append(res.writes, w)
 		if err != nil {
@@ -190,7 +192,7 @@ func (r *rawPath) probe(ctx context.Context, e flash.Extent, want []byte) (probe
 	if err != nil {
 		return res, err
 	}
-	r.note("raw path: NAK probe " + p.String())
+	r.note("raw path: NAK probe " + shownPacket(p))
 	res.write, err = r.write(ctx, p, probeFirst)
 	if err != nil {
 		return res, err
@@ -229,7 +231,7 @@ func (r *rawPath) ready(ctx context.Context, e flash.Extent, want []byte) error 
 		return err
 	}
 	if !bytes.Equal(cur, want) {
-		return fmt.Errorf("%w: %s holds % x, want % x", ErrChanged, e, cur, want)
+		return fmt.Errorf("%w: %s", ErrChanged, holds(e, cur, want))
 	}
 	return nil
 }
@@ -241,7 +243,50 @@ func (r *rawPath) readBack(ctx context.Context, e flash.Extent, want []byte, int
 		return err
 	}
 	if !bytes.Equal(got, want) {
-		return fmt.Errorf("%w: %s holds % x, want % x", ErrVerify, e, got, want)
+		return fmt.Errorf("%w: %s", ErrVerify, holds(e, got, want))
 	}
 	return nil
+}
+
+// resetPacket is the factory reset, cmd 9 with no data: 09 00 ... 44.
+func resetPacket() wire.Packet { return wire.MustBuild(wire.Mouse, wire.CmdClear, 0, nil) }
+
+// hwReset sends the factory reset once, and never again whatever comes
+// back. The packet must pass the Reset policy and the mouse must be online;
+// every cmd-9 frame within resetWait, or within the listening window after
+// the first, counts as its reply.
+func (r *rawPath) hwReset(ctx context.Context) (written, error) {
+	p := resetPacket()
+	if err := wire.Reset.Check(p, wire.Mouse); err != nil {
+		return written{packet: p}, err
+	}
+	on, _, err := r.online(ctx)
+	switch {
+	case err != nil:
+		return written{packet: p}, err
+	case !on:
+		return written{packet: p}, ErrAsleep
+	}
+	r.note("raw path: factory reset " + p.String())
+	x, err := r.t.exchange(ctx, p, exchangeOpts{match: isCmd(wire.CmdClear), swallow: true, once: true, first: resetWait, listen: r.listen, linger: lingerFor})
+	return written{packet: p, at: x.at, replies: x.replies, seen: x.seen}, err
+}
+
+// query sends a read-only command with no data and returns its reply, or
+// nothing when none came after rawTries.
+func (r *rawPath) query(ctx context.Context, c wire.Cmd) (wire.Packet, bool, error) {
+	p := wire.MustBuild(wire.Mouse, c, 0, nil)
+	if err := wire.ReadOnly.Check(p, wire.Mouse); err != nil {
+		return p, false, err
+	}
+	for range rawTries {
+		x, err := r.t.exchange(ctx, p, exchangeOpts{match: isCmd(c), swallow: true, first: rawTry, linger: lingerFor})
+		if err != nil {
+			return p, false, err
+		}
+		if len(x.replies) > 0 {
+			return x.replies[0].p, true, nil
+		}
+	}
+	return p, false, nil
 }

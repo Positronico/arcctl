@@ -77,9 +77,13 @@ type recorded struct {
 	closeErr  error
 }
 
-func (x *recorded) WriteRaw(p wire.Packet) error {
+func (x *recorded) WriteRaw(p wire.Packet) error { return x.write(p, x.raw.WriteRaw) }
+
+func (x *recorded) WriteRawOnce(p wire.Packet) error { return x.write(p, x.raw.WriteRawOnce) }
+
+func (x *recorded) write(p wire.Packet, send func(wire.Packet) error) error {
 	x.rec.record(Entry{At: time.Now(), Dir: DirOut, ID: wire.ReportID, Data: Frame{Bytes: slices.Clone(p[:])}})
-	err := x.raw.WriteRaw(p)
+	err := send(p)
 	if err != nil {
 		x.rec.record(Entry{At: time.Now(), Dir: DirOutError, Err: err.Error()})
 	}

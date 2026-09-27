@@ -102,7 +102,7 @@ func TestDryRunPrintsH1AndWritesNothing(t *testing.T) {
 
 // A dry run shows the same preview a run shows before it asks to go on.
 func TestDryRunPreviewMatchesTheRun(t *testing.T) {
-	for _, stage := range []string{"H1", "H2", "H3", "H3b"} {
+	for _, stage := range []string{"H1", "H2", "H3", "H3b", "H4", "H5", "H6", "H7", "H9"} {
 		t.Run(stage, func(t *testing.T) {
 			dry := newRig(t, nil)
 			dry.cfg.Gates.DryRun = true
@@ -114,6 +114,8 @@ func TestDryRunPreviewMatchesTheRun(t *testing.T) {
 			}
 
 			run := newRig(t, nil)
+			run.cfg.AbortAfterChunk = 2
+			run.script.yes("h7.prep-repair", "h7.prep-pointer", "h7.prep-webapp", "h7.prep-drill")
 			run.script.set(stageID(stage)+".run", false)
 			if res := run.run(stage); !errors.Is(res.Err, ErrDeclined) {
 				t.Fatalf("declined run: %v", res.Err)

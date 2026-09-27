@@ -12,9 +12,11 @@ import (
 // Raw is an unguarded packet pipe to one HID interface. Device backends never
 // hand one out: Open wraps it with Guarded before returning.
 //
-// WriteRaw sends p as output report 8. Reports delivers input reports and is
-// closed when the input side stops, after Close or when the device goes away.
-// A Raw may also implement
+// WriteRaw sends p as output report 8. WriteRawOnce sends it the same way but
+// never resends it, even after an error the OS reports as transient: the
+// device may have taken the report already. Reports delivers input reports
+// and is closed when the input side stops, after Close or when the device
+// goes away. A Raw may also implement
 //
 //	Others() <-chan Report   the input reports that are not report-8 frames of
 //	                         16 bytes, queued apart from Reports, which then
@@ -24,6 +26,7 @@ import (
 //	Dropped() uint64         report-8 frames it dropped because they were not read in time
 type Raw interface {
 	WriteRaw(p wire.Packet) error
+	WriteRawOnce(p wire.Packet) error
 	Reports() <-chan Report
 	Close() error
 }
@@ -72,8 +75,8 @@ const (
 )
 
 // writePath is the write side every Raw that stands for a device shares:
-// retries on transient IOKit errors, a watchdog on each try, and a sticky
-// stalled state once the watchdog fires.
+// retries on transient IOKit errors unless the packet must go out once, a
+// watchdog on each try, and a sticky stalled state once the watchdog fires.
 type writePath struct {
 	mu       sync.Mutex
 	watchdog time.Duration
@@ -81,7 +84,7 @@ type writePath struct {
 	closed   atomic.Bool
 }
 
-func (w *writePath) write(send func() error) error {
+func (w *writePath) write(send func() error, resend bool) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	switch {
@@ -94,7 +97,13 @@ func (w *writePath) write(send func() error) error {
 	if limit == 0 {
 		limit = writeWatchdog
 	}
-	err := retry(func() error { return withWatchdog(limit, send) })
+	try := func() error { return withWatchdog(limit, send) }
+	var err error
+	if resend {
+		err = retry(try)
+	} else {
+		err = try()
+	}
 	if errors.Is(err, ErrStalled) {
 		w.stalled.Store(true)
 	}

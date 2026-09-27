@@ -162,7 +162,7 @@ func runJournalStatus(r *runner, args []string) error {
 	if who := lockHolder(paths.Lock); who != "" {
 		fmt.Fprintln(r.out, fill(who+" is running: a run it is still writing shows here as unfinished.", "", 80))
 	}
-	open, bad := 0, 0
+	open, unchecked, bad := 0, 0, 0
 	for _, d := range devs {
 		fmt.Fprintln(r.out)
 		if d.err != nil {
@@ -172,6 +172,7 @@ func runJournalStatus(r *runner, args []string) error {
 			continue
 		}
 		open += len(d.status.Open)
+		unchecked += len(d.status.Unsettled)
 		r.printDeviceJournal(d)
 	}
 	switch {
@@ -181,6 +182,9 @@ func runJournalStatus(r *runner, args []string) error {
 	case open > 0:
 		return fail(ExitVerify, count(open, "unfinished run needs", "unfinished runs need")+" recovery",
 			"Connect the mouse and run 'arcctl journal recover': it reads the records again and shows the choices.")
+	case unchecked > 0:
+		return fail(ExitVerify, count(unchecked, "factory reset was", "factory resets were")+" never checked",
+			"Connect the mouse and run 'arcctl journal recover': it reads the mouse again and records what the reset did.")
 	}
 	return nil
 }
@@ -218,6 +222,13 @@ func (r *runner) printDeviceJournal(d deviceJournal) {
 			fmt.Fprintln(r.out, fill("      started "+when(x.Started)+"; "+runState(x), "  ", 80))
 		}
 	}
+	for _, run := range st.Unsettled {
+		fmt.Fprintf(r.out, "  Unchecked %s\n", runName(run))
+		r.printRunState("    ", run)
+		fmt.Fprintln(r.out, fill("    arcctl ended after the packet and before it read the mouse again, so what the reset did "+
+			"is not known. The next session that loads the mouse reads it again and compares it with the backup taken before "+
+			"the reset: "+run.Reset.Backup, "      ", 80))
+	}
 	if st.Clean() {
 		fmt.Fprintln(r.out, "  Clean: nothing to recover.")
 	}
@@ -238,6 +249,21 @@ func (r *runner) printRun(label string, run *safety.Run) {
 }
 
 func runName(run *safety.Run) string { return run.Kind.String() + " " + run.ID }
+
+// resetVerdict says what the check of a factory reset found.
+func resetVerdict(x *safety.ResetRecord) string {
+	switch x.Verdict {
+	case safety.VerdictChanged:
+		parts := make([]string, len(x.Changed))
+		for i, e := range x.Changed {
+			parts[i] = e.String()
+		}
+		return "it changed " + strings.Join(parts, ", ")
+	case safety.VerdictUnchanged:
+		return "it changed nothing arcctl reads"
+	}
+	return "it could not be checked"
+}
 
 // printRunState says when a run started, on which profile, and how it
 // ended. Run IDs vary in length, so no line holds more than one.
@@ -423,10 +449,20 @@ func settledOnLoad(before []deviceJournal, key, dir string) []*safety.Run {
 			out = append(out, now)
 		}
 	}
+	for _, run := range before[i].status.Unsettled {
+		if now := after.Find(run.ID); now != nil && now.Ended {
+			out = append(out, now)
+		}
+	}
 	return out
 }
 
 func (r *runner) printSettled(run *safety.Run) {
+	if run.Kind == safety.KindReset {
+		fmt.Fprintf(r.out, "Checked %s: %s\n", runName(run), resetVerdict(run.Reset))
+		fmt.Fprintln(r.out, fill("  the backup from before it: "+run.Reset.Backup, "    ", 80))
+		return
+	}
 	what := "every record already held what the run meant to leave"
 	if run.Resolved == safety.Back {
 		what = "every record still held what it held before the run"

@@ -255,7 +255,8 @@ func (d *Device) Image() *flash.Image {
 }
 
 // Writes lists, in order, every packet arcctl's handles delivered to the
-// device. Failed writes are not in it.
+// device. Failed writes are not in it, except those a Taken fault failed
+// after the device took them.
 func (d *Device) Writes() []Write {
 	d.bus.mu.Lock()
 	defer d.bus.mu.Unlock()

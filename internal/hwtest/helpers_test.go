@@ -351,3 +351,27 @@ func (s *script) on(id string, f func()) *script {
 	s.actions[id] = f
 	return s
 }
+
+// session starts a session on the rig's device and folders, as another
+// arcctl process would.
+func (r *rig) session() (*session.Session, func()) {
+	opt := r.cfg.Session
+	opt.Devices = newDevices(r.bus)
+	s := session.New(opt)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { defer close(done); _ = s.Run(ctx) }()
+	var once sync.Once
+	return s, func() { once.Do(func() { cancel(); <-done }) }
+}
+
+func (r *rig) await(s *session.Session, pred func(*session.Snapshot) bool) *session.Snapshot {
+	r.t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	sn, err := session.Await(ctx, s, pred)
+	if err != nil {
+		r.t.Fatalf("the session: %v (state %v, err %v)", err, sn.State, sn.Err)
+	}
+	return sn
+}

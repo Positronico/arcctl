@@ -32,7 +32,10 @@ type ExtentState struct {
 	Class  Class // ClassOld, ClassNew, ClassMid or ClassTorn
 	Tier   catalog.Tier
 	Desc   string // the last op's: what the run meant to leave there
-	mids   [][]byte
+	// Captured marks an extent the run wrote with captured bytes (plan.Captured):
+	// settling it writes captured bytes too, whether or not they make a record.
+	Captured bool
+	mids     [][]byte
 }
 
 // OpState is one op of the run and what its extent holds compared with that
@@ -170,10 +173,12 @@ func spans(ops []OpRecord) []ExtentState {
 	for _, o := range ops {
 		i := slices.IndexFunc(out, func(s ExtentState) bool { return s.Extent == o.Extent })
 		if i < 0 {
-			out = append(out, ExtentState{Extent: o.Extent, Before: o.Old, After: o.New, Tier: o.Tier, Desc: o.Desc})
+			out = append(out, ExtentState{Extent: o.Extent, Before: o.Old, After: o.New, Tier: o.Tier, Desc: o.Desc,
+				Captured: o.Phase == plan.Captured})
 			continue
 		}
 		out[i].After, out[i].Tier, out[i].Desc = o.New, min(out[i].Tier, o.Tier), o.Desc
+		out[i].Captured = out[i].Captured || o.Phase == plan.Captured
 	}
 	for i := range out {
 		for _, o := range ops {
@@ -208,7 +213,7 @@ func RecoveryPlan(in *Inspection, how Strategy, d Device) (plan.Plan, error) {
 	}
 	changes := make([]plan.Change, 0, len(in.Extents))
 	for _, e := range in.Extents {
-		c := plan.Change{Addr: e.Extent.Addr, New: e.After, Tier: e.Tier, Desc: "finish: " + e.Desc}
+		c := plan.Change{Addr: e.Extent.Addr, New: e.After, Tier: e.Tier, Desc: "finish: " + e.Desc, Captured: e.Captured}
 		if how == Back {
 			c.New, c.Desc = e.Before, "roll back: "+e.Desc
 		}

@@ -37,6 +37,7 @@ func runTUI(ctx context.Context, t cli.TUI) error {
 		NoColor: t.NoColor,
 		Backups: t.Backups,
 		DataDir: t.DataDir,
+		Library: t.Library,
 		Notes:   t.Notes,
 		Host:    tui.Host{Permission: t.Permission, Console: t.Console, OpenSettings: t.OpenSettings},
 	})

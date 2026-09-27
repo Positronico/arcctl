@@ -17,6 +17,7 @@ import (
 	"github.com/positronico/arcctl/internal/catalog"
 	"github.com/positronico/arcctl/internal/flash"
 	"github.com/positronico/arcctl/internal/plan"
+	"github.com/positronico/arcctl/internal/wire"
 )
 
 const journalVersion = 1
@@ -28,9 +29,10 @@ const (
 	KindApply   RunKind = iota + 1
 	KindRevert          // undoes the run named by Of
 	KindRecover         // finishes or rolls back the run named by Of
+	KindReset           // one factory reset (cmd 9); it has no ops
 )
 
-var kindNames = [...]string{"", "apply", "revert", "recover"}
+var kindNames = [...]string{"", "apply", "revert", "recover", "reset"}
 
 func (k RunKind) String() string {
 	if k >= KindApply && int(k) < len(kindNames) {
@@ -291,6 +293,7 @@ const (
 
 	typeRun     = "run"
 	typeOp      = "op"
+	typeSend    = "send"
 	typeEnd     = "end"
 	typeResolve = "resolve"
 
@@ -299,29 +302,35 @@ const (
 )
 
 type entry struct {
-	V       int           `json:"v,omitempty"`
-	Type    string        `json:"type"`
-	Run     string        `json:"run"`
-	Time    time.Time     `json:"time"`
-	Kind    string        `json:"kind,omitempty"`
-	Of      string        `json:"of,omitempty"`
-	Device  *device       `json:"device,omitempty"`
-	Profile *byte         `json:"profile,omitempty"`
-	NOps    int           `json:"ops,omitempty"`
-	Seq     int           `json:"seq,omitempty"`
-	State   string        `json:"state,omitempty"`
-	Phase   string        `json:"phase,omitempty"`
-	Extent  *flash.Extent `json:"extent,omitempty"`
-	Old     hexBytes      `json:"old,omitempty"`
-	New     hexBytes      `json:"new,omitempty"`
-	Tier    string        `json:"tier,omitempty"`
-	Desc    string        `json:"desc,omitempty"`
-	Found   hexBytes      `json:"found,omitempty"`
-	Class   string        `json:"class,omitempty"`
-	Result  string        `json:"result,omitempty"`
-	By      string        `json:"by,omitempty"`
-	Kept    []int         `json:"kept,omitempty"`
-	Error   string        `json:"error,omitempty"`
+	V       int            `json:"v,omitempty"`
+	Type    string         `json:"type"`
+	Run     string         `json:"run"`
+	Time    time.Time      `json:"time"`
+	Kind    string         `json:"kind,omitempty"`
+	Of      string         `json:"of,omitempty"`
+	Device  *device        `json:"device,omitempty"`
+	Profile *byte          `json:"profile,omitempty"`
+	NOps    int            `json:"ops,omitempty"`
+	Seq     int            `json:"seq,omitempty"`
+	State   string         `json:"state,omitempty"`
+	Phase   string         `json:"phase,omitempty"`
+	Extent  *flash.Extent  `json:"extent,omitempty"`
+	Old     hexBytes       `json:"old,omitempty"`
+	New     hexBytes       `json:"new,omitempty"`
+	Tier    string         `json:"tier,omitempty"`
+	Desc    string         `json:"desc,omitempty"`
+	Found   hexBytes       `json:"found,omitempty"`
+	Class   string         `json:"class,omitempty"`
+	Result  string         `json:"result,omitempty"`
+	By      string         `json:"by,omitempty"`
+	Kept    []int          `json:"kept,omitempty"`
+	Backup  string         `json:"backup,omitempty"`
+	Packet  hexBytes       `json:"packet,omitempty"`
+	Reply   string         `json:"reply,omitempty"`
+	Verdict string         `json:"verdict,omitempty"`
+	Changed []flash.Extent `json:"changed,omitempty"`
+	Unread  []flash.Extent `json:"unread,omitempty"`
+	Error   string         `json:"error,omitempty"`
 }
 
 type device struct {
@@ -399,7 +408,9 @@ type Run struct {
 	// Kept are, for a run settled with Leave, the ops whose bytes its
 	// extents held then.
 	Kept []int
-	nops int
+	// Reset is what a factory reset run recorded; nil for other kinds.
+	Reset *ResetRecord
+	nops  int
 }
 
 // OpRecord is one op of a run and the last state journaled for it.
@@ -470,12 +481,19 @@ type Status struct {
 	// runs are not listed on their own: they are in Recoveries of the run
 	// they work on.
 	Open []*Run
-	// Last is the newest apply or revert run that changed the device, or nil.
+	// Last is the newest apply or revert run that changed the device, or
+	// nil. A factory reset whose packet may have gone out ends what the
+	// journal can undo: no run before it is Last.
 	Last *Run
+	// Unsettled are the factory reset runs whose packet may have gone out
+	// and that have no end entry: the process ended before the reload that
+	// says what the reset did. A session settles them once it has loaded
+	// the mouse (EndReset).
+	Unsettled []*Run
 }
 
-// Clean reports whether nothing needs recovery.
-func (s *Status) Clean() bool { return len(s.Open) == 0 }
+// Clean reports whether nothing needs recovery or a check.
+func (s *Status) Clean() bool { return len(s.Open) == 0 && len(s.Unsettled) == 0 }
 
 // Find returns the run with the given ID, or nil.
 func (s *Status) Find(id string) *Run {
@@ -561,12 +579,17 @@ func (p *parser) line(line []byte, where string) error {
 	switch e.Type {
 	case typeOp:
 		return p.op(r, e)
+	case typeSend:
+		return p.send(r, e)
 	case typeEnd:
 		r.Ended = true
 		r.Complete = e.Result == resultComplete
 		r.Err = e.Error
 		if r.Complete && slices.ContainsFunc(r.Ops, func(o OpRecord) bool { return o.State != StateVerified }) {
 			return fmt.Errorf("run %s ended complete with an op not verified", r.ID)
+		}
+		if r.Reset != nil {
+			return p.resetEnd(r, e)
 		}
 	default:
 		return fmt.Errorf("entry type %q", e.Type)
@@ -582,14 +605,16 @@ func (p *parser) run(e entry) error {
 		return fmt.Errorf("run id %q is empty or repeated", e.Run)
 	case e.Device == nil:
 		return errors.New("run without a device")
-	case e.NOps < 1:
-		return errors.New("run without ops")
 	}
 	kind, ok := parseName(e.Kind, kindNames[:], KindApply)
-	if !ok {
+	switch {
+	case !ok:
 		return fmt.Errorf("run kind %q", e.Kind)
-	}
-	if kind != KindApply && e.Of == "" {
+	case kind == KindReset && (e.NOps != 0 || e.Backup == "" || len(e.Packet) != wire.Size):
+		return errors.New("reset run without its backup and packet, or with ops")
+	case kind != KindReset && e.NOps < 1:
+		return errors.New("run without ops")
+	case kind != KindApply && kind != KindReset && e.Of == "":
 		return fmt.Errorf("%s run without the run it works on", kind)
 	}
 	id, err := e.Device.identity()
@@ -600,6 +625,9 @@ func (p *parser) run(e entry) error {
 		return fmt.Errorf("run for device %s in the journal of %s", id.Key(), p.key)
 	}
 	r := &Run{ID: e.Run, Kind: kind, Of: e.Of, Device: id, Profile: e.Profile, Started: e.Time, nops: e.NOps}
+	if kind == KindReset {
+		r.Reset = &ResetRecord{Backup: e.Backup, Packet: wire.Packet(e.Packet)}
+	}
 	p.runs[r.ID] = r
 	p.order = append(p.order, r)
 	return nil
@@ -636,7 +664,11 @@ func (p *parser) op(r *Run, e entry) error {
 }
 
 func plannedOp(e entry) (plan.Op, error) {
-	phase, ok := parseName(e.Phase, []string{"", plan.Neutralise.String(), plan.Body.String(), plan.Bind.String(), plan.Record.String()}, plan.Neutralise)
+	phases := []string{""}
+	for p := plan.Neutralise; p <= plan.Captured; p++ {
+		phases = append(phases, p.String())
+	}
+	phase, ok := parseName(e.Phase, phases, plan.Neutralise)
 	if !ok {
 		return plan.Op{}, fmt.Errorf("phase %q", e.Phase)
 	}
@@ -678,8 +710,16 @@ func (p *parser) status() (*Status, error) {
 		}
 		st.Open = append(st.Open, r)
 	}
+	for _, r := range p.order {
+		if r.Kind == KindReset && r.Reset.Sending && !r.Ended {
+			st.Unsettled = append(st.Unsettled, r)
+		}
+	}
 	for _, r := range slices.Backward(p.order) {
-		if r.Kind != KindRecover && !r.Open() && len(r.effective()) > 0 {
+		if r.Kind == KindReset && r.Reset.Sending {
+			break
+		}
+		if r.Kind != KindRecover && r.Kind != KindReset && !r.Open() && len(r.effective()) > 0 {
 			st.Last = r
 			break
 		}

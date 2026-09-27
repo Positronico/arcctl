@@ -244,6 +244,9 @@ func (d *Device) write(cl *client, p wire.Packet) error {
 	}
 	d.writes = append(d.writes, Write{Interface: cl.iface, Packet: p})
 	d.process(cl, p, act, f)
+	if act == Taken {
+		return f.err()
+	}
 	return nil
 }
 

@@ -547,6 +547,11 @@ func TestFeatureTier(t *testing.T) {
 		{"7B04", "setting.angle-tune", covered("setting.angle-tune"), catalog.Off, false},
 		{"7B04", "no.such-feature", covered("no.such-feature"), catalog.Off, false},
 		{"0301", mouse.FeatureDPI, mouse.Options{}, catalog.ReadOnly, false},
+		{"7B04", mouse.FeatureRestore, mouse.Options{}, catalog.Untested, true},
+		{"7B04", mouse.FeatureRestore, covered(mouse.FeatureRestore), catalog.Verified, true},
+		{"7B04", mouse.FeatureReset, mouse.Options{}, catalog.Off, false},
+		{"7B04", mouse.FeatureReset, covered(mouse.FeatureReset), catalog.Verified, false},
+		{"0301", mouse.FeatureReset, covered(mouse.FeatureReset), catalog.ReadOnly, false},
 	}
 	for _, tc := range cases {
 		tier, ok := tc.feature.Tier(model(t, tc.key), tc.opt)
@@ -846,5 +851,19 @@ func TestUnmappedSlotsStayUntested(t *testing.T) {
 	p = planFor(t, "7B06", im, allow("7B06", mouse.FeatureSystem), mouse.SetKey{Slot: 5, Fn: mouse.KeyFn{Type: mouse.TypeDPI, Param: mouse.ParamDPICycle}})
 	if p.Ops[0].Tier != catalog.Verified {
 		t.Errorf("slot 5 on mid 6 with button.system verified is %v", p.Ops[0].Tier)
+	}
+}
+
+// Refusals number macro events from 1, as the editor shows them.
+func TestMacroRefusalsCountFromOne(t *testing.T) {
+	keyA := keys.Stroke{Kind: keys.KindKey, Value: 0x04}
+	m := mouse.Macro{Name: "fast", Events: []mouse.Event{{Press: true, Stroke: keyA, Delay: 20}, {Stroke: keyA, Delay: 4}}}
+	_, err := mouse.PlanEdits(model(t, "7B04"), maintainerImage(t), []mouse.Edit{mouse.SetMacro{Slot: 4, Macro: m, Cycle: 1}}, allow("7B04"))
+	if err == nil || !strings.Contains(err.Error(), "macro event 2 delay 4 ms") {
+		t.Fatalf("err %v", err)
+	}
+	m.Events[1].Stroke = keys.Stroke{Kind: keys.KindConsumer, Value: 0xCD}
+	if _, err := mouse.EncodeMacro(m); err == nil || !strings.Contains(err.Error(), "macro event 2:") {
+		t.Fatalf("encode: %v", err)
 	}
 }

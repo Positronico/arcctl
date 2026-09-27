@@ -45,6 +45,8 @@ type writeTask struct {
 	on    func(safety.OpEvent)
 	out   Outcome
 	job   *job // the full backup the task waits for
+	// reset is set for a factory reset, whose passes differ (reset.go).
+	reset *resetTask
 }
 
 type writeProgress struct {
@@ -127,6 +129,10 @@ func (s *Session) endTask(err error) {
 // it waited for its backup.
 func (s *Session) advance(ctx context.Context) {
 	t := s.task
+	if t.reset != nil && t.reset.sent {
+		s.resetInterrupted(t)
+		return
+	}
 	switch {
 	case t.req.ctx.Err() != nil:
 		s.endTask(fmt.Errorf("%w before anything was written: %w", safety.ErrAborted, t.req.ctx.Err()))
@@ -141,6 +147,10 @@ func (s *Session) advance(ctx context.Context) {
 }
 
 func (s *Session) pass(ctx context.Context, t *writeTask) {
+	if t.reset != nil {
+		s.resetPass(ctx, t)
+		return
+	}
 	if t.kind == safety.KindApply && len(t.plan.Ops) == 0 {
 		s.endTask(nil)
 		return
@@ -219,6 +229,9 @@ func (s *Session) check(ctx context.Context, t *writeTask) (c checked, err error
 	}
 	f.Journal, f.JournalErr = c.st, err
 	c.f = f
+	if t.reset != nil {
+		return c, safety.PreflightReset(p.Device, p.Profile, t.reset.firmware, f, t.gates)
+	}
 	return c, safety.Preflight(t.kind, p, f, t.gates)
 }
 
@@ -247,6 +260,12 @@ func (s *Session) preflight(ctx context.Context, r request) {
 	}
 	t := r.task
 	t.req = r
+	if t.reset != nil {
+		if err := s.openReset(t); err != nil {
+			r.answer(result{err: err})
+			return
+		}
+	}
 	c, err := s.check(ctx, t)
 	if c.w != nil {
 		s.release(c.w)
@@ -259,7 +278,10 @@ func (s *Session) preflight(ctx context.Context, r request) {
 // a revert, the identity and profile of the run it works on, and for a
 // revert the run's ops, whose tiers it gates.
 func (s *Session) taskPlan(t *writeTask, st *safety.Status, jerr error) (plan.Plan, error) {
-	if t.kind == safety.KindApply {
+	switch {
+	case t.reset != nil:
+		return plan.Plan{Device: t.reset.dev, Profile: t.reset.profile}, nil
+	case t.kind == safety.KindApply:
 		return t.plan, nil
 	}
 	if jerr != nil {
@@ -379,8 +401,8 @@ func (s *Session) run(ctx context.Context, t *writeTask, link safety.Link, j *sa
 	return x.Apply(ctx, p, dev, on)
 }
 
-func (s *Session) setPolicy(p wire.Policy, reason string) error {
-	err := s.guard.Set(p, reason)
+func (s *Session) setPolicy(p wire.Policy, reason string, grant ...hidio.Grant) error {
+	err := s.guard.Set(p, reason, grant...)
 	if err != nil {
 		s.log.Error("guard", "policy", p, "reason", reason, "err", err)
 	} else {

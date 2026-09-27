@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Macros]
+────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ Macros  0 on the mouse, 0 unbound, 0 in the library                labels: mac
+  Name     Events Bytes Repeat Runs on
+ On the mouse
+  no button runs a macro
+ Unbound in flash
+  none among the slots read
+ Library
+  empty: s saves a macro here, i imports a file
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter edit   n new   B bind to button   i import   ? help   q quit

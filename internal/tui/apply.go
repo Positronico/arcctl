@@ -78,7 +78,7 @@ func writeEnd(d WriteDoneMsg) reviewEnd {
 func (d *reviewDialog) again(c *Context) bool {
 	switch d.run.end() {
 	case reviewEndRefused, reviewEndAborted:
-		return d.kind == safety.KindRevert || c.Pending.Len() > 0
+		return d.kind == safety.KindRevert || d.restore != nil || c.Pending.Len() > 0
 	}
 	return false
 }
@@ -156,10 +156,8 @@ func (d *reviewDialog) doneKey(c *Context, k tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	switch s {
-	case "esc":
+	case "esc", "q":
 		return CloseDialog
-	case "q":
-		return askQuit
 	case "enter":
 		if d.again(c) {
 			checked, gen := d.checked, d.gen
@@ -196,7 +194,10 @@ func (d *reviewDialog) runningLines(c *Context, w int) []string {
 	r, st, sn := &d.run, c.Styles, c.Snapshot
 	n := plural(len(d.plan.Ops), "record", "records")
 	what, prep := "Applying", "to"
-	if d.kind == safety.KindRevert {
+	switch {
+	case d.restore != nil:
+		what = "Restoring"
+	case d.kind == safety.KindRevert:
 		what, prep = "Reverting", "on"
 	}
 	head := fmt.Sprintf("%s %s %s %s", what, n, prep, reviewDevice(c))
@@ -319,7 +320,10 @@ func (d *reviewDialog) outcomeLines(c *Context, w int) []string {
 			return append(lines, para("Nothing reached the mouse. The tabs now show what the write would leave.")...)
 		}
 		done, next := "Applied", "U reverts it."
-		if d.kind == safety.KindRevert {
+		switch {
+		case d.restore != nil:
+			done = "Restored"
+		case d.kind == safety.KindRevert:
 			done, next = "Reverted", "U undoes this revert."
 		}
 		lines := []string{st.Good.Render(fmt.Sprintf("%s: %d of %d records verified.", done, out.Verified, out.Ops))}

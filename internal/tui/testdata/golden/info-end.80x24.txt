@@ -19,6 +19,6 @@
   once tested: writable only after its own hardware test passed, with
   --experimental. never: KeyOperation stays read-only, so a button can always
   click. optional: a feature this model lacks. unmapped: no known field.
- … lines 73-89 of 89
+ … lines 74-90 of 90
 ────────────────────────────────────────────────────────────────────────────────
  0 pending   ↑/↓ scroll   pgup/pgdn page   g/G top/end   ? help   q quit

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/positronico/arcctl/internal/flash"
 	"github.com/positronico/arcctl/internal/keys"
 	"github.com/positronico/arcctl/internal/plan"
 	"github.com/positronico/arcctl/internal/session"
@@ -25,6 +26,16 @@ type Store struct {
 
 // Save writes a backup of c, with the label, under the root and returns its
 // path. It never replaces a backup.
+// Image reads the backup at path, checked as Load checks it, and returns
+// the bytes it holds.
+func (s Store) Image(path string) (*flash.Image, error) {
+	f, err := Load(path)
+	if err != nil {
+		return nil, err
+	}
+	return f.Image(), nil
+}
+
 func (s Store) Save(c session.Capture, label string) (string, error) {
 	if s.Root == "" {
 		return "", errors.New("backup: no backups folder")

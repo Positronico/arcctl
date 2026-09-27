@@ -205,6 +205,8 @@ func TestConfirmPhrase(t *testing.T) {
 		{[]plan.Op{op(catalog.Verified)}, ""},
 		{[]plan.Op{op(catalog.Verified), op(catalog.Untested)}, "write untested"},
 		{[]plan.Op{op(catalog.Untested), op(catalog.Experimental)}, "write experimental"},
+		{[]plan.Op{op(catalog.Untested), {Tier: catalog.Experimental, Phase: plan.Captured, Extent: flash.Extent{Addr: 84, Len: 12}},
+			{Tier: catalog.Experimental, Phase: plan.Captured, Extent: flash.Extent{Addr: 185, Len: 2}}}, "write experimental and captured 84+12 185+2"},
 	}
 	for _, tt := range tests {
 		if got := safety.ConfirmPhrase(tt.ops); got != tt.want {

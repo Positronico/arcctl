@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Backup]
+────────────────────────────────────────────────────────────────────────────────
+ The factory reset took effect.
+ 3 ranges of the configuration now differ from the backup: 4+2, 12+4, 96+16.
+   · The mouse's reply: acknowledged.
+   · Journal run 20260926T120000.000000000Z-42/1.
+
+ Backup from before the reset:
+   /data/backups/em11-pro-26…-1282-7b04/20260926T120000Z-auto-before-reset.json
+ It is the newest backup on this tab: d compares it with the mouse record by
+ record, and w restores it.
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter/esc close

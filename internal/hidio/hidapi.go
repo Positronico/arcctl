@@ -176,14 +176,18 @@ func (r *hidapiRaw) read() {
 	}
 }
 
-func (r *hidapiRaw) WriteRaw(p wire.Packet) error {
+func (r *hidapiRaw) WriteRaw(p wire.Packet) error { return r.write(p, true) }
+
+func (r *hidapiRaw) WriteRawOnce(p wire.Packet) error { return r.write(p, false) }
+
+func (r *hidapiRaw) write(p wire.Packet, resend bool) error {
 	buf := append([]byte{wire.ReportID}, p[:]...)
 	return r.w.write(func() error {
 		return r.io.do(func() error {
 			_, err := r.dev.Write(buf)
 			return err
 		})
-	})
+	}, resend)
 }
 
 func (r *hidapiRaw) Reports() <-chan Report { return r.in.frames.ch }

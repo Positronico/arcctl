@@ -39,9 +39,11 @@ func (r *runner) hwUsage(fs *flag.FlagSet) {
 			printFlag(r.out, f)
 		}
 	})
-	fmt.Fprintln(r.out, "\n"+fill("With --dry-run, a write stage (H1, H2, H3, H3b) prints only that preview and exits: "+
+	fmt.Fprintln(r.out, "\n"+fill("With --dry-run, a write stage (every stage but H0) prints only that preview and exits: "+
 		"it takes no backup, asks nothing, writes nothing and records nothing, and needs no tier flag. H0 writes nothing "+
 		"and has no dry run.", "", 80))
+	fmt.Fprintln(r.out, "\n"+fill("A stage that ended after H5's torn-write drill or after H7's factory reset leaves a "+
+		"checkpoint in the logs folder, and its next run goes on from there: the reset is never sent again.", "", 80))
 	fmt.Fprintln(r.out, "\n"+fill("Global flags: see 'arcctl help'. The write flags --allow-untested, --experimental "+
 		"and --allow-foreign-client apply to the stage's writes; --emulate runs it as a rehearsal.", "", 80))
 }
@@ -52,7 +54,8 @@ func runHWTest(r *runner, args []string) error {
 	stage := fs.String("stage", "", "the `stage` to run: "+strings.Join(hwtest.Stages(), ", "))
 	repo := fs.String("repo", "", "the arcctl checkout that gets the transcripts, the log entry and verified.json (default: the one around the current folder; a rehearsal with --emulate records to a temporary folder)")
 	traceFor := fs.Duration("trace-for", hwtest.DefaultTraceFor, "how long H0 listens while the web app is connected")
-	abort := fs.Int("debug-abort-after-chunk", 0, "end the process right after chunk `n` of a record is acknowledged, as a crash would; the journal settles the write on the next start")
+	abort := fs.Int("debug-abort-after-chunk", 0, "end the process right after chunk `n` of a record is acknowledged, as a crash would; "+
+		"the journal settles the write on the next start. H5 needs it, with n from 1 to 10, and applies it only to its torn-write drill")
 	if _, err := r.parse(fs, args, 0, 0); err != nil {
 		return err
 	}

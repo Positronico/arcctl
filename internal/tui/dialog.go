@@ -56,7 +56,7 @@ func (d *Confirm) Update(c *Context, msg tea.Msg) tea.Cmd {
 		switch s {
 		case "y", "Y":
 			return d.yes("")
-		case "n", "N":
+		case "n", "N", "q":
 			return CloseDialog
 		}
 		return nil
@@ -142,6 +142,10 @@ func indentLines(lines []string, prefix string) string {
 	}
 	return strings.Join(lines, "\n")
 }
+
+// helpful is a dialog whose keys ? lists in full; Helps is false while it
+// takes typed text, of which ? is then a part.
+type helpful interface{ Helps() bool }
 
 // helpDialog lists every key that works on the current screen, in two
 // columns when they do not fit in one, and scrolls when they still do not.

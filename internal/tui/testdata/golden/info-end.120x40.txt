@@ -2,16 +2,16 @@
   1 DPI  [2 Info]  3 Log
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
  UNTESTED  Writes need --allow-untested until hardware tests verify them.
-                 button.macro.foreign                   RightFastTrigger     247+2   ff ff          erased   optional
-                 button.rate-switch                     RightTactileFeedback 249+2   ff ff          erased   optional
-                 button.drag-scroll button.fire-key     unmapped             251+5   ff ff ff ff ff erased   unmapped
-                 button.profile-switch                  DynamicSensitivity   6960+2  --             not read optional
-                 button.dpi-lock button.hidden-slot     DynamicSensitivityM… 6962+2  --             not read optional
-                 setting.lod setting.dpi-light-mode     VirtualCenter        6984+2  --             not read optional
-                 setting.dpi-light-brightness           once tested: writable only after its own hardware test passed,
-                 setting.dpi-light-speed                with --experimental. never: KeyOperation stays read-only, so a
-                 setting.dpi-light-state                button can always click. optional: a feature this model lacks.
-                 setting.light setting.debounce         unmapped: no known field.
+                 button.macro.foreign                   RightTactileFeedback 249+2   ff ff          erased   optional
+                 button.rate-switch                     unmapped             251+5   ff ff ff ff ff erased   unmapped
+                 button.drag-scroll button.fire-key     DynamicSensitivity   6960+2  --             not read optional
+                 button.profile-switch                  DynamicSensitivityM… 6962+2  --             not read optional
+                 button.dpi-lock button.hidden-slot     VirtualCenter        6984+2  --             not read optional
+                 setting.lod setting.dpi-light-mode     once tested: writable only after its own hardware test passed,
+                 setting.dpi-light-brightness           with --experimental. never: KeyOperation stays read-only, so a
+                 setting.dpi-light-speed                button can always click. optional: a feature this model lacks.
+                 setting.dpi-light-state                unmapped: no known field.
+                 setting.light setting.debounce
                  setting.motion-sync setting.sleep
                  setting.angle setting.ripple
                  setting.moving-off-light
@@ -19,7 +19,7 @@
                  setting.performance
                  setting.sensor-mode
    read-only     setting.key-operation
-   off           setting.angle-tune
+   off           device.reset setting.angle-tune
                  setting.angle-tune-state
                  setting.sensor-fps20k
                  setting.wheel-debounce
@@ -35,6 +35,6 @@
                  setting.dynamic-sensitivity
                  setting.dynamic-sensitivity-mode
                  setting.virtual-center
- … lines 37-69 of 69
+ … lines 38-70 of 70
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
  0 pending   ↑/↓ scroll   pgup/pgdn page   g/G top/end   r reload   ? help   q quit

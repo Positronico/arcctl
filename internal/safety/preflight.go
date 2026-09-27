@@ -73,6 +73,9 @@ type Facts struct {
 	Profile  *byte
 	// Current holds every extent the plan writes, read again from the device.
 	Current *flash.Image
+	// Firmware is the version a fresh cmd 18 reports, asked before a
+	// factory reset only.
+	Firmware string
 
 	Journal    *Status
 	JournalErr error
@@ -104,18 +107,28 @@ type Gates struct {
 
 // ConfirmPhrase is what the user types to write ops below Verified: "write
 // untested", or "write experimental" when an Experimental op is among them.
-// It is "" when every op is Verified.
+// Ops that write captured bytes add every extent they write, so the phrase
+// names each one: "write experimental and captured 6+2 84+12". It is ""
+// when every op is Verified.
 func ConfirmPhrase(ops []plan.Op) string {
 	low := catalog.Verified
+	var captured []string
 	for _, op := range ops {
 		if op.Tier >= catalog.Experimental {
 			low = min(low, op.Tier)
+		}
+		if e := op.Extent.String(); op.Phase == plan.Captured && !slices.Contains(captured, e) {
+			captured = append(captured, e)
 		}
 	}
 	if low == catalog.Verified {
 		return ""
 	}
-	return "write " + low.String()
+	phrase := "write " + low.String()
+	if len(captured) > 0 {
+		phrase += " and captured " + strings.Join(captured, " ")
+	}
+	return phrase
 }
 
 // PreflightError lists every check that blocked a write.
@@ -181,11 +194,17 @@ func Preflight(kind RunKind, p plan.Plan, f Facts, g Gates) error {
 	case f.Journal == nil:
 		add(fmt.Errorf("%w: not read", ErrJournal))
 	case kind != KindRecover && !f.Journal.Clean():
-		ids := make([]string, len(f.Journal.Open))
-		for i, r := range f.Journal.Open {
-			ids[i] = r.ID
+		if n := len(f.Journal.Open); n > 0 {
+			ids := make([]string, n)
+			for i, r := range f.Journal.Open {
+				ids[i] = r.ID
+			}
+			add(fmt.Errorf("%w: %s; recover first", ErrNotClean, strings.Join(ids, ", ")))
 		}
-		add(fmt.Errorf("%w: %s; recover first", ErrNotClean, strings.Join(ids, ", ")))
+		for _, r := range f.Journal.Unsettled {
+			add(fmt.Errorf("%w: the factory reset %s ended before arcctl checked what it did; arcctl checks it once the mouse is loaded",
+				ErrNotClean, r.ID))
+		}
 	}
 	return blocked(fs)
 }

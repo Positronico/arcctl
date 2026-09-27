@@ -1,0 +1,67 @@
+Source    $TMP/b0.json
+          backup of 260d-1282-7b04, 2026-09-26 12:00:00 UTC, loaded bytes
+Mouse     ProtoArc EM11 Pro (7B04), identity 260d-1282-7b04, onboard profile 0
+
+Records that differ (the mouse now -> the source):
+  unmapped @6      1 -> 0
+                   write, experimental, the source's bytes as captured
+                   (--include-unknown): unmapped: no field of 7B04 is known here
+  DPI stage 2      1600 -> 1200
+                   write, untested
+  Colour 1         #010203 -> #ff0000
+                   not written: no feature writes the DPI colours in this build
+  unmapped @84     01 54 ff 57 00 55 80 d5 03 52 00 55 -> ff 00 ff 57 00 55 80
+                   d5 03 52 00 55
+                   write, experimental, the source's bytes as captured
+                   (--include-unknown): unmapped: no field of 7B04 is known here
+  Button slot 3    Backward -> Cmd+Shift+T
+                   write, untested
+  SensorMode @185  1 -> 03 53
+                   unknown: the source holds invalid bytes; the planner writes
+                   only valid values; D5 keeps setting.sensor-mode read-only
+                   until its own H8 test is recorded
+  unmapped @187    1 -> 0
+                   write, experimental, the source's bytes as captured
+                   (--include-unknown): unmapped: no field of 7B04 is known here
+  Shortcut 4       Cmd+Option+Tab -> Ctrl+Tab
+                   write, untested
+
+6 records to write in 10 packets; 2 records left alone; 75 records equal.
+
+Plan, in the order it is written:
+   Op  Record     Phase       Tier          What
+    1  112+4      neutralise  untested      disable binding 4 while its body is
+                                            rewritten
+    2  384+20     body        untested      restore shortcut 4
+    3  108+4      bind        untested      restore button slot 3
+    4  112+4      bind        untested      restore binding 4
+    5  16+4       record      untested      restore DPI stage 2: 1200
+    6  6+2        captured    experimental  write back the captured bytes of
+                                            unmapped @6
+    7  84+12      captured    experimental  write back the captured bytes of
+                                            unmapped @84
+    8  187+2      captured    experimental  write back the captured bytes of
+                                            unmapped @187
+
+   Op  Record     State         What
+    1  112+4      verified      disable binding 4 while its body is rewritten
+    2  384+20     verified      restore shortcut 4
+    3  108+4      verified      restore button slot 3
+    4  112+4      verified      restore binding 4
+    5  16+4       verified      restore DPI stage 2: 1200
+    6  6+2        verified      write back the captured bytes of unmapped @6
+    7  84+12      verified      write back the captured bytes of unmapped @84
+    8  187+2      verified      write back the captured bytes of unmapped @187
+Dry run: nothing was written. The restore would send 10 packets:
+  07 00 00 70 04 00 00 00 55 00 00 00 00 00 00 7d
+  07 00 01 80 0a 04 80 01 00 81 2b 00 41 2b 00 1e
+  07 00 01 8a 0a 40 01 00 77 ff ff ff ff ff ff ff
+  07 00 00 6c 04 05 00 00 50 00 00 00 00 00 00 81
+  07 00 00 70 04 05 00 00 50 00 00 00 00 00 00 7d
+  07 00 00 10 04 1f 1f 00 17 00 00 00 00 00 00 dd
+  07 00 00 06 02 00 55 00 00 00 00 00 00 00 00 e9
+  07 00 00 54 0a ff 00 ff 57 00 55 80 d5 03 52 94
+  07 00 00 5e 02 00 55 00 00 00 00 00 00 00 00 91
+  07 00 00 bb 02 00 55 00 00 00 00 00 00 00 00 34
+Checked: after it the mouse would hold what the source holds in every record it
+restores.

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -73,13 +74,29 @@ func (a *App) noticeLines(c *Context, w int) []string {
 	if n.bad {
 		st = c.Styles.Bad
 	}
-	text := n.text
+	lines := wrap(n.text, w, " ", "   ")
 	if n.path != "" {
-		text += " " + midCut(c, n.path, w-4)
+		last := lines[len(lines)-1]
+		pw := ansi.StringWidth(n.path)
+		room := w - ansi.StringWidth(last) - 1
+		switch {
+		case room >= pw, len(lines) > 1 && room >= (ansi.StringWidth(filepath.Base(n.path))+2)*3/2:
+			lines[len(lines)-1] = last + " " + midCut(c, n.path, room)
+		default:
+			lines = append(lines, "   "+midCut(c, n.path, w-3))
+		}
 	}
-	lines := wrap(text, w, " ", "   ")
 	if len(lines) > 2 {
-		lines = []string{lines[0], ansi.Truncate(lines[1]+" "+strings.TrimSpace(strings.Join(lines[2:], " ")), w, c.Glyphs.Ellipsis)}
+		rest := lines[1:]
+		if n.path != "" {
+			rest = lines[1 : len(lines)-1]
+		}
+		first := ansi.Truncate(lines[0]+" "+strings.TrimSpace(strings.Join(rest, " ")), w, c.Glyphs.Ellipsis)
+		if n.path != "" {
+			lines = []string{first, lines[len(lines)-1]}
+		} else {
+			lines = []string{lines[0], ansi.Truncate(lines[1]+" "+strings.TrimSpace(strings.Join(lines[2:], " ")), w, c.Glyphs.Ellipsis)}
+		}
 	}
 	for i, l := range lines {
 		lines[i] = st.Render(l)

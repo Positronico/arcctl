@@ -8,5 +8,6 @@
 //
 // It builds the plans the release planner refuses (identity writes, inactive
 // DPI stages, hidden slots) with plan.New, and owns the raw path, which sends
-// packets no guard policy allows. Only builds with the hwtest tag contain it.
+// packets no guard policy allows: identity writes, the NAK probe and H7's
+// factory reset. Only builds with the hwtest tag contain it.
 package hwtest

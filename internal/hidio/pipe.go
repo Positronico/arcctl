@@ -27,7 +27,11 @@ func NewPipe(send func(p wire.Packet) error) *Pipe {
 func (p *Pipe) SetWatchdog(d time.Duration) { p.w.watchdog = d }
 
 func (p *Pipe) WriteRaw(pk wire.Packet) error {
-	return p.w.write(func() error { return p.send(pk) })
+	return p.w.write(func() error { return p.send(pk) }, true)
+}
+
+func (p *Pipe) WriteRawOnce(pk wire.Packet) error {
+	return p.w.write(func() error { return p.send(pk) }, false)
 }
 
 // Deliver queues an input report from the device side. It never blocks.

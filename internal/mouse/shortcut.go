@@ -59,7 +59,7 @@ func DecodeShortcut(b []byte) (keys.Combo, error) {
 	for i := range c {
 		p, q := r[1+3*i:], r[1+3*(2*n-1-i):]
 		if p[0]&0xF0 != eventPress {
-			return nil, newError(ErrInvalid, "shortcut event "+strconv.Itoa(i)+" is not a press")
+			return nil, newError(ErrInvalid, "shortcut event "+strconv.Itoa(i+1)+" is not a press")
 		}
 		s := keys.Stroke{Kind: keys.Kind(p[0] & 0x0F), Value: uint16(p[1]) | uint16(p[2])<<8}
 		if q[0] != eventRelease|byte(s.Kind) || q[1] != p[1] || q[2] != p[2] {

@@ -58,6 +58,7 @@ func accEmulate(t *testing.T) *accEmulated {
 		o.Gates.AllowUntested = true
 		o.OS = keys.Mac
 		o.Tabs = nil
+		o.Library = filepath.Join(dir, "macros.json")
 	})
 	h.screen(80, 24)
 	run := make(chan struct{})

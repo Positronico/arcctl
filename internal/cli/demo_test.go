@@ -3,6 +3,8 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -102,10 +104,8 @@ func TestTUINotesMissingBodies(t *testing.T) {
 				t.Fatalf("exit %d: %s", code, errb.String())
 			}
 			errs := errb.String()
-			for _, l := range strings.Split(errs, "\n") {
-				if tmp, ok := strings.CutPrefix(l, "arcctl: the emulated mouse's journal and backups go to "); ok {
-					os.RemoveAll(tmp)
-				}
+			if _, err := os.Stat(got.DataDir); got.DataDir == "" || !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("the emulator's folder %q is left behind (%v)", got.DataDir, err)
 			}
 			if got := strings.Contains(errs, "holds no body"); got != (tc.want != "") || !strings.Contains(errs, tc.want) {
 				t.Errorf("stderr:\n%s", errs)

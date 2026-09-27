@@ -70,7 +70,7 @@ func (r *runner) printSource(w io.Writer, src *backup.Source, m *catalog.Model) 
 		line("File", src.Path)
 		line("Kind", fmt.Sprintf("web .bin, type %s, sensor %s", src.Bin.Type, src.Bin.Sensor))
 		line("Model", model)
-		line("Captured", fmt.Sprintf("%d bytes: the regions the web app reads", known(src.Image)))
+		line("Captured", fmt.Sprintf("%d bytes: what the web app reads, leaving out records of all 0xFF", known(src.Image)))
 	case backup.KindBackup:
 		f := src.File
 		line("File", src.Path)

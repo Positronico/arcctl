@@ -31,6 +31,7 @@ type Reader func(ctx context.Context, extents ...flash.Extent) (session.Capture,
 // from here.
 type Buttons struct {
 	read    Reader
+	macros  *Macros
 	reading bool
 	ready   bool
 	all     bool
@@ -38,10 +39,12 @@ type Buttons struct {
 	offset  int
 }
 
-// NewButtons builds the tab. read loads a shortcut body that was never read
-// before an edit that rewrites it can be planned; nil leaves that to the
-// user.
-func NewButtons(read Reader) *Buttons { return &Buttons{read: read} }
+// NewButtons builds the tab. read loads a body that was never read before
+// an edit that rewrites it can be planned; nil leaves that to the user.
+// macros is the Macros tab: the picker's Macro group offers its macros, its
+// library and its editor, and it reads the macro slots of pending macros;
+// nil leaves the group out.
+func NewButtons(read Reader, macros *Macros) *Buttons { return &Buttons{read: read, macros: macros} }
 
 const bodyReadTimeout = 30 * time.Second
 
@@ -202,12 +205,16 @@ func slotOwns(slot int, e flash.Extent) bool {
 	return false
 }
 
+// editBody is the body e rewrites, which must be read before the review can
+// plan e: a shortcut body, or a whole macro slot.
 func editBody(e mouse.Edit) (flash.Extent, bool) {
 	switch e := e.(type) {
 	case mouse.SetShortcut:
 		return mouse.ShortcutExtent(e.Slot)
 	case mouse.SetMedia:
 		return mouse.ShortcutExtent(e.Slot)
+	case mouse.SetMacro:
+		return mouse.MacroExtent(e.Slot)
 	}
 	return flash.Extent{}, false
 }
@@ -318,7 +325,8 @@ func (b *Buttons) stage(c *Context, r buttonRow, e mouse.Edit) tea.Cmd {
 }
 
 // readBodies reads the bodies that pending edits rewrite and that were
-// never read, while the session is ready and no such read runs.
+// never read, while the session is ready and no such read runs. The Macros
+// tab, when there is one, reads the macro slots.
 func (b *Buttons) readBodies(c *Context) tea.Cmd {
 	im := c.Image()
 	if b.reading || im == nil || c.Snapshot.State != session.Ready {
@@ -326,6 +334,9 @@ func (b *Buttons) readBodies(c *Context) tea.Cmd {
 	}
 	var want []flash.Extent
 	for _, s := range c.Pending.List() {
+		if _, ok := s.Edit.(mouse.SetMacro); ok && b.macros != nil {
+			continue
+		}
 		if ext, ok := editBody(s.Edit); ok {
 			if _, known := im.Get(ext); !known {
 				want = append(want, ext)
@@ -490,14 +501,19 @@ func (b *Buttons) Hints(c *Context) []key.Binding {
 // buttonInfo is everything a row and its detail show.
 type buttonInfo struct {
 	buttonRow
-	now      string
-	state    slotState
-	next     string // the pending function, when one is staged
-	tier     catalog.Tier
-	refused  string
-	warns    []mouse.Warning
-	guarded  bool
-	pending  bool
+	now     string
+	state   slotState
+	next    string // the pending function, when one is staged
+	tier    catalog.Tier
+	refused string
+	warns   []mouse.Warning
+	guarded bool
+	pending bool
+	// unread is the body the pending edit rewrites that was never read, a
+	// macro slot when macro is set; reading says a read of it runs.
+	unread   *flash.Extent
+	macro    bool
+	reading  bool
 	bindRaw  []byte
 	bodyRaw  []byte
 	bodyAddr flash.Extent
@@ -512,12 +528,15 @@ func (b *Buttons) info(c *Context, r buttonRow) buttonInfo {
 	if s, ok := c.Pending.Get(SlotKey(r.slot)); ok {
 		in.pending, in.state = true, slotPending
 		in.next = editText(c.Model(), s.Edit, os)
-		switch pv := previewSlot(c, r.slot, s.Edit); {
+		pv := previewSlot(c, r.slot, s.Edit)
+		switch {
 		case pv.err != nil:
 			in.refused = editRefusal(pv.err)
 		case pv.ops > 0:
 			in.tier, in.warns = pv.tier, pv.warns
 		}
+		_, in.macro = s.Edit.(mouse.SetMacro)
+		in.unread, in.reading = pv.unread, b.readingBody(s.Edit)
 	}
 	in.guarded = lastLeftClick(c, r.slot)
 	if cfg := c.Config(); cfg != nil {
@@ -528,6 +547,15 @@ func (b *Buttons) info(c *Context, r buttonRow) buttonInfo {
 		}
 	}
 	return in
+}
+
+// readingBody reports that a read of the bodies pending edits like e
+// rewrite runs: the Macros tab's, when there is one, for a macro slot.
+func (b *Buttons) readingBody(e mouse.Edit) bool {
+	if _, ok := e.(mouse.SetMacro); ok && b.macros != nil {
+		return b.macros.reading
+	}
+	return b.reading
 }
 
 // slotTier is the tier of giving slot r a function the web app offers.
@@ -566,11 +594,32 @@ func (in buttonInfo) webText() string {
 	return ""
 }
 
-func (in buttonInfo) tierText() string {
-	if in.refused != "" {
+func (in buttonInfo) tierText(c *Context) string {
+	switch {
+	case in.refused != "":
 		return "refused"
+	case in.unread != nil && in.reading:
+		return "reading" + c.Glyphs.Ellipsis
+	case in.unread != nil:
+		return "not read"
 	}
 	return in.tier.String()
+}
+
+// unreadText says why the pending edit's body is not read yet and when it
+// will be.
+func (in buttonInfo) unreadText(c *Context) string {
+	what := "body"
+	if in.macro {
+		what = "macro slot"
+	}
+	switch {
+	case in.reading:
+		return fmt.Sprintf("reading the %s at %v from the mouse", what, *in.unread)
+	case c.Snapshot.State != session.Ready:
+		return fmt.Sprintf("the %s at %v was never read; it is read once the mouse is ready", what, *in.unread)
+	}
+	return fmt.Sprintf("the %s at %v was never read; r reloads and reads it", what, *in.unread)
 }
 
 // buttonsSideBySide is the width from which list and detail share the row (§7.1).
@@ -648,7 +697,7 @@ func (b *Buttons) list(c *Context, infos []buttonInfo, w, h int) []string {
 			mark = c.Glyphs.Cursor + " "
 		}
 		line := buttonCells(w, mark, widths, c.Glyphs.Ellipsis,
-			in.name, strconv.Itoa(in.slot), in.function(), in.tierText(), in.stateText(), in.webText())
+			in.name, strconv.Itoa(in.slot), in.function(), in.tierText(c), in.stateText(), in.webText())
 		switch {
 		case i == b.cursor:
 			line = st.Selected.Render(line)
@@ -672,6 +721,9 @@ func (b *Buttons) detail(c *Context, in buttonInfo, w int) []string {
 	out = append(out, row("now", in.now)...)
 	if in.pending {
 		out = append(out, row("pending", in.next+" (d drops it)")...)
+	}
+	if in.unread != nil {
+		out = append(out, row("read", in.unreadText(c))...)
 	}
 	if in.refused != "" {
 		out = append(out, row("refused", in.refused)...)

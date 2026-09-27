@@ -17,12 +17,15 @@ const (
 	Body
 	Bind
 	Record
+	// Captured writes bytes a backup captured, as they were, over an extent
+	// the layout gives no valid record (Layout.Capturable).
+	Captured
 )
 
-var phaseNames = [...]string{"", "neutralise", "body", "bind", "record"}
+var phaseNames = [...]string{"", "neutralise", "body", "bind", "record", "captured"}
 
 func (p Phase) String() string {
-	if p >= Neutralise && p <= Record {
+	if p >= Neutralise && p <= Captured {
 		return phaseNames[p]
 	}
 	return "Phase(" + strconv.Itoa(int(p)) + ")"
@@ -43,6 +46,9 @@ type Change struct {
 	New  []byte
 	Desc string
 	Tier catalog.Tier
+	// Captured asks for New to be written as a backup captured it, whether
+	// or not it is a valid record; Tier must then be Experimental.
+	Captured bool
 }
 
 type Plan struct {
@@ -53,7 +59,8 @@ type Plan struct {
 
 // New turns record changes into a validated plan. It reads the old bytes from im,
 // drops changes that write what is already there, disables every binding that points
-// at a body being rewritten and binds it again afterwards, and orders the ops.
+// at a body being rewritten and binds it again afterwards, and orders the ops, with
+// captured bytes last.
 func New(dev Identity, profile *byte, im *flash.Image, l Layout, changes []Change) (Plan, error) {
 	if err := l.check(); err != nil {
 		return Plan{}, err
@@ -77,7 +84,12 @@ func New(dev Identity, profile *byte, im *flash.Image, l Layout, changes []Chang
 			return Plan{}, newError(ErrFrozen, where+" touches a frozen extent")
 		}
 		r, ok := l.classify(e)
-		if !ok {
+		switch {
+		case c.Captured && !l.Capturable(e):
+			return Plan{}, newError(ErrExtent, where+" is not in the settings page clear of the tables and records")
+		case c.Captured:
+			r = ref{kind: kindCaptured}
+		case !ok:
 			return Plan{}, newError(ErrExtent, where+" is not a whole slot or record")
 		}
 		for _, s := range seen {
@@ -180,6 +192,8 @@ func phaseOf(k kind) Phase {
 		return Bind
 	case kindShortcut, kindMacro:
 		return Body
+	case kindCaptured:
+		return Captured
 	}
 	return Record
 }

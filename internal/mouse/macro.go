@@ -43,7 +43,7 @@ func EncodeMacro(m Macro) ([]byte, error) {
 	b[macroCount] = byte(n)
 	for i, e := range m.Events {
 		if p := strokeProblem(e.Stroke, macroKinds); p != "" {
-			return nil, newError(ErrValue, "macro event "+strconv.Itoa(i)+": "+p)
+			return nil, newError(ErrValue, "macro event "+strconv.Itoa(i+1)+": "+p)
 		}
 		h := byte(eventRelease)
 		if e.Press {
@@ -89,11 +89,11 @@ func DecodeMacro(b []byte) (Macro, error) {
 		e := b[macroEvents+eventSize*i:]
 		h := e[0] & 0xF0
 		if h != eventPress && h != eventRelease {
-			return Macro{}, newError(ErrInvalid, "macro event "+strconv.Itoa(i)+" header "+hexString(e[:1]))
+			return Macro{}, newError(ErrInvalid, "macro event "+strconv.Itoa(i+1)+" header "+hexString(e[:1]))
 		}
 		s := keys.Stroke{Kind: keys.Kind(e[0] & 0x0F), Value: uint16(e[1]) | uint16(e[2])<<8}
 		if p := strokeProblem(s, macroKinds); p != "" {
-			return Macro{}, newError(ErrInvalid, "macro event "+strconv.Itoa(i)+": "+p)
+			return Macro{}, newError(ErrInvalid, "macro event "+strconv.Itoa(i+1)+": "+p)
 		}
 		m.Events[i] = Event{Press: h == eventPress, Stroke: s, Delay: uint16(e[3])<<8 | uint16(e[4])}
 	}

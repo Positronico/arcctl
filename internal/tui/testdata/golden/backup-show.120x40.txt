@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Backup]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Backup 20260925T100000Z-before-h1.json
+ 2026-09-25 10:00:00 UTC · loaded · 260d-1282-7b04
+
+ Settings
+   Report rate  250 Hz
+   DPI stages   6, current 4
+
+ DPI
+   1  800          #ff0000
+   2  1200         #0000ff
+   3  1600         #00ff00
+   4  2400         #ffff00  current
+   5  3200         #ff8000
+   6  4800 x 2400  #ff00ff
+   7  4000         #ff7d7d  inactive
+   8  4000         #7d7dff  inactive
+
+ Buttons
+    0  Left Click   Left Click
+    1  Right Click  Right Click
+    2  Wheel Click  Paste (Cmd+V)
+    3  Backward     Ctrl+Tab
+    4  Forward      Cmd+Tab
+    5  DPI Cycle    Copy (Cmd+C)
+    6  -            Profile switch
+    7  -            DPI Cycle
+    8  -            Scroll Left
+    9  -            Scroll Right
+   10  -            DPI+
+   11  -            DPI-
+   12  -            Do nothing
+   13  -            Do nothing
+   14  -            Do nothing
+   15  -            Do nothing
+ ↓ 30 lines below: pgdn
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   pgdn/pgup scroll   esc close

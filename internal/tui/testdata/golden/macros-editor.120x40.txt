@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Macros]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ Macro in slot 4  3/70 events · 48/384 bytes  changed                                                       labels: mac
+   Name    Hello
+   Repeat  until any key (255)
+   #   Action     Key                Delay after
+   1   ↓ press    H                  30 ms        ! never released
+ › 2   ↓ press    I                  10 ms
+   3   ↑ release  I                  10 ms
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 1 event is unpaired: t tidies.
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   i insert key   c click   b bind to button   t tidy   s save to library   x delete   ? all keys   esc close

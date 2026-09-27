@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 Macros
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Backward · slot 3  now Ctrl+Tab                                                                            labels: mac
+  System   Special   Media   Combo Key  [Macro]
+  / filters
+   New macro… opens the editor
+   Hello      until any key          Forward (slot 4)
+   copy       ×1                     slot 9, no button
+ › greet      ×3                     library
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  writes the macro into slot 3 (@1920), then binds Backward (slot 3)
+  tier untested: the review asks you to type a confirmation
+  the macro slot was never read in full; staging reads it
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   / filter   tab group   ↑/↓ move   o win labels   enter choose   esc back

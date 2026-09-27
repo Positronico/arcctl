@@ -8,19 +8,24 @@ confirm.
 Flags:
   -debug-abort-after-chunk n
       end the process right after chunk n of a record is acknowledged, as a
-      crash would; the journal settles the write on the next start
+      crash would; the journal settles the write on the next start. H5 needs it,
+      with n from 1 to 10, and applies it only to its torn-write drill
   -repo string
       the arcctl checkout that gets the transcripts, the log entry and
       verified.json (default: the one around the current folder; a rehearsal
       with --emulate records to a temporary folder)
   -stage stage
-      the stage to run: H0, H1, H2, H3, H3b
+      the stage to run: H0, H1, H2, H3, H3b, H4, H5, H6, H7, H9
   -trace-for duration
       how long H0 listens while the web app is connected (default 20s)
 
-With --dry-run, a write stage (H1, H2, H3, H3b) prints only that preview and
+With --dry-run, a write stage (every stage but H0) prints only that preview and
 exits: it takes no backup, asks nothing, writes nothing and records nothing, and
 needs no tier flag. H0 writes nothing and has no dry run.
+
+A stage that ended after H5's torn-write drill or after H7's factory reset
+leaves a checkpoint in the logs folder, and its next run goes on from there: the
+reset is never sent again.
 
 Global flags: see 'arcctl help'. The write flags --allow-untested,
 --experimental and --allow-foreign-client apply to the stage's writes; --emulate

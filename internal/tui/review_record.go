@@ -118,8 +118,13 @@ func reviewRecordText(m *catalog.Model, base *flash.Image, e flash.Extent, b []b
 	return ""
 }
 
+// reviewField says what f holds; "" for bytes that are known but that no
+// field decodes, such as an unmapped block, whose bytes show alone.
 func reviewField(f mouse.Field, text func(int) string) string {
-	if f.State != flash.OK {
+	switch {
+	case f.State == flash.Unknown && f.Raw != nil:
+		return ""
+	case f.State != flash.OK:
 		return reviewState(f.State)
 	}
 	return text(f.Value)

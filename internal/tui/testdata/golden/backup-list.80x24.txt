@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Backup]
+────────────────────────────────────────────────────────────────────────────────
+ Backups of ProtoArc EM11 Pro (260d-1282-7b04)  3, newest first
+  Created (UTC)    Kind          Firmware Profile Label
+› 2026-09-26 11:00 full, partial v1.00    none
+  2026-09-26 10:00 loaded        v1.00    none    auto before write
+  2026-09-25 10:00 loaded        v1.00    none    before H1
+
+ 20260926T110000Z.json
+ Created   2026-09-26 11:00:00 UTC by arcctl test
+ Identity  260d-1282-7b04
+ Firmware  mouse v1.00, receiver v1.0
+ Profile   no onboard profiles
+ Captured  459 bytes, full backup; could not read 9504+20, 9600+10
+ DPI       6 stages, current 4: 800 1200 1600 2400 3200 4800x2400
+ Buttons   Left Click: Left Click; Right Click: Right Click; Wheel Click: Cmd+V
+           (Paste); Forward: Cmd+Tab; Backward: Ctrl+Tab; DPI Cycle: Cmd+C
+           (Copy)
+ Bodies    4 shortcuts
+ Invalid   SensorMode
+
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   ↑/↓ select   enter show   d diff   w restore   ? help   q quit

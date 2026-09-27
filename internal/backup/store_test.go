@@ -55,15 +55,6 @@ func TestSaveAsRefusesExisting(t *testing.T) {
 	}
 }
 
-func TestWriteFileReplaces(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "sub", "x.bin")
-	must(t, backup.WriteFile(path, []byte("one")))
-	must(t, backup.WriteFile(path, []byte("two")))
-	if b, _ := os.ReadFile(path); string(b) != "two" {
-		t.Errorf("content %q", b)
-	}
-}
-
 func TestList(t *testing.T) {
 	root := t.TempDir()
 	c := capture(t, dumpImage(t))

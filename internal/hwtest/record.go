@@ -19,6 +19,7 @@ import (
 
 	"github.com/positronico/arcctl/internal/catalog"
 	"github.com/positronico/arcctl/internal/hidio"
+	"github.com/positronico/arcctl/internal/mouse"
 )
 
 const (
@@ -143,6 +144,9 @@ func (r *runner) commit(rc *recording) (string, error) {
 
 var firmwarePattern = regexp.MustCompile(`^v[0-9]+\.[0-9a-f]{2}$`)
 
+// knownFeatures are the features verified.json may name.
+var knownFeatures = mouse.Features
+
 type verification struct {
 	Model    string `json:"model"`
 	Feature  string `json:"feature"`
@@ -160,9 +164,24 @@ func (r *runner) promote(ctx context.Context) ([]catalog.Verification, error) {
 		return nil, fmt.Errorf("hwtest: nothing promoted: the mouse firmware %q is not a version verified.json takes", d.Mouse)
 	}
 	var add []catalog.Verification
-	for _, f := range r.def.promotes {
+	fs := slices.Clone(r.def.promotes)
+	for _, f := range r.def.extras {
+		if slices.Contains(r.seen, f) {
+			fs = append(fs, f)
+		} else {
+			r.finding("not promoted: %s, whose effect was not seen; it stays Untested", f)
+		}
+	}
+	for _, f := range fs {
+		if !slices.Contains(knownFeatures(), f) {
+			r.finding("not promoted: this build has no feature %s; once internal/mouse lists it, this run's entry can be added to verified.json", f)
+			continue
+		}
 		add = append(add, catalog.Verification{Model: d.Key, Feature: string(f), Firmware: d.Mouse, Stage: r.def.name,
 			Date: r.res.Started.UTC().Format("2006-01-02")})
+	}
+	if len(add) == 0 {
+		return nil, nil
 	}
 	return promote(ctx, r.cfg.Repo, add, r.cfg.Generate)
 }

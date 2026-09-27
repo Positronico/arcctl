@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+  1 Backup  [2 Log]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ This session 12:00:00 Factory reset 20260926T120000.000000000Z-42/1 done: 3 ranges of the configuration differ from
+              the backup (reply: acknowledged)
+ Backup       /data/backups/em11-pro-260d-1282-7b04/20260926T120000Z-auto-before-reset.json
+ Last change  none since the factory reset 20260926T120000.000000000Z-42/1; no revert goes past it
+
+ Events newest last
+ 12:00:00  State: ready
+ 12:00:00  Receiver 260d:1282, interface 1: Emulated receiver
+ 12:00:00  Handshake: 7B/04 ProtoArc EM11 Pro, wireless 1 kHz
+ 12:00:00  Firmware: mouse v1.00, receiver v1.0
+ 12:00:00  Battery 80% raw
+ 12:00:00  Profiles: cmd 14 refused
+ 12:00:00  Backing up started
+ 12:00:00  State: applying
+ 12:00:00  Backing up finished
+ 12:00:00  Factory reset started
+ 12:00:00  State: loading
+ 12:00:00  Reading the mouse again after the factory reset started
+ 12:00:00  State: ready
+ 12:00:00  Reading the mouse again after the factory reset finished
+ 12:00:00  Factory reset 20260926T120000.000000000Z-42/1 done: 3 ranges of the configuration differ from the backup (re…
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   ↑/↓ scroll   g/G oldest/newest   r reload   ? help   q quit

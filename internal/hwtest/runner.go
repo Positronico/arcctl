@@ -15,6 +15,7 @@ import (
 	"github.com/positronico/arcctl/internal/backup"
 	"github.com/positronico/arcctl/internal/catalog"
 	"github.com/positronico/arcctl/internal/keys"
+	"github.com/positronico/arcctl/internal/mouse"
 	"github.com/positronico/arcctl/internal/safety"
 	"github.com/positronico/arcctl/internal/session"
 )
@@ -37,6 +38,16 @@ var (
 	ErrBackup   = errors.New("hwtest: the fresh backup is not complete")
 	ErrRepo     = errors.New("hwtest: not an arcctl checkout")
 	ErrNoDryRun = errors.New("hwtest: no dry run")
+	// ErrEnded is what Run returns when --debug-abort-after-chunk ended the
+	// stage as a crash would; a real run never returns it, because the
+	// process is gone.
+	ErrEnded = errors.New("hwtest: the debug abort ended the process")
+	// ErrResume is a stage whose torn-write drill waits for the next run to
+	// recover it and could not go on this time.
+	ErrResume = errors.New("hwtest: the stage cannot resume after its drill")
+	// ErrUnknownFeature is a stage whose feature this build cannot record:
+	// running it would spend its drill for nothing.
+	ErrUnknownFeature = errors.New("hwtest: this build cannot record the feature the stage verifies")
 )
 
 // Config is everything a stage needs from outside.
@@ -75,6 +86,13 @@ type Config struct {
 	// nil runs go generate in Repo.
 	Generate func(ctx context.Context, repo string) error
 	Now      func() time.Time
+
+	// hook sees every op event of a write after the runner; afterReset runs
+	// right after H7's reset went out. Tests act out the user in them.
+	hook       func(safety.OpEvent)
+	afterReset func()
+	// pace replaces the pace of every H9 drill.
+	pace time.Duration
 }
 
 func (c Config) withDefaults() Config {
@@ -162,6 +180,19 @@ type runner struct {
 	rec    *recording
 	pauses int  // times watch saw a job paused for a sleeping mouse
 	begun  bool // the user confirmed the stage
+	// fresh is the stage's fresh full backup, as read back from its file.
+	fresh *backup.File
+	// at is the step running now. drills reports a torn-write drill among
+	// the steps, drill is set while it writes, and ended once the debug
+	// abort ended the stage.
+	at     int
+	drills bool
+	drill  *drillState
+	ended  bool
+	// fingerprint identifies the stage's steps, for a resumed run.
+	fingerprint string
+	// seen are the extra features whose effect the user saw.
+	seen []mouse.Feature
 }
 
 // Stages lists the stages this build runs.
@@ -186,7 +217,21 @@ func Run(ctx context.Context, cfg Config, stage string) (*Result, error) {
 	r := &runner{cfg: cfg, def: def, devs: newDevices(cfg.Raw), res: &Result{
 		Stage: def.name, Title: def.title, Rehearsal: cfg.Source != backup.SourceDevice, DryRun: cfg.Gates.DryRun, Started: cfg.Now(),
 	}}
+	if !r.res.DryRun {
+		for _, f := range slices.Concat(def.promotes, def.extras) {
+			if !slices.Contains(knownFeatures(), f) {
+				return nil, fmt.Errorf("%w: stage %s verifies %s, which internal/mouse does not list, so its run would record nothing", ErrUnknownFeature, def.name, f)
+			}
+		}
+	}
+	cp, err := loadCheckpoint(cfg.Logs, def.name)
+	if err != nil {
+		return nil, err
+	}
 	if r.res.DryRun {
+		if cp != nil {
+			return nil, fmt.Errorf("%w: stage %s has a run to finish (%s); run it again without --dry-run", ErrResume, def.name, checkpointPath(cfg.Logs, def.name))
+		}
 		return r.dryRun(ctx)
 	}
 	if err := r.checkRepo(); err != nil {
@@ -202,12 +247,42 @@ func Run(ctx context.Context, cfg Config, stage string) (*Result, error) {
 		r.say("Rehearsal on the " + cfg.Source + ": nothing this run finds is promoted.")
 	}
 	var runErr error
-	if def.run != nil {
+	switch {
+	case cp != nil && cp.Kind == checkpointReset:
+		runErr = r.resumeReset(ctx, cp)
+	case cp != nil:
+		runErr = r.resume(ctx, cp)
+	case def.run != nil:
 		runErr = def.run(ctx, r)
-	} else {
+	default:
 		runErr = r.writeStage(ctx)
 	}
-	return r.finish(ctx, runErr)
+	switch {
+	case r.ended && r.res.Rehearsal && r.drills && cp == nil:
+		if err := r.rec.close(); err != nil {
+			return r.res, err
+		}
+		r.say("Rehearsal: the emulated mouse lives in this process, so the stage resumes here, as its next run would.")
+		return Run(ctx, cfg, stage)
+	case r.ended:
+		r.res.Err = ErrEnded
+		r.res.Ended = r.cfg.Now()
+		return r.res, r.rec.close()
+	case errors.Is(runErr, ErrResume):
+		r.res.Err = runErr
+		r.res.Ended = r.cfg.Now()
+		r.say("Stopped: " + runErr.Error())
+		r.say("Nothing recorded yet; the stage resumes on its next run.")
+		return r.res, r.rec.close()
+	}
+	res, err := r.finish(ctx, runErr)
+	switch {
+	case cp != nil && cp.Kind != checkpointReset:
+		err = errors.Join(err, removeCheckpoint(cfg.Logs, def.name))
+	case res.Recorded:
+		err = errors.Join(err, r.markRecorded())
+	}
+	return res, err
 }
 
 func (r *runner) say(text string) {
@@ -323,7 +398,7 @@ func (r *runner) finish(ctx context.Context, runErr error) (*Result, error) {
 		}
 		res.Transcripts = append(res.Transcripts, path)
 	}
-	if res.Passed && !res.Rehearsal && len(r.def.promotes) > 0 {
+	if res.Passed && !res.Rehearsal && len(r.def.promotes)+len(r.def.extras) > 0 {
 		vs, err := r.promote(ctx)
 		if err != nil {
 			errs = append(errs, err)

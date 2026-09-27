@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Backup]
+────────────────────────────────────────────────────────────────────────────────
+ The mouse now → backup 20260926T100000Z-auto-before-write.json
+ 2 records differ: 2 records to write, 0 records left alone; 73 records equal.
+
+   DPI stage 2    1200 → 1600
+                  write, untested
+   Button slot 3  Ctrl+Tab → Backward
+                  write, untested
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   w restore   esc close

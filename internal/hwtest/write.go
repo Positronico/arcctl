@@ -41,9 +41,11 @@ func (r *runner) writeStage(ctx context.Context) error {
 		return err
 	}
 	b := r.builder(c.s.Snapshot(), img)
+	b.src = &backup.Source{Kind: backup.KindBackup, Path: r.res.Backups[0], File: r.fresh, Image: r.fresh.Image()}
 	if err := r.def.build(b); err != nil {
 		return err
 	}
+	r.fingerprint, r.drills = fingerprint(b.steps), hasDrill(b.steps)
 	if err := r.checkFlags(b.steps); err != nil {
 		return err
 	}
@@ -53,7 +55,7 @@ func (r *runner) writeStage(ctx context.Context) error {
 	if err := r.confirm(b.steps); err != nil {
 		return err
 	}
-	return r.execute(ctx, c, b.steps, img)
+	return r.execute(ctx, c, b.steps, img, 0)
 }
 
 // dryRun shows a write stage's preview and stops: no backup, no question,
@@ -82,7 +84,24 @@ func (r *runner) previewStage(ctx context.Context) error {
 	if err := r.writable(sn); err != nil {
 		return err
 	}
-	b := r.builder(sn, sn.Image)
+	img := sn.Image
+	if len(r.def.reads) > 0 {
+		cp, err := c.s.Read(ctx, r.def.reads...)
+		if err != nil {
+			return err
+		}
+		if len(cp.Missing) > 0 {
+			return fmt.Errorf("%w: could not read %v", ErrNotReady, cp.Missing)
+		}
+		img = cp.Image
+	}
+	b := r.builder(sn, img)
+	f, err := backup.New(session.Capture{Device: sn.Identity, Model: sn.Model, Profile: sn.Profile, Versions: sn.Versions,
+		Image: img, Handshake: sn.Handshake}, backup.Meta{Tool: r.cfg.Tool, Source: r.cfg.Source, Label: "dry run", Created: r.cfg.Now(), OS: r.cfg.OS})
+	if err != nil {
+		return err
+	}
+	b.src = &backup.Source{Kind: backup.KindBackup, File: f, Image: f.Image()}
 	if err := r.def.build(b); err != nil {
 		return err
 	}
@@ -90,7 +109,7 @@ func (r *runner) previewStage(ctx context.Context) error {
 		return err
 	}
 	if need := r.missingFlags(b.steps); len(need) > 0 {
-		r.say(fmt.Sprintf("\nThe stage itself needs %s.", strings.Join(need, " and ")))
+		r.say(fmt.Sprintf("\nThe stage itself needs %s.", and(need)))
 	}
 	r.say("\nDry run: no backup was taken and nothing was written.")
 	return nil
@@ -133,6 +152,7 @@ func (r *runner) freshBackup(ctx context.Context, c *conn) (*flash.Image, error)
 	if err != nil {
 		return nil, err
 	}
+	r.fresh = f
 	r.step("fresh full backup", true, fmt.Sprintf("%d bytes, complete, read back from its file", f.Known()))
 	r.say("    saved to " + path)
 	return cp.Image.Clone(), nil
@@ -160,7 +180,7 @@ func (r *runner) saveBackup(cp session.Capture, label string) (string, *backup.F
 		return "", nil, fmt.Errorf("the backup at %s differs from what was read", path)
 	}
 	r.res.Backups = append(r.res.Backups, path)
-	return path, f, nil
+	return path, back, nil
 }
 
 // watch runs call while it follows the session: it tells the user when the
@@ -232,9 +252,16 @@ func stageOps(steps []step) []plan.Op {
 // before anything is written.
 func (r *runner) checkFlags(steps []step) error {
 	if need := r.missingFlags(steps); len(need) > 0 {
-		return fmt.Errorf("%w: pass %s", ErrFlags, strings.Join(need, " and "))
+		return fmt.Errorf("%w: pass %s", ErrFlags, and(need))
 	}
 	return nil
+}
+
+func and(s []string) string {
+	if len(s) < 2 {
+		return strings.Join(s, "")
+	}
+	return strings.Join(s[:len(s)-1], ", ") + " and " + s[len(s)-1]
 }
 
 func (r *runner) missingFlags(steps []step) []string {
@@ -245,6 +272,11 @@ func (r *runner) missingFlags(steps []step) []string {
 	}
 	if slices.ContainsFunc(ops, func(o plan.Op) bool { return o.Tier == catalog.Experimental }) && !r.cfg.Gates.Experimental {
 		need = append(need, "--experimental")
+	}
+	if hasDrill(steps) {
+		if n := r.cfg.AbortAfterChunk; n < 1 || n >= drillChunks {
+			need = append(need, fmt.Sprintf("--debug-abort-after-chunk n, with n from 1 to %d (the plan uses 2), for the torn-write drill", drillChunks-1))
+		}
 	}
 	return need
 }
@@ -282,45 +314,90 @@ func (r *runner) preview(ctx context.Context, c *conn, steps []step) error {
 			r.say(fmt.Sprintf("      raw  %s (byte 15 should be %02x)", p, p.Checksum()))
 			n++
 		case stepApply, stepRevert:
-			for _, op := range s.plan.Ops {
-				r.say(fmt.Sprintf("      op %d %s %s: % x -> % x (%s) %s", op.Seq, op.Phase, op.Extent, op.Old, op.New, op.Tier, op.Desc))
-			}
-			out, err := c.s.Apply(ctx, s.plan, safety.Gates{DryRun: true}, nil)
+			m, err := r.dryRun1(ctx, c, i, s.plan)
 			if err != nil {
-				return fmt.Errorf("the dry run of step %d: %w", i+1, err)
+				return err
 			}
-			want := packets(s.plan)
-			if !slices.Equal(out.Packets, want) {
-				return fmt.Errorf("the dry run of step %d sent %v, the plan has %v", i+1, out.Packets, want)
+			n += m
+		case stepCustom:
+			for _, l := range s.custom.lines {
+				r.say("      " + l)
 			}
-			for _, p := range out.Packets {
-				r.say("      cmd7 " + p.String())
+			for _, p := range s.custom.raw {
+				r.say("      raw  " + p.String())
 				n++
+			}
+			for _, p := range s.custom.plans {
+				m, err := r.dryRun1(ctx, c, i, p)
+				if err != nil {
+					return err
+				}
+				n += m
 			}
 		}
 	}
-	if phrase := safety.ConfirmPhrase(stageOps(steps)); phrase != "" {
+	switch phrase := safety.ConfirmPhrase(stageOps(steps)); {
+	case phrase != "" && r.def.phrase != "":
+		r.say(fmt.Sprintf("\nThe stage writes features no hardware test has verified yet; you will type %q, then %q, to go on.", phrase, r.def.phrase))
+	case phrase != "":
 		r.say(fmt.Sprintf("\nThe stage writes features no hardware test has verified yet; you will type %q to go on.", phrase))
+	case r.def.phrase != "":
+		r.say(fmt.Sprintf("\nYou will type %q to go on.", r.def.phrase))
 	}
 	r.step("dry-run preview", true, fmt.Sprintf("%d steps, %d packets, every write's dry run matched its plan", len(steps), n))
 	return nil
 }
 
+// dryRun1 prints the ops of p, one write of step i, and dry-runs it: the
+// dry run must send exactly the plan's chunks. It returns their number.
+func (r *runner) dryRun1(ctx context.Context, c *conn, i int, p plan.Plan) (int, error) {
+	for _, op := range p.Ops {
+		r.say(fmt.Sprintf("      op %d %s %s: % x -> % x (%s) %s", op.Seq, op.Phase, op.Extent, op.Old, op.New, op.Tier, op.Desc))
+	}
+	out, err := c.s.Apply(ctx, p, safety.Gates{DryRun: true}, nil)
+	if err != nil {
+		return 0, fmt.Errorf("the dry run of step %d: %w", i+1, err)
+	}
+	if want := packets(p); !slices.Equal(out.Packets, want) {
+		return 0, fmt.Errorf("the dry run of step %d sent %s, the plan has %s", i+1, shownPackets(out.Packets), shownPackets(want))
+	}
+	for _, pk := range out.Packets {
+		r.say("      cmd7 " + pk.String())
+	}
+	return len(out.Packets), nil
+}
+
 func (s step) describe() string {
 	switch s.kind {
 	case stepIdentity, stepProbe:
+		if private(s.extent) {
+			return fmt.Sprintf("%s (raw path; its %d bytes stay as they are)", s.title, len(s.bytes))
+		}
 		return fmt.Sprintf("%s (raw path; % x stays % x)", s.title, s.bytes, s.bytes)
 	case stepApply:
 		return s.title
 	case stepRevert:
 		return fmt.Sprintf("%s (revert of step %d)", s.title, s.of+1)
 	case stepCheck:
-		return fmt.Sprintf("check: %s (%s holds % x)", s.title, s.extent, s.bytes)
+		return fmt.Sprintf("check: %s (%s holds %s)", s.title, s.extent, shown(s.extent, s.bytes))
+	case stepWait:
+		return "instruction: " + s.text
+	case stepCustom:
+		return s.title
 	}
 	return "question: " + s.text
 }
 
 func (r *runner) confirm(steps []step) error {
+	for _, q := range r.def.prepare {
+		ok, err := r.ask(q.id, q.text, true)
+		switch {
+		case err != nil:
+			return err
+		case !ok:
+			return fmt.Errorf("%w: %s", ErrDeclined, q.text)
+		}
+	}
 	writes := 0
 	for _, s := range steps {
 		switch s.kind {
@@ -328,40 +405,62 @@ func (r *runner) confirm(steps []step) error {
 			writes++
 		case stepApply, stepRevert:
 			writes += len(s.plan.Ops)
+		case stepCustom:
+			for _, p := range s.custom.plans {
+				writes += len(p.Ops)
+			}
 		}
 	}
-	ok, err := r.ask(stageID(r.def.name)+".run", fmt.Sprintf("\nRun stage %s now? It writes %d records to the mouse.", r.def.name, writes), true)
+	what := r.def.what
+	if what == "" {
+		what = fmt.Sprintf("It writes %d records to the mouse.", writes)
+	}
+	ok, err := r.ask(stageID(r.def.name)+".run", fmt.Sprintf("\nRun stage %s now? %s", r.def.name, what), true)
 	switch {
 	case err != nil:
 		return err
 	case !ok:
 		return ErrDeclined
 	}
-	phrase := safety.ConfirmPhrase(stageOps(steps))
-	if phrase == "" {
-		r.begun = true
-		return nil
+	if phrase := safety.ConfirmPhrase(stageOps(steps)); phrase != "" {
+		if err := r.typed(".confirm", phrase, "to write them"); err != nil {
+			return err
+		}
 	}
-	typed, err := r.line(stageID(r.def.name)+".confirm", fmt.Sprintf("Type %q to write them:", phrase))
+	if r.def.phrase != "" {
+		if err := r.typed(".phrase", r.def.phrase, "to go on"); err != nil {
+			return err
+		}
+	}
+	r.begun = true
+	return nil
+}
+
+// typed asks for phrase to be typed out.
+func (r *runner) typed(id, phrase, why string) error {
+	typed, err := r.line(stageID(r.def.name)+id, fmt.Sprintf("Type %q %s:", phrase, why))
 	if err != nil {
 		return err
 	}
 	if typed != phrase {
 		return fmt.Errorf("%w: typed %q, want %q", ErrConfirm, typed, phrase)
 	}
-	r.begun = true
 	return nil
 }
 
-// execute runs the steps. A question answered the unexpected way fails the
-// stage but the steps go on, so every change is still reverted; an error
-// stops them, and the reverts still owed then run while the session is
-// healthy.
-func (r *runner) execute(ctx context.Context, c *conn, steps []step, img *flash.Image) error {
+// execute runs the steps from from on. A question answered the unexpected
+// way fails the stage but the steps go on, so every change is still
+// reverted; an error stops them, and the reverts still owed then run while
+// the session is healthy.
+func (r *runner) execute(ctx context.Context, c *conn, steps []step, img *flash.Image, from int) error {
 	runs := make([]string, len(steps))
 	done := make([]bool, len(steps))
+	for i := range from {
+		done[i] = true
+	}
 	var err error
-	for i, s := range steps {
+	for i, s := range steps[from:] {
+		i += from
 		r.note(fmt.Sprintf("step %d: %s", i+1, s.describe()))
 		switch s.kind {
 		case stepIdentity:
@@ -373,15 +472,34 @@ func (r *runner) execute(ctx context.Context, c *conn, steps []step, img *flash.
 		case stepRevert:
 			_, err = r.doRevert(ctx, c, s, runs[s.of], steps[s.of].plan.Ops)
 		case stepAsk:
-			_, err = r.ask(s.id, s.text, s.want)
+			if s.aside != "" {
+				r.say(s.aside)
+			}
+			if s.observe {
+				var saw bool
+				saw, err = r.observe(s.id, s.text, s.what)
+				if saw && s.extra != "" {
+					r.seen = append(r.seen, s.extra)
+				}
+			} else {
+				_, err = r.ask(s.id, s.text, s.want)
+			}
 		case stepName:
 			_, err = r.line(s.id, s.text)
 		case stepCheck:
 			err = r.doCheck(ctx, c, s)
+		case stepWait:
+			err = r.wait(s.id, s.text)
+		case stepCustom:
+			r.at = i
+			err = s.custom.run(ctx, r, c)
+		}
+		if errors.Is(err, ErrEnded) {
+			return err
 		}
 		if err != nil {
 			err = fmt.Errorf("step %d (%s): %w", i+1, s.title, err)
-			r.restore(ctx, c, steps, runs, done, i)
+			r.restore(ctx, c, steps, runs, done, i, img)
 			return err
 		}
 		done[i] = true
@@ -391,7 +509,23 @@ func (r *runner) execute(ctx context.Context, c *conn, steps []step, img *flash.
 			r.finding("%d replies to the raw path came after it stopped listening; the session never saw them", n)
 		}
 	}
+	if r.def.selfCheck {
+		return nil
+	}
 	return r.verify(ctx, c, steps, img)
+}
+
+// observe asks a yes/no question whose answer describes what the mouse did:
+// it is recorded as a finding, and any answer passes.
+func (r *runner) observe(id, text, what string) (bool, error) {
+	got, err := r.cfg.Prompt.Ask(id, text)
+	if err != nil {
+		return false, err
+	}
+	r.res.Answers = append(r.res.Answers, Answer{ID: id, Question: text, Answer: yesNo(got), OK: true})
+	r.note(fmt.Sprintf("answer %s: %s", id, yesNo(got)))
+	r.finding("%s: %s", what, yesNo(got))
+	return got, nil
 }
 
 // restore runs the reverts owed after step failed: those of applies that
@@ -399,7 +533,7 @@ func (r *runner) execute(ctx context.Context, c *conn, steps []step, img *flash.
 // interrupt does not skip them: they run on a context of their own, bounded
 // by Config.Wait, and a second interrupt ends the process as a crash would.
 // What cannot be undone is named.
-func (r *runner) restore(ctx context.Context, c *conn, steps []step, runs []string, done []bool, failed int) {
+func (r *runner) restore(ctx context.Context, c *conn, steps []step, runs []string, done []bool, failed int, img *flash.Image) {
 	if ctx.Err() != nil {
 		r.say("Interrupted: undoing the steps still applied. Press Ctrl-C again to quit at once.")
 		var cancel context.CancelFunc
@@ -424,6 +558,22 @@ func (r *runner) restore(ctx context.Context, c *conn, steps []step, runs []stri
 			return
 		}
 		done[i] = true
+	}
+	var touched []flash.Extent
+	for _, s := range steps[:failed+1] {
+		if s.kind == stepCustom {
+			touched = append(touched, s.custom.touched...)
+		}
+	}
+	if len(touched) == 0 {
+		return
+	}
+	r.say(fmt.Sprintf("Putting back what step %d may have left changed.", failed+1))
+	if err := r.putBack(ctx, c, touched, img, "put back after the failure"); err != nil {
+		r.say(fmt.Sprintf("Cannot put back %v: %v.", touched, err))
+		r.say("The backup from the start of the stage holds the bytes from before it; settle the journal with " +
+			"'arcctl journal recover' if it names a run, then restore that backup with 'arcctl restore'.")
+		r.note("still changed: " + fmt.Sprint(touched))
 	}
 }
 
@@ -469,7 +619,7 @@ func (r *runner) doIdentity(ctx context.Context, c *conn, s step) error {
 	res, err := rp.identity(ctx, s.extent, s.bytes)
 	var detail []string
 	for _, w := range res.writes {
-		detail = append(detail, "sent "+w.packet.String())
+		detail = append(detail, "sent "+shownPacket(w.packet))
 		detail = append(detail, replies(w)...)
 		r.echo(w)
 	}
@@ -477,7 +627,7 @@ func (r *runner) doIdentity(ctx context.Context, c *conn, s step) error {
 		r.step(s.title, false, append(detail, err.Error())...)
 		return err
 	}
-	r.step(s.title, true, append(detail, fmt.Sprintf("read-back % x, equal", res.readBack))...)
+	r.step(s.title, true, append(detail, fmt.Sprintf("read-back %s, equal", shown(s.extent, res.readBack)))...)
 	return nil
 }
 
@@ -492,7 +642,7 @@ func replies(w written) []string {
 		if i > 0 {
 			kind = "another reply"
 		}
-		out = append(out, fmt.Sprintf("%s after %s: %s (%s)", kind, rep.at.Sub(w.at).Round(time.Millisecond), rep.p, echoKind(w.packet, rep.p)))
+		out = append(out, fmt.Sprintf("%s after %s: %s (%s)", kind, rep.at.Sub(w.at).Round(time.Millisecond), shownPacket(rep.p), echoKind(w.packet, rep.p)))
 	}
 	if n := len(w.seen) - len(w.replies); n > 0 {
 		out = append(out, fmt.Sprintf("%d other report-8 frames arrived meanwhile", n))
@@ -541,7 +691,7 @@ func (r *runner) doProbe(ctx context.Context, c *conn, s step) error {
 		return err
 	}
 	res, err := rp.probe(ctx, s.extent, s.bytes)
-	detail := append([]string{"sent " + res.write.packet.String()}, replies(res.write)...)
+	detail := append([]string{"sent " + shownPacket(res.write.packet)}, replies(res.write)...)
 	if err != nil {
 		r.step(s.title, false, append(detail, err.Error())...)
 		return err
@@ -551,18 +701,18 @@ func (r *runner) doProbe(ctx context.Context, c *conn, s step) error {
 		rep := res.write.replies[0].p
 		switch rep.Status() {
 		case wire.StatusNAK:
-			outcome = "a NAK (status 1): " + rep.String()
+			outcome = "a NAK (status 1): " + shownPacket(rep)
 		case wire.StatusOK:
-			outcome = "accepted (status 0): " + rep.String()
+			outcome = "accepted (status 0): " + shownPacket(rep)
 		default:
-			outcome = fmt.Sprintf("status %d: %s", rep.Status(), rep)
+			outcome = fmt.Sprintf("status %d: %s", rep.Status(), shownPacket(rep))
 		}
 		if len(res.write.replies) > 1 {
 			outcome += fmt.Sprintf(", and %d more", len(res.write.replies)-1)
 		}
 	}
 	r.finding("a cmd 7 with a wrong packet checksum gets %s; the flash is unchanged", outcome)
-	r.step(s.title, true, append(detail, fmt.Sprintf("read-back % x, unchanged", res.readBack))...)
+	r.step(s.title, true, append(detail, fmt.Sprintf("read-back %s, unchanged", shown(s.extent, res.readBack)))...)
 	return nil
 }
 
@@ -616,7 +766,7 @@ func (r *runner) doRevert(ctx context.Context, c *conn, s step, run string, ops 
 	}
 	dry, err := c.s.Revert(ctx, safety.Gates{DryRun: true}, nil)
 	if want := packets(s.plan); err == nil && !slices.Equal(dry.Packets, want) {
-		err = fmt.Errorf("the revert would send %v, the preview showed %v", dry.Packets, want)
+		err = fmt.Errorf("the revert would send %s, the preview showed %s", shownPackets(dry.Packets), shownPackets(want))
 	}
 	if err != nil {
 		r.step(s.title, false, err.Error())
@@ -645,19 +795,36 @@ func (r *runner) doCheck(ctx context.Context, c *conn, s step) error {
 		return err
 	}
 	ok := bytes.Equal(got, s.bytes)
-	r.step(s.title, ok, fmt.Sprintf("%s holds % x, want % x", s.extent, got, s.bytes))
+	r.step(s.title, ok, holds(s.extent, got, s.bytes))
 	return nil
 }
+
+// rehearsedCrash ends a rehearsal's drill write as a crash would: the
+// session takes the panic as one and leaves the run open.
+type rehearsedCrash struct{}
 
 // event follows a write: progress for the user, and the debug abort that
 // ends the process after a chunk, as a crash would.
 func (r *runner) event(e safety.OpEvent) {
 	switch e.Kind {
 	case safety.EventChunk:
-		if n := r.cfg.AbortAfterChunk; n > 0 && e.Chunk == n {
+		if n := r.cfg.AbortAfterChunk; n > 0 && e.Chunk == n && r.abortsAt(e) {
 			msg := fmt.Sprintf("debug abort after chunk %d of %d of op %d (%s), as --debug-abort-after-chunk asked", n, e.Chunks, e.Op.Seq, e.Op.Extent)
 			r.note(msg)
-			r.say(msg + "; the journal settles the write on the next start")
+			if r.drill != nil {
+				if err := r.hwCheckpoint(e); err != nil {
+					r.say("The drill cannot go on: " + err.Error())
+					r.drill.err = err
+					break
+				}
+				r.say(msg + "; run the same command again to recover the write and finish the stage")
+			} else {
+				r.say(msg + "; the journal settles the write on the next start")
+			}
+			r.ended = true
+			if r.drill != nil && r.res.Rehearsal {
+				panic(rehearsedCrash{})
+			}
 			r.cfg.Exit(abortCode)
 		}
 	case safety.EventVerified:
@@ -668,6 +835,9 @@ func (r *runner) event(e safety.OpEvent) {
 		r.say(fmt.Sprintf("    paused: %v; wake the mouse or unlock the screen", e.Err))
 	case safety.EventResumed:
 		r.say("    resumed")
+	}
+	if r.cfg.hook != nil {
+		r.cfg.hook(e)
 	}
 }
 
@@ -692,6 +862,8 @@ func (r *runner) verify(ctx context.Context, c *conn, steps []step, img *flash.I
 			for _, op := range s.plan.Ops {
 				touched = append(touched, op.Extent)
 			}
+		case stepCustom:
+			touched = append(touched, s.custom.touched...)
 		}
 	}
 	var bad []string
@@ -706,7 +878,7 @@ func (r *runner) verify(ctx context.Context, c *conn, steps []step, img *flash.I
 			got, _ = cp.Image.Get(e)
 		}
 		if !bytes.Equal(got, want) {
-			bad = append(bad, fmt.Sprintf("%s holds % x, the backup % x", e, got, want))
+			bad = append(bad, "against the fresh backup, "+holds(e, got, want))
 		}
 	}
 	settings := flash.Extent{Addr: 0, Len: 256}

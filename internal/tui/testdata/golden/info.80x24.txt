@@ -19,6 +19,6 @@
  Loaded       256 bytes
  Clients      no other program seen on the receiver
  Traffic      57 transactions, 0 unanswered tries, 0 NAKs, 0 foreign, 0
- … lines 1-17 of 89
+ … lines 1-17 of 90
 ────────────────────────────────────────────────────────────────────────────────
  0 pending   ↑/↓ scroll   pgup/pgdn page   g/G top/end   ? help   q quit

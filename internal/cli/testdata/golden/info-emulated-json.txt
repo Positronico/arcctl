@@ -116,6 +116,14 @@
       "tier": "untested"
     },
     {
+      "feature": "backup.restore",
+      "tier": "untested"
+    },
+    {
+      "feature": "device.reset",
+      "tier": "off"
+    },
+    {
       "feature": "setting.key-operation",
       "tier": "read-only"
     },

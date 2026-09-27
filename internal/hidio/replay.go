@@ -74,6 +74,9 @@ func (rp *Replay) advance() error {
 	return werr
 }
 
+// WriteRawOnce is WriteRaw: a replay never resends.
+func (rp *Replay) WriteRawOnce(p wire.Packet) error { return rp.WriteRaw(p) }
+
 func (rp *Replay) WriteRaw(p wire.Packet) error {
 	rp.mu.Lock()
 	defer rp.mu.Unlock()

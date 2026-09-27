@@ -102,7 +102,11 @@ func (r *deviceRaw) read() {
 }
 
 func (r *deviceRaw) WriteRaw(p wire.Packet) error {
-	return r.w.write(func() error { return r.dev.SetOutputReport(wire.ReportID, p[:]) })
+	return r.w.write(func() error { return r.dev.SetOutputReport(wire.ReportID, p[:]) }, true)
+}
+
+func (r *deviceRaw) WriteRawOnce(p wire.Packet) error {
+	return r.w.write(func() error { return r.dev.SetOutputReport(wire.ReportID, p[:]) }, false)
 }
 
 func (r *deviceRaw) Reports() <-chan Report { return r.in.frames.ch }

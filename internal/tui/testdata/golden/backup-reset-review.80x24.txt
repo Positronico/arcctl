@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Backup]
+────────────────────────────────────────────────────────────────────────────────
+ Review the factory reset
+ ProtoArc EM11 Pro 7B/04 (260d-1282-7b04) · profile none · firmware v1.00
+ Ready: enter runs the checks, then asks you to confirm.
+
+ What it does
+   · First a full backup: arcctl reads the whole configuration afresh and saves
+     it, labelled "auto before reset". The reset stops there if any range
+     cannot be read.
+   · Then one factory reset (cmd 9), sent once and never again; arcctl waits up
+     to 3 s for its reply.
+   · With or without a reply, arcctl reads the whole configuration again and
+     compares it with the backup: the comparison says what the reset changed.
+   · Nothing else is sent: no long-range or receiver-light command follows it.
+   ✓ Hardware test H7 recorded the reset on this model with firmware v1.00 on
+     2026-10-01.
+   ! If the mouse stops answering afterwards, it may need pairing again: see
+     "Re-pairing without arcctl" in docs/safety.md. Keep another pointing
+     device at hand; the mouse's Bluetooth channel keeps working.
+ ↓ 18 lines below: pgdn
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   pgdn/pgup scroll   enter check   esc close

@@ -37,6 +37,8 @@ const (
 
 // Env is everything a command takes from outside the process.
 type Env struct {
+	// Stdin answers the confirmations a write asks for; nil reads as empty.
+	Stdin          io.Reader
 	Stdout, Stderr io.Writer
 	Version        string
 	Now            func() time.Time
@@ -76,6 +78,7 @@ func MainEnv(env Env) int {
 // DefaultEnv is the environment of a real run.
 func DefaultEnv(version string) Env {
 	return Env{
+		Stdin:       os.Stdin,
 		Stdout:      os.Stdout,
 		Stderr:      os.Stderr,
 		Version:     version,
@@ -128,6 +131,7 @@ func init() {
 		{"show", "[--json] <backup|.bin|dump>", "decode a backup, web .bin or dump; no device needed", runShow},
 		{"diff", "<backup> [<backup2>]", "compare two backups, or a backup with the device, per record", runDiff},
 		{"export-bin", "<backup|.bin|dump> -o file.bin [--allow-partial]", "write a web app compatible .bin (16448 bytes)", runExportBin},
+		{"restore", "<backup|.bin> [--include-unknown] [--other-device] [--other-profile] [--yes]", "write a backup or web .bin back to the mouse, record by record", runRestore},
 		{"journal", "status | recover [--run id] [--forward|--back|--leave]", "list writes a crash left unfinished, and settle them", runJournal},
 		{"redact", "<transcript> -o file", "copy a --record transcript with private bytes masked, for sharing", runRedact},
 		{"version", "", "show the version, catalog inputs, verified stages, usbhid patches", runVersion},

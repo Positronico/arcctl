@@ -15,6 +15,7 @@ import (
 	"github.com/positronico/arcctl/internal/keys"
 	"github.com/positronico/arcctl/internal/mouse"
 	"github.com/positronico/arcctl/internal/plan"
+	"github.com/positronico/arcctl/internal/wire"
 )
 
 // em11 is the model §11 of the plan writes its stages for.
@@ -24,10 +25,30 @@ type stageDef struct {
 	name     string
 	title    string
 	promotes []mouse.Feature
+	// extras are promoted each only when the user saw its effect (the
+	// extra cases of H4), and only when the stage passes.
+	extras []mouse.Feature
 	// build lays out a write stage on the image of a fresh backup; run is a
 	// stage that writes nothing.
 	build func(b *builder) error
 	run   func(ctx context.Context, r *runner) error
+	// reads are what a dry run reads besides the loaded image before it lays
+	// the steps out; a run has them from its full backup.
+	reads []flash.Extent
+	// prepare are asked before the stage asks to run; an answer other than
+	// the one wanted stops it before anything is written.
+	prepare []question
+	// phrase is typed, after the tier phrase, before the stage runs.
+	phrase string
+	// what replaces the count of records in the question before the run.
+	what string
+	// selfCheck stages check the device themselves at the end, instead of
+	// comparing every touched extent with the fresh backup.
+	selfCheck bool
+}
+
+type question struct {
+	id, text string
 }
 
 var stages = []*stageDef{
@@ -36,6 +57,13 @@ var stages = []*stageDef{
 	{name: "H2", title: "4-byte records (DPI)", promotes: []mouse.Feature{mouse.FeatureDPI, mouse.FeatureStages}, build: buildH2},
 	{name: "H3", title: "button system functions", promotes: []mouse.Feature{mouse.FeatureSystem}, build: buildH3},
 	{name: "H3b", title: "physical slot map", promotes: []mouse.Feature{mouse.FeatureUnmappedSlot}, build: buildH3b},
+	{name: "H4", title: "shortcut and media bodies", promotes: []mouse.Feature{mouse.FeatureShortcut, mouse.FeatureMedia},
+		extras: []mouse.Feature{mouse.FeatureShortcutRightModifier, mouse.FeatureShortcutMenu}, build: buildH4, reads: h4Reads()},
+	{name: "H5", title: "macros and journal recovery", promotes: []mouse.Feature{mouse.FeatureMacro}, build: buildH5, reads: h5Reads()},
+	{name: "H6", title: "restore round trip", promotes: []mouse.Feature{mouse.FeatureRestore}, build: buildH6, reads: h6Reads()},
+	{name: "H7", title: "factory reset", promotes: []mouse.Feature{mouse.FeatureReset}, build: buildH7, prepare: h7Prepare,
+		phrase: resetPhrase, what: "It sends the factory reset once, then writes back from the fresh backup what the reset changed.", selfCheck: true},
+	{name: "H9", title: "robustness: lock, sleep, unplug, button press during writes", build: buildH9, reads: h9Reads()},
 }
 
 type stepKind uint8
@@ -45,9 +73,11 @@ const (
 	stepProbe                        // raw path: the identity write with a wrong checksum
 	stepApply                        // the executor writes plan
 	stepRevert                       // the session reverts step of, whose revert plan is plan
-	stepAsk                          // a yes/no question; want passes
+	stepAsk                          // a yes/no question; want passes, unless observe
 	stepName                         // a question answered with a name
 	stepCheck                        // extent must still hold bytes
+	stepWait                         // an instruction the user carries out, then presses Enter
+	stepCustom                       // the stage's own code: a drill, a restore, the reset
 )
 
 type step struct {
@@ -61,6 +91,31 @@ type step struct {
 	id     string
 	text   string
 	want   bool
+	// observe records a question's answer as the finding what; any answer
+	// passes. A yes to one with extra promotes that feature.
+	observe bool
+	what    string
+	extra   mouse.Feature
+	// aside is said before the question and kept out of the records: it
+	// may name the user's own shortcuts.
+	aside  string
+	custom *custom
+}
+
+// custom is a step the stage runs with its own code. plans are what the
+// preview prints and dry-runs, in order, and what the gates count; raw are
+// the packets it sends past the executor; need adds the tiers of writes it
+// plans only while it runs. touched are the extents it may leave changed
+// when it fails, which the stage then puts back from the fresh backup.
+type custom struct {
+	// abort marks H5's torn-write drill, which needs --debug-abort-after-chunk.
+	abort   bool
+	plans   []plan.Plan
+	lines   []string
+	raw     []wire.Packet
+	need    []catalog.Tier
+	touched []flash.Extent
+	run     func(ctx context.Context, r *runner, c *conn) error
 }
 
 // ops are the records the step writes: a plan's ops, or the one op an
@@ -71,6 +126,15 @@ func (s step) ops() []plan.Op {
 		return s.plan.Ops
 	case stepIdentity, stepProbe:
 		return []plan.Op{{Seq: 1, Extent: s.extent, Old: s.bytes, New: s.bytes, Phase: plan.Record, Desc: s.title, Tier: s.tier}}
+	case stepCustom:
+		var ops []plan.Op
+		for _, p := range s.custom.plans {
+			ops = append(ops, p.Ops...)
+		}
+		for _, t := range s.custom.need {
+			ops = append(ops, plan.Op{Desc: s.title, Tier: t})
+		}
+		return ops
 	}
 	return nil
 }
@@ -87,6 +151,10 @@ type builder struct {
 	img     *flash.Image
 	layout  plan.Layout
 	steps   []step
+	// src is the fresh backup as a restore source, for H6 and H7.
+	src *backup.Source
+	// h7 is H7's state, which a run resumed after its reset takes up.
+	h7 *h7State
 }
 
 var errPrimary = errors.New("hwtest: slots 0 and 1 (left and right button) are never touched")
@@ -164,8 +232,32 @@ func (b *builder) ask(id, text string, want bool) {
 	b.add(step{kind: stepAsk, id: b.id(id), text: text, want: want})
 }
 
+// askAside is ask with a line said first that the records leave out.
+func (b *builder) askAside(id, text, aside string, want bool) {
+	b.add(step{kind: stepAsk, id: b.id(id), text: text, want: want, aside: aside})
+}
+
 func (b *builder) name(id, text string) {
 	b.add(step{kind: stepName, id: b.id(id), text: text})
+}
+
+// observe asks a question whose answer is a finding: what, yes or no.
+func (b *builder) observe(id, text, what string) {
+	b.add(step{kind: stepAsk, id: b.id(id), text: text, observe: true, what: what})
+}
+
+// extra asks whether an extra case had its effect, as observe does; a yes
+// promotes f once the stage passes.
+func (b *builder) extra(id, text, what string, f mouse.Feature) {
+	b.add(step{kind: stepAsk, id: b.id(id), text: text, observe: true, what: what, extra: f})
+}
+
+func (b *builder) wait(id, text string) {
+	b.add(step{kind: stepWait, id: b.id(id), text: text})
+}
+
+func (b *builder) custom(title string, c *custom) {
+	b.add(step{kind: stepCustom, title: title, custom: c})
 }
 
 func (b *builder) id(s string) string { return stageID(b.stage) + "." + s }
@@ -498,13 +590,25 @@ var disabled = []byte{0x00, 0x00, 0x00, 0x55}
 // button names slot's physical button, when the model shows one, and what
 // the slot does now. The keys of a shortcut or a macro are the user's own
 // and go into the log, so they are not named.
-func (b *builder) button(slot int) (label, action string) {
-	label = fmt.Sprintf("slot %d", slot)
+// was is what slot does now, in words, shortcuts and macro names included;
+// only the terminal shows it.
+func (b *builder) was(slot int) string {
+	cfg := mouse.Decode(b.m, b.img)
+	return backup.Action(b.m, &cfg, slot, b.os)
+}
+
+// label is the name of slot's button, or "slot k".
+func (b *builder) label(slot int) string {
 	for _, x := range b.m.Buttons {
 		if x.Slot == slot && x.Visible && x.Label != "" {
-			label = x.Label
+			return x.Label
 		}
 	}
+	return fmt.Sprintf("slot %d", slot)
+}
+
+func (b *builder) button(slot int) (label, action string) {
+	label = b.label(slot)
 	e, _ := mouse.KeyFnExtent(slot)
 	cur, _ := b.img.Get(e)
 	switch mouse.KeyType(cur[0]) {

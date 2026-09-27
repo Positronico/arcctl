@@ -20,9 +20,10 @@ const (
 	Unplug                      // the device goes away; the write fails with ErrGone
 	Ignore                      // a cmd 7 is answered as usual, but the flash keeps its old bytes
 	Corrupt                     // a cmd 7 is answered as usual, but the flash takes its data with the first byte's low bit flipped
+	Taken                       // the device takes and answers the packet, then the write fails with Fault.Err
 )
 
-var actionNames = [...]string{"none", "drop", "nak", "duplicate", "late", "asleep", "hang", "fail", "unplug", "ignore", "corrupt"}
+var actionNames = [...]string{"none", "drop", "nak", "duplicate", "late", "asleep", "hang", "fail", "unplug", "ignore", "corrupt", "taken"}
 
 func (a Action) String() string {
 	if int(a) < len(actionNames) {
@@ -42,7 +43,7 @@ type Fault struct {
 	Skip   int
 	Times  int
 	Action Action
-	Err    error         // Fail; nil means ErrGeneral
+	Err    error         // Fail and Taken; nil means ErrGeneral
 	Delay  time.Duration // Late
 }
 

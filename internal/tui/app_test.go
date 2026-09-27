@@ -470,6 +470,8 @@ func (s *fakeStore) Save(session.Capture, string) (string, error) {
 	return "backups/em11/20260926T120000Z.json", nil
 }
 
+func (s *fakeStore) Image(string) (*flash.Image, error) { return nil, errors.New("no backups here") }
+
 func TestBackupAndReload(t *testing.T) {
 	store := &fakeStore{}
 	h := newHarness(t, ready(t), func(o *Options) { o.Backups = store })
@@ -663,9 +665,9 @@ func TestReviewSubPromptsReturnToIt(t *testing.T) {
 	if h.app.dialog != d {
 		t.Fatalf("n left %T open, not the review", h.app.dialog)
 	}
-	h.keys("q", "n")
-	if h.app.dialog != d || h.quit {
-		t.Fatalf("q then n left %T open, quit %v", h.app.dialog, h.quit)
+	h.keys("q")
+	if h.app.dialog != nil || h.quit || h.app.Pending().Len() != 1 {
+		t.Fatalf("q closes the review like every dialog: %T open, quit %v, %d pending", h.app.dialog, h.quit, h.app.Pending().Len())
 	}
 }
 
@@ -754,7 +756,7 @@ func footerLine(h *harness, w, ht int) string {
 // With edits pending, the footer offers the review before the tab's own
 // keys, at every width.
 func TestFooterOffersTheReview(t *testing.T) {
-	h := newHarness(t, ready(t), func(o *Options) { o.Tabs = []Tab{NewButtons(nil), NewDPITab()} })
+	h := newHarness(t, ready(t), func(o *Options) { o.Tabs = []Tab{NewButtons(nil, nil), NewDPITab()} })
 	stage(h, 1, 1600)
 	for _, tab := range []string{"1", "2"} {
 		h.keys(tab)
@@ -783,7 +785,7 @@ func TestNoticeWraps(t *testing.T) {
 	if s := strings.Join(strings.Fields(h.screen(80, 24)), " "); !strings.Contains(s, "restart arcctl with --experimental.") {
 		t.Errorf("the notice lost its tail:\n%s", h.screen(80, 24))
 	}
-	path := "/var/folders/2l/f_lgk3c56fd6vvvj6jct18l40000gn/T/arcctl-emulated-1542904641/backups/em11-pro-260d-1282-7b04/" +
+	path := "/var/folders/xy/xxxxxxxxxxxxxxxxxxxxxxxx0000gn/T/arcctl-emulated-1542904641/backups/em11-pro-260d-1282-7b04/" +
 		"20260926T120000Z-auto-before-write.json"
 	h.send(writeNotice(&writing{kind: safety.KindApply}, WriteDoneMsg{Kind: safety.KindApply,
 		Outcome: session.Outcome{Result: safety.Result{Ops: 1, Verified: 1}, Backups: []string{path}}}))

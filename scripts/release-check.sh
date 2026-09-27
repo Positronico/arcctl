@@ -14,8 +14,9 @@ if [ "$(uname -s)" != Darwin ]; then
 fi
 
 # Symbols only a -tags hwtest build has: the hwtest package, its CLI command
-# and host, and the unguarded opens of the raw path in hidio and the emulator.
-hwtest_symbols='hwtest|cli\.\(?\*?hwHost\)?\.|cli\.\(\*runner\)\.hwSummary|hidio\.OpenRaw|emu\.\(\*Bus\)\.OpenRaw'
+# and host, the unguarded opens of the raw path in hidio and the emulator,
+# and wherever they live, H7's raw factory reset and H5's drill checkpoint.
+hwtest_symbols='hwtest|cli\.\(?\*?hwHost\)?\.|cli\.\(\*runner\)\.hwSummary|hidio\.OpenRaw|emu\.\(\*Bus\)\.OpenRaw|\.hwReset|\.hwCheckpoint'
 
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/release-check.XXXXXX")"
 trap 'rm -rf "$tmp"' EXIT

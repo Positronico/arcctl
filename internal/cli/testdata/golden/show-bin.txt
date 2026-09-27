@@ -1,7 +1,7 @@
 File       $TMP/x.bin
 Kind       web .bin, type mouse, sensor 3104
 Model      ProtoArc EM11 Pro (7B04), sensor 3104
-Captured   440 bytes: the regions the web app reads
+Captured   247 bytes: what the web app reads, leaving out records of all 0xFF
 
 Settings
   Report rate  250 Hz
@@ -29,7 +29,7 @@ Buttons
      5  DPI Cycle    Media: Play/Pause
      6  -            Profile switch
      7  -            DPI Cycle
-     8  -            Macro 3 "hello", while held
+     8  -            Macro 3 (not read), while held
      9  -            Scroll Right
     10  -            DPI+
     11  -            DPI-
@@ -44,10 +44,6 @@ Shortcut bodies
      3  Cmd+Shift+T
      4  Ctrl+Tab
      5  Media: Play/Pause
-
-Macros
-  Slot 3 "hello", 4 events, used by slot 8
-    press H 40ms, release H 20ms, press E 40ms, release E 20ms
 
 Other fields
   Name                 Addr  Raw                                  Value

@@ -3,12 +3,17 @@
 package hwtest
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/positronico/arcctl/internal/backup"
+	"github.com/positronico/arcctl/internal/flash"
+	"github.com/positronico/arcctl/internal/hidio"
+	"github.com/positronico/arcctl/internal/mouse"
+	"github.com/positronico/arcctl/internal/wire"
 )
 
 const noRuns = "No runs yet."
@@ -131,6 +136,48 @@ func scrub(s string) string {
 		}
 	}
 	return strings.Join(fields, " ")
+}
+
+// private reports whether e reaches the shortcut and macro slots, whose
+// bytes are the user's own: the records never show them, as the redacted
+// transcripts do not.
+func private(e flash.Extent) bool {
+	first, _ := mouse.ShortcutExtent(0)
+	last, _ := mouse.MacroExtent(mouse.Slots - 1)
+	return e.Overlaps(flash.Extent{Addr: first.Addr, Len: last.End() - first.Addr})
+}
+
+// shown is b, the bytes at e, as the records may show them.
+func shown(e flash.Extent, b []byte) string {
+	if private(e) {
+		return fmt.Sprintf("%d bytes (not shown)", len(b))
+	}
+	return fmt.Sprintf("% x", b)
+}
+
+// holds compares what e holds with want, in words the records may show.
+func holds(e flash.Extent, got, want []byte) string {
+	switch {
+	case !private(e):
+		return fmt.Sprintf("%s holds % x, want % x", e, got, want)
+	case bytes.Equal(got, want):
+		return fmt.Sprintf("%s holds the %d bytes wanted", e, len(want))
+	}
+	return fmt.Sprintf("%s holds other bytes: %d of %d differ", e, differ(got, want), len(want))
+}
+
+// shownPacket is p as a redacted transcript shows it: the bytes of shortcut
+// and macro slots, and the checksum over them, read xx.
+func shownPacket(p wire.Packet) string {
+	return hidio.Redact(hidio.Entry{Dir: hidio.DirIn, ID: wire.ReportID, Data: hidio.Frame{Bytes: p[:]}}).Data.String()
+}
+
+func shownPackets(ps []wire.Packet) string {
+	out := make([]string, len(ps))
+	for i, p := range ps {
+		out[i] = shownPacket(p)
+	}
+	return "[" + strings.Join(out, " ") + "]"
 }
 
 func orNone(s string) string {

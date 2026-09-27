@@ -183,6 +183,19 @@ func TestDeviceRawRetriesTransientWrites(t *testing.T) {
 	}
 }
 
+func TestDeviceRawWriteOnceIsNotRetried(t *testing.T) {
+	dev := newFakeDevice()
+	dev.write = func() error { return errTransient }
+	r := newDeviceRaw(dev)
+	defer r.Close()
+	if err := r.WriteRawOnce(wire.MustBuild(wire.Mouse, wire.CmdClear, 0, nil)); !errors.Is(err, errTransient) {
+		t.Fatalf("WriteRawOnce = %v", err)
+	}
+	if dev.attempts() != 1 {
+		t.Fatalf("%d attempts, want 1", dev.attempts())
+	}
+}
+
 func TestDeviceRawStallDetachesClose(t *testing.T) {
 	dev := newFakeDevice()
 	release := make(chan struct{})

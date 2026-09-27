@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Backup]
+────────────────────────────────────────────────────────────────────────────────
+ Factory reset: not available yet
+
+ Factory reset is available after hardware test H7: no record of it for the
+ ProtoArc EM11 Pro (7B04) on firmware v1.00.
+
+ Hardware test H7 sends the reset once to a mouse with this firmware, after a
+ verified full backup, and records what it clears and whether the mouse stays
+ paired. Until that record exists for this model and firmware, arcctl does not
+ send it.
+
+ To put settings back now, select a backup and press w. The vendor web app can
+ reset the mouse too: take a full backup here first (f), and see "Re-pairing
+ without arcctl" in docs/safety.md in case the mouse needs pairing again.
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter/esc close

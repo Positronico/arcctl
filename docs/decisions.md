@@ -61,7 +61,7 @@ Reason: test-only switches inside the core packages would put bypasses into code
 
 ## Technical choices
 
-T1 to T40 were made during M1, T41 to T86 during M2 and T87 to T136 during M3 (all 2026-09-26), and T137 on during M4 (2026-09-27), unless dated otherwise. Each entry gives the choice and, where it is not obvious, the reason. Values marked "until H0" or "until H1" are guesses the hardware tests will settle.
+T1 to T40 were made during M1, T41 to T86 during M2 and T87 to T136 during M3 (all 2026-09-26), T137 to T172 during M4 and T173 on during M5 (both 2026-09-27), unless dated otherwise. Each entry gives the choice and, where it is not obvious, the reason. Values marked "until H0" or "until H1" are guesses the hardware tests will settle.
 
 ### Layering and tooling
 
@@ -123,13 +123,13 @@ T1 to T40 were made during M1, T41 to T86 during M2 and T87 to T136 during M3 (a
 
 **T24: Identity lives in plan.** `plan.Identity` is here so that backups can reuse it. `Key()` is lowercase hex and safe as a path segment; the trusted form (cid, mid and address) and the fallback (VID, PID, cid and mid) cannot collide.
 
-**T25: plan gets a Layout.** `plan` cannot import `mouse`, so `mouse.Layout` passes in the binding, shortcut and macro tables, the physical buttons, the frozen extents (key operation @8) and every writable record. A record write must be exactly one listed record, and a body write must start at its slot and stay inside it.
+**T25: plan gets a Layout.** `plan` cannot import `mouse`, so `mouse.Layout` passes in the binding, shortcut and macro tables, the physical buttons, the frozen extents (key operation @8) and every writable record. A record write must be exactly one listed record, and a body write must start at its slot and stay inside it. Amended by T226.
 
-**T26: New builds the plan.** The caller passes changes; `New` fills in the old bytes from the image and the phase from the layout, drops changes that change nothing, adds the two-phase ops, orders them Neutralise, Body, Bind, Record, numbers them and validates the result. Each op's old bytes are the state just before it runs.
+**T26: New builds the plan.** The caller passes changes; `New` fills in the old bytes from the image and the phase from the layout, drops changes that change nothing, adds the two-phase ops, orders them Neutralise, Body, Bind, Record, numbers them and validates the result. Each op's old bytes are the state just before it runs. Amended by T226.
 
 **T27: two-phase rebinding.** Every binding that points at a body being rewritten is first set to Disable and bound again after the body is written. A type-6 binding at slot k counts as pointing at macro k and at the macro its own bytes name, since it is not known which one the firmware uses.
 
-**T28: guards in Validate.** Every op's bytes must be known, record and bind writes must sum to 0x55, and the Off and ReadOnly tiers are refused, as are plans for keyboards and unknown models. The Left Click guard counts only physical buttons; if one was on Left Click before the plan, one must be after every op.
+**T28: guards in Validate.** Every op's bytes must be known, record and bind writes must sum to 0x55, and the Off and ReadOnly tiers are refused, as are plans for keyboards and unknown models. The Left Click guard counts only physical buttons; if one was on Left Click before the plan, one must be after every op. Amended by T226.
 
 **T29: revert.** Reverting runs `New` again on the image after the plan, with each extent set back to its first op's old bytes, instead of replaying the ops backwards.
 
@@ -171,13 +171,13 @@ T1 to T40 were made during M1, T41 to T86 during M2 and T87 to T136 during M3 (a
 
 **T45: only `Guarded` makes a Transport.** `Transport` has an unexported marker method, so only `hidio.Guarded` produces one. Device `Raw`s are unexported hidio types, `hidio.Open` re-checks the VID and PID against the catalog, and the emulator's `Bus.Open` also returns only guarded transports. `internal/guard_wiring_test.go` (go/types) fails on a `Guard.Set` call outside `session`, an exported function outside hidio that returns a `Raw`, or a type that embeds a Transport and defines its own `Write`.
 
-**T46: the M2 build is read-only.** `Guard.Set` returns an error and enables only the policies listed in `enabled` in `guard.go`, which in M2 is ReadOnly alone; every other policy is refused and logged. `Guard.SetTarget` switches between the mouse and the keyboard target (the keyboard probe retried without the 0x80 flag) and is logged too. Refusals wrap `hidio.ErrForbidden` with the `wire` error that explains them. M3 adds policies to `enabled`.
+**T46: the M2 build is read-only.** `Guard.Set` returns an error and enables only the policies listed in `enabled` in `guard.go`, which in M2 is ReadOnly alone; every other policy is refused and logged. `Guard.SetTarget` switches between the mouse and the keyboard target (the keyboard probe retried without the 0x80 flag) and is logged too. Refusals wrap `hidio.ErrForbidden` with the `wire` error that explains them. M3 adds policies to `enabled`. Amended by T195.
 
 **T47: vendor channel check.** Before any packet, an interface's report descriptor must declare output report 8 of 16 bytes in an application collection on usage page 0xFF02 (`ErrNotVendor` otherwise). Reason: VID 0x062A is shared with other vendors, and the udev rules still grant access to every catalog VID and PID. The usbhid backend checks at enumeration and open, the hidapi backend at open. Windows exposes no descriptor, so the usage-page 0xFF02 filter at enumeration stands in for it there.
 
 **T48: input split.** Each Raw splits input in its reader: report-8 frames go to one queue and all other reports to `Others()`, so a burst of mouse movement cannot evict a reply. `Guarded` passes only 16-byte report-8 frames to `Reports` and turns everything else into one coalesced `Wake` signal. Each queue holds 256 reports and drops the oldest, with a counter (`Transport.Dropped`). `Transport` gained `Err` and `Dropped` over the PLAN sketch.
 
-**T49: one write path for devices.** Every device Raw writes through the same helper: up to 3 tries on `kIOReturnError` (0xE00002BC) with 20 and 40 ms backoff, a 2 s watchdog on each try, and a sticky Stalled state once the watchdog fires (`ErrStalled`). A stalled usbhid handle is closed in a detached goroutine; a stalled hidapi handle is left open. The emulator's `Pipe` uses the same helper.
+**T49: one write path for devices.** Every device Raw writes through the same helper: up to 3 tries on `kIOReturnError` (0xE00002BC) with 20 and 40 ms backoff, a 2 s watchdog on each try, and a sticky Stalled state once the watchdog fires (`ErrStalled`). A stalled usbhid handle is closed in a detached goroutine; a stalled hidapi handle is left open. The emulator's `Pipe` uses the same helper. Amended by T198.
 
 **T50: hidapi backend.** `github.com/sstallion/go-hid` v0.15.0 behind the `hidapi` build tag (cgo). `Init` runs once, then `SetOpenExclusive(false)` on darwin. Every call runs on a locked OS thread with SIGURG blocked through `pthread_sigmask`, with one writer thread per device; reads use a 250 ms timeout. Close order: stop, join the reader, then `hid_close`. On Linux go-hid uses hidraw, so the hidraw udev rules cover it.
 
@@ -275,7 +275,7 @@ T1 to T40 were made during M1, T41 to T86 during M2 and T87 to T136 during M3 (a
 
 **T92: revert.** It undoes the last apply or revert run that changed the device: one that completed or was finished forward, or one that was left, counting the ops the Leave recorded (the verified ones before any Leave). It needs a clean journal and every extent still holding what that run left (`ErrDiverged` otherwise), and reads the same bodies as a recovery. `PlanRevert` returns the plan without writing, for dry runs.
 
-**T93: guard policies.** The guard enables ReadOnly and Edit. Reset stays off until H7 (D4) and Experimental (cmd 22) until long range has an H8 measurement (D5); Experimental-tier records go out as cmd 7 under Edit. Besides the session, only the tests of `internal/safety` may call `Guard.Set`, to give their test link a writable emulator transport.
+**T93: guard policies.** The guard enables ReadOnly and Edit. Reset stays off until H7 (D4) and Experimental (cmd 22) until long range has an H8 measurement (D5); Experimental-tier records go out as cmd 7 under Edit. Besides the session, only the tests of `internal/safety` may call `Guard.Set`, to give their test link a writable emulator transport. Amended by T195.
 
 **T94: killing the executor in tests.** The test link panics after chunk k, and the executor writes nothing to the journal from deferred calls, so hwtest can end the process for real at the same point. Skipping fsync is possible only through `export_test.go`.
 
@@ -283,7 +283,7 @@ T1 to T40 were made during M1, T41 to T86 during M2 and T87 to T136 during M3 (a
 
 **T95: preflight.** `safety.Preflight` is a pure function over facts the session gathers fresh: a handshake, cmd 3, cmd 14, a read of every extent the plan writes, the client scan of every interface with the device's VID and PID, the lock, the console and the journal. It returns every failure at once, each wrapping a typed error. A session that is Locked, Seized or Stalled, or a cmd 3 that fails that way, is `ErrBlocked`. `Session.Preflight` runs the same checks and writes nothing, for writes that do not go through `Apply`.
 
-**T96: typed confirmation.** `ConfirmPhrase` is "write untested" or "write experimental", compared after trimming. Untested needs `--allow-untested`, Experimental needs `--experimental`, ReadOnly and Off are always refused. The per-field D5 check stays in `PlanEdits` (verified.json).
+**T96: typed confirmation.** `ConfirmPhrase` is "write untested" or "write experimental", compared after trimming. Untested needs `--allow-untested`, Experimental needs `--experimental`, ReadOnly and Off are always refused. The per-field D5 check stays in `PlanEdits` (verified.json). Amended by T228.
 
 **T97: gates per kind of write.** Apply runs every check. Revert is gated by the tiers of the run it undoes and has no stale check, which the executor's divergence check covers. Recover skips the tier gates and does not need a clean journal. A dry run skips the tiers, the confirmation, foreign clients, the clean journal and I1.
 
@@ -323,11 +323,11 @@ T1 to T40 were made during M1, T41 to T86 during M2 and T87 to T136 during M3 (a
 
 **T114: `--debug-abort-after-chunk n`.** It exits with code 8 right after chunk n of an op is acknowledged; the tests inject an exit that panics instead.
 
-**T115: stage texts.** They never name a shortcut's or a macro's keys, because the log is public.
+**T115: stage texts.** They never name a shortcut's or a macro's keys, because the log is public. Amended by T225.
 
 **T116: rehearsals.** `--emulate` runs a stage as a rehearsal into a temporary folder that never promotes, compared against the checkout's `flash-dump.bin`.
 
-**T117: release check.** `scripts/release-check.sh` searches the release binary's symbols for `hwtest`, `cli.hwHost`, `hwSummary`, `hidio.OpenRaw` and `emu.(*Bus).OpenRaw`.
+**T117: release check.** `scripts/release-check.sh` searches the release binary's symbols for `hwtest`, `cli.hwHost`, `hwSummary`, `hidio.OpenRaw` and `emu.(*Bus).OpenRaw`. Amended by T216.
 
 **T118: hwtest firmware.** The hwtest tests use an emulated firmware v0.42, so the committed `verified.json` never changes the tiers they see.
 
@@ -379,7 +379,7 @@ T1 to T40 were made during M1, T41 to T86 during M2 and T87 to T136 during M3 (a
 
 **T138: starting the TUI.** `arcctl` with no command starts the TUI when stdin and stdout are terminals, and otherwise prints the command list. `cli` never imports `tui`; `cmd/arcctl` connects `cli.Env.TUI` to `tui.Run`. `cli.TUI` carries the running session, the mode, the gates, the source, the label OS, `--ascii` and `--no-color`, the backup store, the data folder, the notes printed before the TUI started and the OS hooks the banners need.
 
-**T139: the emulator in the TUI.** With `--emulate`, the journal and backups go to a new temporary folder, named on stderr and on the Info tab, never to the real data folder (T120). The emulator holds exactly what the file holds, with no placeholder bodies; when the file lacks bodies its shortcut or macro bindings run, arcctl names those slots on stderr and in the first notice, and the emulated mouse reads them as erased flash. `testdata/demo-em11.json` is an `arcctl-backup/1` file with source "emulator": `flash-dump.bin` plus the test vectors' shortcut bodies for slots 2 to 5, encoded with `mouse.EncodeShortcut` and padded with 0xFF to 32 bytes, identity 260d-1282-7b04, with no address, firmware or profile. `TestDemoBackup` rebuilds and checks it.
+**T139: the emulator in the TUI.** With `--emulate`, the journal and backups go to a new temporary folder, named on stderr and on the Info tab, never to the real data folder (T120). The emulator holds exactly what the file holds, with no placeholder bodies; when the file lacks bodies its shortcut or macro bindings run, arcctl names those slots on stderr and in the first notice, and the emulated mouse reads them as erased flash. `testdata/demo-em11.json` is an `arcctl-backup/1` file with source "emulator": `flash-dump.bin` plus the test vectors' shortcut bodies for slots 2 to 5, encoded with `mouse.EncodeShortcut` and padded with 0xFF to 32 bytes, identity 260d-1282-7b04, with no address, firmware or profile. `TestDemoBackup` rebuilds and checks it. Amended by T219.
 
 **T140: colour and glyphs.** `--no-color` uses the ASCII colour profile, and `NO_COLOR` is honoured by Bubble Tea's own detection. `--ascii` swaps the glyph set and filters every line to ASCII; the footer measures its hints after that filter. State is always a text badge.
 
@@ -417,7 +417,7 @@ T1 to T40 were made during M1, T41 to T86 during M2 and T87 to T136 during M3 (a
 
 **T156: Left Click guard (I9).** The tab counts the visible buttons on Left Click, pending over device. Staging or dropping an edit that would leave none is refused, and the review's `d` uses the same count. The last one is marked "guarded" and does not open the picker.
 
-**T157: picker.** Groups System, Special (the current OS's presets), Media (the 17 codes) and Combo Key (the composer); tab or ←/→ switch groups, `/` filters each group by substring, ignoring case, and the first enter ends filtering while the second chooses. It opens on the current function, or on the composer when the composer can build the current combo. On macOS, presets diy1, diy2 and diy4 and media codes 0x0183, 0x018A, 0x0192, 0x0194 and 0x0223 to 0x0227 are dimmed as not offered by the web app; the list is a table in the TUI until `facts/` carries it.
+**T157: picker.** Groups System, Special (the current OS's presets), Media (the 17 codes) and Combo Key (the composer); tab or ←/→ switch groups, `/` filters each group by substring, ignoring case, and the first enter ends filtering while the second chooses. It opens on the current function, or on the composer when the composer can build the current combo. On macOS, presets diy1, diy2 and diy4 and media codes 0x0183, 0x018A, 0x0192, 0x0194 and 0x0223 to 0x0227 are dimmed as not offered by the web app; the list is a table in the TUI until `facts/` carries it. Amended by T233.
 
 **T158: composer (D3).** 1 to 8 toggle the modifiers, pressed in toggle order, at most 4 (`MaxShortcutKeys-1`); 0 clears them. The keys are the kind-1 entries of the key table plus ContextMenu, searched by mac name, win name or key code, punctuation included. Right-side modifiers and ContextMenu carry their own feature's tier while it is below Verified. There is no live key capture.
 
@@ -443,7 +443,7 @@ T1 to T40 were made during M1, T41 to T86 during M2 and T87 to T136 during M3 (a
 
 **T167: preflight and confirmation.** Enter runs `Session.Preflight` before the confirmation, leaving out the tier and phrase failures the review asks for itself. The phrase is `safety.ConfirmPhrase` ("write untested" or "write experimental", T96), not the word "apply" of the plan; a Verified-only plan and a dry run need `y`, and a dry run skips the tier gates, as the session does.
 
-**T168: running and results.** Progress shows the full-backup bar, then each op's step. `s` stops after the current record ("nothing was written" when no packet went out), esc hides the dialog and `a` shows it again, and `q` hands over to the shell's quit prompt, whose n returns to the review. While a dialog is open the Applying banner shows only its summary line. The result screens: verified (run ID and backup paths), dry run (the exact packets under each op), stopped (the op, the packets acknowledged, the reason, what the record holds now, then the recovery prompt), refused (each failure; enter goes back to the review) and the Overlap note. A partial first backup (`*safety.PartialError` alone in a `PreflightError`) is accepted with `y`, which retries the same plan with `AcceptPartial`.
+**T168: running and results.** Progress shows the full-backup bar, then each op's step. `s` stops after the current record ("nothing was written" when no packet went out), esc hides the dialog and `a` shows it again, and `q` hands over to the shell's quit prompt, whose n returns to the review. While a dialog is open the Applying banner shows only its summary line. The result screens: verified (run ID and backup paths), dry run (the exact packets under each op), stopped (the op, the packets acknowledged, the reason, what the record holds now, then the recovery prompt), refused (each failure; enter goes back to the review) and the Overlap note. A partial first backup (`*safety.PartialError` alone in a `PreflightError`) is accepted with `y`, which retries the same plan with `AcceptPartial`. Amended by T217.
 
 **T169: undo in the review.** `d` drops the selected edit, keeping the Left Click guard; `u` discards them all after asking; a plan that already matches the mouse drops its edits on enter.
 
@@ -454,3 +454,145 @@ T1 to T40 were made during M1, T41 to T86 during M2 and T87 to T136 during M3 (a
 **T171: snapshot tests.** The harness runs commands inline and delivers the ones that block on `flush`. Golden files are ANSI-stripped screens at 80x24 and 120x40, and every line must be exactly as wide as the screen, with as many lines as it is tall; `-update` rewrites them.
 
 **T172: acceptance.** `TestAcceptance` is the M4 exit script: 80x24, keys only, the default tabs and review, a real session on an emulator seeded from the demo backup. Slot 3 becomes Play/Pause, DPI stage 2 becomes 1600, and `U` reverts the last apply; each run must end complete, every op verified in the journal, and the emulated flash must hold what the last run left.
+
+### Macros (M5)
+
+**T173: the Macros tab.** It sits between DPI and Backup in the default tabs (Buttons, DPI, Macros, Backup, Info, Log). Three lists: on the mouse (each macro slot that a type-6 binding may run by either rule of T27, with a pending `SetMacro` in place of what it replaces), valid bodies in the loaded image that no binding runs, and the library. Unbound bodies show only when the image holds them (a full backup, or an emulator seeded from one); there is no scan of the 16 macro headers yet.
+
+**T174: binding.** Binding stages one `mouse.SetMacro` under `SlotKey(slot)`, the key the Buttons tab uses, so a slot has one pending edit. Body before binding and the two-phase rebind come from `plan.New`, and the write happens only through the review (T148). Before staging, the whole 384-byte macro slot is read through `Session.Read`, so the new body and the old record it replaces are both known; the read runs again when the mouse becomes Ready or a load drops those bytes, and previews treat unread bytes as 0xFF. The binder starts on the first unguarded button other than Left and Right. Amended by T234.
+
+**T175: macros that share a name.** Binding a macro whose name another button's macro already has offers (y/n) to give the same events to every button that runs a macro of that name from its own slot, each keeping its repeat mode. Any other macro with the same name must be renamed first.
+
+**T176: names.** The sanitiser is our own version of the web app's rule: it drops ASCII punctuation and symbols, the CJK punctuation marks, all whitespace and U+FEFF, then cuts whole characters until the name fits 30 bytes; arcctl also drops control and format characters and invalid UTF-8. It runs when a name is typed, pasted or committed. Names loaded from the mouse or a file stay as they are until edited; binding or saving one the sanitiser would change is refused ("rename it in the editor"), and an import renames it, leaving the macro out when nothing is left. Display escapes control and format characters, invalid bytes and U+2028/2029 as `\xNN` or `\uNNNN`, and a backslash as `\\`.
+
+**T177: the editor.** Repeat modes follow `keys.RepeatOptions` (254, 255, 253, then ×N) with the labels of `cycleText` and, for 253 to 255, whose labels H5 has yet to confirm, the raw code as well; the ×N count is kept while another mode is chosen. Counts 1 to 250 and delays 10 to 65535 ms are clamped with a notice. An event is inserted after the selected one, or at the end when none is selected, and gets the 10 ms minimum delay; a tap or a click inserts a press and its release and is refused past 70 events, which avoids the web app's 71-event overflow. Delays under 10 ms, which only a macro from elsewhere can hold, are flagged. Event numbers in refusals, macro and shortcut alike, start at 1.
+
+**T178: tidy.** `t` pairs each press with the next release of the same key, flags presses repeated before their release, releases without a press and presses never released, and offers to append the missing releases in reverse order; it also raises delays under 10 ms to 10 ms. Its message names what it found.
+
+**T179: event keys.** No recorder (D3). The key list is the modifier keys, the composer's keys (ContextMenu included) and the five mouse buttons.
+
+**T180: library file.** `{"format":"arcctl-macros/1","macros":[{"name","cycle","events":[{"action":"press|release","kind":"modifier|key|mouse|menu","value","delay_ms"}]}]}` in `<data>/macros.json`. Decoding is strict: unknown fields, duplicate names and data after the library are refused, and so is a file over 4 MiB (`library.MaxFile`); a missing file is an empty library. Saving refuses a library that would not load again (`library.ErrTooLarge`), and the tab keeps its current library.
+
+**T181: saving, import and export.** The library is saved atomically with mode 0600 through `backup.WriteFile`, in the background and in order (a save older than the last one written is skipped), and never after a failed load, so a file arcctl could not read is not overwritten. Import merges by name: identical entries are skipped, and an entry whose name is taken with other events is left out and named. Export writes a new file only (`backup.WriteNew`); the prompt starts at `~/arcctl-macros-<date>.json`, numbered when that name is taken. Amended by T236 and T237.
+
+**T182: macro keys.** The list keys avoid the shell's: `B` binds (`b` is the shell's backup), `s` saves to the library, `x` deletes a library macro, `d` drops a pending edit, `i` and `e` import and export. In the editor, `b` binds, `J`/`K` or shift+↑/↓ move an event, and `?` lists every key, as it does in the key picker and the binder.
+
+### Backups, restore and `.bin` import (M5)
+
+**T183: `.bin` trailer.** `ParseBin` needs the vendor text, then a device type and a sensor that are printable ASCII padded with zero bytes. The type must be "mouse" and the sensor must be in the catalog; anything else is `ErrNotBin` or `ErrUnsupported`.
+
+**T184: what a `.bin` captured.** Only records that are not all 0xFF: each record of the settings page and of the extended block (`backup.SettingsRecords`, the decoder's fields and the runs between them), and the body in the own slot of each button bound as type 5 or 6, as far as the web app read it. A shortcut keeps the record its header declares, or the first 10 bytes when the count is invalid. A macro keeps its name block (10 bytes, or the length byte and name when longer) and its events (from the count on, 10 bytes or the declared events and checksum); the unread rest of the name field is filled with 0xFF only when that makes a valid macro. A binding's second byte never captures another slot.
+
+**T185: `.bin` clamps.** Only for a `.bin` source: the stage count to the model's stages, the current stage to the last of them and, when the connection type is known, the report rate to what the connection carries, with the main rate encoding (2000, 4000 and 8000 Hz as 16, 32 and 64). Each clamped pair gets its complement recomputed; a pair that does not decode is left alone. The web app's z2 logic is not copied.
+
+**T186: restore as a per-record diff.** `backup.PlanRestore` compares every settings field, the 16 bindings and all 32 body slots of the source with the mouse and gives each differing record a fate: write, unknown, not captured, not written or not read. Only records to write reach `plan.New`, with the model's normal layout; the rest are listed with their reason ("arcctl does not write it yet" where it applies; the CLI adds "(--include-unknown lists it)" for unknown records). `backup.RestoreReads` lists what to read from the mouse first, in two rounds: the body headers, then the records they declare. Amended by T227.
+
+**T187: restore tiers.** A new feature, `backup.restore` (Untested until H6), covers restores: each restored record takes the lower of its own feature's tier and the restore's, so a restore needs `write untested` until H6 records it. Hidden settings go through the planner's own setting edit (`mouse.SetSetting`) and its D5 check. The report rate and the DPI colours have no feature and are not written, nor are DPI stages past the model's count. `backup.RestoreLeavesOut` names what a restore never writes back on a model.
+
+**T188: restored bodies.** A body is written over the longer of the source's record and the mouse's, clipped to what the source captured, so a full read afterwards equals the source; a slot the source holds empty empties the mouse's record. Macro delays under 10 ms in the source are written as they are.
+
+**T189: refusals before planning.** A pass refuses the records the planner would reject, each with its reason: a binding to a body that cannot be written or is invalid, emptying a body that stays bound, a rewrite whose disable-and-rebind would fail, removing the last Left Click (I9), and a current stage past the count. Amended by T229.
+
+**T190: which mouse and profile (I11).** The source must have the mouse's identity key and, when both hold one, the same address, even while the key leaves the address out (T24); the refusal never prints an address. `--other-device` allows another mouse of the same model and sensor only. The profile must match, or be unknown on both sides, unless `--other-profile` is given. A `.bin` records neither, so it always needs `--other-device`, and `--other-profile` on a mouse with profiles. A backup made by the emulator or a replay never goes to a real mouse.
+
+**T191: `--include-unknown`.** It asks only for unmapped settings-page records that split into checksummed records; bytes never captured and invalid records are never included. The executor and journal recovery accept only records in `mouse.Layout`, so this build lists what the flag would add and refuses to write it. Replaced by T226 to T228.
+
+**T192: `arcctl restore`.** `restore <backup|.bin> [--include-unknown] [--other-device] [--other-profile] [--yes]` plus the global `--dry-run`: it reads what the plan needs, prints the preview (every record with its fate, the clamps, the notes), checks the flags and asks. `--yes` skips only the y/n question; a plan with untested records still needs its phrase typed (`Env.Stdin`). The write goes through the session's `Apply`; the command then waits for the reload and plans again, which must come out at 0 writes, or it exits 7. `--replay` is refused; with `--emulate` the journal and backups go to a temporary folder (T219).
+
+**T193: the Backup tab.** It lists the backups of the loaded mouse through `backup.Store`, newest first, with date, kind (full, loaded, partial), firmware, profile and label, re-reading the folder on a device change, after a write, after a backup, and when the list is 2 s old. The detail pane adds the decoded summary in the Buttons tab's words ("Button: action; …"), the DPI stages, the bodies and the invalid fields. `enter` shows the whole decoded backup, `d` diffs it with the mouse, `w` restores it, `f` takes a full backup and `X` opens the factory reset. There is no `.bin` import or export and no `--other-device` or `--other-profile` in the TUI yet.
+
+**T194: restore in the TUI.** `w` opens the existing review in a restore mode: the plan first, then the records the restore leaves alone with their reasons, then the usual checks and phrase. The restore plans again whenever the image changes, over the loaded image plus the bytes the tab read, and the preflight's re-read catches any that went stale. A restore does not clear the staged edits.
+
+### Factory reset (M5)
+
+**T195: the gate in the guard (amends T46 and T93).** `enabled` stays ReadOnly and Edit. A new `gated` table maps Reset to the feature `device.reset`, stage H7 and cmd 9. `Guard.Set` grants a gated policy only with exactly one `hidio.Grant` (model key, firmware, records) whose records hold that stage for that model and firmware, and the policy then lets one cmd 9 through; a second one is refused even while the policy is still Reset.
+
+**T196: the records that open it.** A release build reads only the records compiled from `verified.json`. Tests give the session other records through `session.SetVerified`, which lives in `export_test.go`, so no release code can reach it. `safety.ResetGate` is the first check of `Session.Reset` and `Session.PreflightReset`, before any I/O. The TUI shows the same gate from its own list of records, and the session enforces it. `device.reset` has base tier Off, reports Verified once H7 covers the firmware, and no plan ever writes it.
+
+**T197: order of a reset.** The gate; the preflight with fresh answers (handshake, cmd 3, cmd 14, and a fresh cmd 18 that must match the loaded firmware; other clients, lock, console, a clean journal and the phrase `reset`); a full backup read afresh (all of 0..6986 and 9504..9759), saved as "auto before reset", which must be complete; the preflight again; the journal entry; the guard to Reset; one transaction of one try with a 3 s wait (`Timing.ResetReply`); the guard back to ReadOnly; a full read, the diff against the backup, then a normal load. Nothing else is sent (D4).
+
+**T198: never resent (amends T49).** The reset packet goes out through `hidio.Raw.WriteRawOnce`, which never retries, so a report the OS refused after the device took it is not sent again; usbhid, hidapi, Pipe, Replay, the recorder and hwtest's tap implement it. The emulator's `emu.Taken` fault (the device takes the packet, then the OS reports an error) covers it. Cancel or Abort before the packet sends nothing; after it they only stop the wait for the mouse. A cmd-9 reply up to 30 s after the reset counts as late, not foreign.
+
+**T199: the journal of a reset.** A run of kind "reset" with no ops: the run entry names the backup and the packet, the "sending" entry is fsynced before the packet, then the reply, then an end entry with the verdict and the changed and unread byte ranges. A reset run is never open in the recovery sense, and once "sending" is on disk it ends `Status.Last`, so no revert crosses it. A reset with no end entry is unchecked (`safety.Status.Unsettled`): writes and resets are refused while one exists, the next session that loads the mouse reads it again, compares it with the backup and journals the verdict, `journal status` lists it and exits 7, and `journal recover` reports it once checked.
+
+**T200: the verdict.** It comes from the byte diff against the backup, not from the reply: changed, unchanged or unchecked. A NAK or no reply is a reply, not an error. A failed or cancelled re-read gives unchecked with `ErrResetUnchecked`. After the packet the session drops the dry-run overlay and its I1 backup records.
+
+**T201: a dry run of a reset.** It checks the gate and the preflight (without the phrase, other clients or the journal) and returns the packet, with no backup and no journal.
+
+**T202: the reset in the TUI.** `X` on the Backup tab (R is the shell's recovery key and f the full backup). While the gate is closed it opens a dialog that says why and what to do instead; otherwise a reset review in `backup_reset.go` that mirrors the review's steps, lists what a restore cannot put back (`backup.RestoreLeavesOut`), asks for `reset` and starts the reset once. The shell asks before quitting while a reset runs (a second ctrl+c still quits), and shows a notice with the backup's path when a reset is unchecked. The reset does not run through the shell's write path yet, so the Log tab shows no reset run. Amended by T235.
+
+### Hardware stages (M5)
+
+**T203: custom steps.** H5 to H9 run steps of their own code. Their plans are dry-run in the preview, in order, and count towards the stage's flags and phrase; writes planned while a step runs add their tiers. Every plan made during a stage also passes the slots 0 and 1 guard.
+
+**T204: the scratch area.** H5 and H9 write the slot-15 macro area and refuse to start while any binding runs macro 15.
+
+**T205: checkpoints.** A stage that may stop past a point it must never repeat writes `<Logs>/hwtest-<stage>-checkpoint.json`, synced, with a kind: drill (H5) or reset (H7). The next run lays out the same steps from a fresh backup, and their fingerprint must match.
+
+**T206: H5's torn-write drill.** It requires `--debug-abort-after-chunk n` (1 to 10), which applies only to the drill's 11-chunk, 103-byte write. Before the process ends the drill writes its checkpoint. The next `hwtest --stage H5` finds the torn record in the journal, recovers it to the old bytes after a dry run that must match the preview, reads it back, then finishes the stage, recording one log entry with both transcripts. A failure before the recovery keeps the checkpoint and records nothing, and `--dry-run` refuses while a checkpoint exists. In a rehearsal the abort acts as a crash inside the process and the stage resumes there through the same code, because the emulated flash would die with the process.
+
+**T207: H5's repeat modes.** A macro that types "h5" is bound to Forward through the release planner with repeat modes 1, 253, 254 and 255, each applied, tried and reverted. For each, the user focuses a document, tries it, stops it and presses Enter, and only then answers the y/n questions; every fallback says to switch the mouse off and on or replug the receiver. Mode 1 must type once; the other three are recorded as observations next to their labels.
+
+**T208: H6.** Five changes of different kinds in one apply: the current stage, DPI stage 1, slot 3 to a scroll function, slot 4's shortcut to Ctrl+F13 (two-phase) and a macro bound to slot 5. The restore plan must list exactly those records and its dry run must match the preview; after the restore, planning again must write nothing, and a full read from a new session must equal the backup byte for byte. The buttons' old actions are shown on the terminal only, never in the log.
+
+**T209: H7's reset.** Four preparation questions, then the phrases `write experimental` and `reset`, both named in the preview. A preflight with no ops, an online check and a check against the `wire.Reset` policy, then cmd 9 once through the raw path with `WriteRawOnce`: one exchange of up to 3 s plus the listening window, never resent. Late cmd-9 replies are kept from every session, new ones included, for 30 s. The stage judges the reset from a full read in a new session, compared with the backup record by record, and records scope, cmd 23 before and after, pairing and identity, with no bytes in the log. The reset is not journaled, like the identity writes; the stage opens a new session afterwards.
+
+**T210: H7 after a stop.** A reset checkpoint, naming the backup B1 and the cmd-23 reply, is synced before the packet. While it exists H7 never resets: the next run asks whether to go on and whether the mouse was paired again, reads the mouse, compares it with B1 and writes B1 back. The checkpoint goes once the write-back verifies, or when the reset changed nothing. H7 takes the identity and profile from B1's file; a different identity, address or profile afterwards is a finding and a failed step, writing back then needs a yes to `h7.write-back-other`, and the stage cannot pass.
+
+**T211: H7's write-back.** The release restore plan, plus the records it refuses that a plan may write (the report rate, the DPI colours, hidden slots, hidden settings) at the Experimental tier, asked about before they are written (D5, D10); declined records are findings, not failures. It never touches slots 0 and 1, frozen or unmapped records; records it cannot write are listed for `--include-unknown`. After a stop it retries up to 3 times from a new session, never resetting again. Accepted by the maintainer (T221); amended by T231.
+
+**T212: H7's pass.** H7 passes, and promotes `device.reset` for the exact firmware, only when the reset changed something, the mouse stayed paired, every writable record was verified and the user answered the physical question yes.
+
+**T213: promotions.** A stage promotes only features that `mouse.Features()` lists, and a stage whose feature is not listed refuses to start (`hwtest.ErrUnknownFeature`). H5 promotes `button.macro`, H6 `backup.restore` and H7 `device.reset`. Amended by T224.
+
+**T214: H9.** Each drill's write pauses after each chunk until it sees its event, so the user has time to act: 1 s for the screen lock, 10 s for sleep, 1 s for the unplug and 5 s per DPI record. A drill counts as observed when a lock or sleep paused the write after at least one chunk and it restarted and verified, when the unplug stopped it after at least one chunk and it recovered after the replug, and when the DPI press stopped the run before its current-stage write, which sets the current stage one below its value so a single press can never match the plan. The DPI drill uses a visible button that already runs a DPI function, or binds the catalog's DPI Cycle button to DPI cycle for the drill and reverts it after; with neither it is skipped with a finding. Each drill gets at most 3 tries; then open runs are recovered and the records put back from the backup. Putting records back grows a body write to the longer of the backup's and the mouse's declared record.
+
+**T215: the debug abort elsewhere.** In a stage without a drill, `--debug-abort-after-chunk` ends the run the way the real exit would (`hwtest.ErrEnded`, nothing recorded).
+
+**T216: build checks (amends T117).** `scripts/release-check.sh` also looks for `.hwReset` and `.hwCheckpoint`. The wiring and layering tests list packages with the test binary's build tags, and under `hwtest` allow only `hidio.OpenRaw` and `emu.(*Bus).OpenRaw` as unguarded opens.
+
+### Shell and CLI (M5)
+
+**T217: q in dialogs (amends T168).** q closes every dialog that is not running a write or a reset, the review included; only a running write or reset hands q to the shell's quit prompt. Accepted by the maintainer (T221).
+
+**T218: notices with paths.** A notice about a file puts the cause first and keeps the file name when the path is cut; file errors keep their cause.
+
+**T219: the emulator's folder (amends T139).** The temporary folder that holds an emulated session's journal, backups and macro library is removed when the TUI or `arcctl restore` ends, and the note that names it says so. A hardware-test rehearsal keeps its folder (T116), since it holds the rehearsal's records.
+
+**T220: CLI golden files.** Golden files accept line wrapping that depends on the length of the test's temporary path, so the CLI tests pass from any checkout location.
+
+### M5 gate follow-ups
+
+**T221: sign-offs.** The maintainer accepted T211 (H7 asks before writing back the records the release restore leaves out) and T217 (q closes dialogs).
+
+**T222: H4's plan.** H4 plans every change with the release planner (`mouse.PlanEdits` with `SetShortcut` or `SetMedia`), as the Buttons tab does; only slot 2's identity write goes through the hwtest raw path (D10). That write covers the record slot 2's body declares (Cmd+V: 14 bytes in 2 chunks), at the tier `PlanEdits` would give that body: shortcut or media, plus one feature per web-compat reason. H4 refuses to start unless slots 2 and 4 are bound to valid shortcut bodies.
+
+**T223: H4's two-phase case.** Slot 4's shortcut gains Left Shift before its key (Cmd+Tab becomes Cmd+Shift+Tab), or loses it when the shortcut already holds it. The builder refuses unless both the change and its revert run neutralise, body, bind.
+
+**T224: extra cases (amends T213).** An extra case is a question that any answer passes (`stageDef.extras`, `step.extra`): a yes adds its feature to what the stage promotes when it passes, a no is logged as "not promoted … stays Untested", and a failed stage promotes nothing, extras included. H4 promotes `button.shortcut` and `button.media`, plus `button.shortcut.right-modifier` when RCmd+Tab switches apps as Cmd+Tab does, and `button.shortcut.menu` when Karabiner-EventViewer lists the Menu key or a context menu opens.
+
+**T225: record privacy (amends T115).** Questions name only the stage's own keys; what slots 2, 3 and 4 ran, and slot 4's Shift version, are asides on the terminal that stay out of the records. No record shows bytes of the shortcut or macro area: in every stage, step details, transcript notes and error texts show packets as the redacted transcript does (`xx`) and body bytes only as a count. Settings bytes still show.
+
+**T226: the captured phase (amends T25, T26 and T28).** Bytes written back as a backup captured them are a plan phase of their own, `plan.Captured` (journaled as "captured"), after every record write; `plan.Change.Captured` asks for it. `plan.Layout.Capturable` says where such an op may go: before the first body table (0 to 255 on the EM11), clear of the frozen records and the binding and body tables, and either a whole record of the layout or clear of every record. There is no checksum rule, and `Validate` refuses a captured op anywhere else or at any tier but Experimental, so the executor, journal recovery and revert take these writes with the unchanged `mouse.Layout`. A journal holding a "captured" op cannot be read by an older build.
+
+**T227: what `--include-unknown` writes (amends T186).** The records a restore marks unknown and `Capturable` accepts: unmapped fields in 0 to 255, other models' fields there (AngleTune at 189 and the like) and layout records whose source bytes are not valid (the report rate, the colours, DPI stages). Each is written whole as one op, only when it differs from the mouse. Never: KeyOperation @8, bindings, bodies, the extended block, anything captured only in part, and the hidden settings of T230. Without the flag the plan has no captured op.
+
+**T228: flags and phrase (amends T96).** A captured write needs `--include-unknown`, `--experimental` (the Experimental tier's rule) and a typed phrase that names every captured extent, such as `write experimental and captured 6+2 84+12 187+2` (`safety.ConfirmPhrase`). The preflight checks the phrase for apply and revert; recovery skips the tier checks, as before. In the TUI, `u` in the Backup tab's restore diff includes or leaves out these records before `w` opens the review, which names each record and extent.
+
+**T229: the stage pair (amends T189).** A restore refuses a count or current-stage write that is not captured when the mouse would hold current ≥ count before the captured bytes, written last, go back, as well as after them. Such a restore needs a second run, and its refusal says so.
+
+**T230: D5 and `--include-unknown`.** It never writes a hidden setting of the layout whose feature has no `verified.json` record, even when the source's bytes are invalid; the reason ends "D5 keeps setting.X read-only until its own H8 test is recorded". Unmapped bytes, other models' fields, the report rate and the colours stay eligible. Pending the maintainer's sign-off.
+
+**T231: H7's write-back (amends T211).** H7 plans with `IncludeUnknown` only to list the captured records for a new yes/no question, `h7.write-back-unknown`, asked after `h7.write-back-extra` and naming each record and extent; it writes a plan made without the flag unless the answer is yes. The invalid hidden settings T230 holds back join that question as captured bytes (D10). It is a yes/no rather than a typed phrase, since H7 fills the phrase itself. Declined records are left at the user's choice, not failures. The extra path never adds the stage count or current stage, which the release restore refuses only to keep current below count.
+
+**T232: review words for captured blocks.** The review shows only the hex of a record whose bytes are known but decoded by no field, such as the unmapped block at 84+12; "not read" is kept for bytes that are unread.
+
+**T233: the Buttons picker's Macro group (amends T157).** A fifth group after Combo Key: "New macro…", then the macros on the mouse (pending ones included), the valid unbound bodies and the library, each once by name, with events and repeat mode. A choice stages `SetMacro` for the button's own slot through the Macros tab's bind flow (T175's question, the sanitiser, the Left Click guard, the slot read). "New macro…" swaps the picker for the Macros tab's editor, whose binder starts on that button. The picker opens on the macro the button runs from its own slot.
+
+**T234: pending macros on the Buttons tab (amends T174).** The preview takes an unread macro slot as erased flash instead of refusing. The Tier column shows "reading…" while the slot is read and "not read" otherwise, and the detail says when it is read. With a Macros tab present, only that tab reads macro slots.
+
+**T235: the factory reset in the Log (amends T202).** The Log takes the reset dialog's result like a write's end (verdict, changed ranges, reply, and the backup under "This session"), names the reset's jobs, lists unchecked resets from the journal, and says that no revert goes past a reset of this session. The reset still runs in its own dialog, not the shell's write path.
+
+**T236: library saves on quit (amends T181).** Saves always write the newest library, one write at a time, and a failed save is retried by the next one. `tui.Run` then waits up to 5 s (`saveWait`) for every tab's unfinished saves and runs any that never started. A failed or unfinished save is Run's error and names the file; after ctrl+c or SIGINT that error is returned instead of "aborted".
+
+**T237: `internal/atomicfile` (amends T181).** `WriteFile` and `WriteNew` moved there unchanged from `backup` (temp file, sync, rename or link, folder sync; files 0600, folders 0700). `backup` and `library` use it, so `library` no longer imports `backup`; `backup.WriteFile` and `backup.WriteNew` stay as wrappers for the CLI and hwtest callers.

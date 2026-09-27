@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/positronico/arcctl/internal/atomicfile"
 )
 
 // Dir is the folder, under the backups root, that holds the backups of this
@@ -67,7 +69,7 @@ func Save(root string, f *File) (string, error) {
 		if i > 1 {
 			path = base + "-" + strconv.Itoa(i) + ".json"
 		}
-		err := WriteNew(path, data)
+		err := atomicfile.WriteNew(path, data)
 		if !errors.Is(err, fs.ErrExist) {
 			return path, err
 		}
@@ -83,7 +85,7 @@ func SaveAs(path string, f *File) error {
 	if err != nil {
 		return err
 	}
-	return WriteNew(path, data)
+	return atomicfile.WriteNew(path, data)
 }
 
 // Load reads and validates the backup at path.
@@ -139,63 +141,9 @@ func encode(f *File) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// WriteNew writes data to a new file at path, all or nothing: the bytes go to
-// a temporary file that is synced and then linked into place, which fails
-// with fs.ErrExist rather than replace a file. On file systems without hard
-// links it renames instead, after checking that path is free.
-func WriteNew(path string, data []byte) error {
-	return write(path, data, false)
-}
+// WriteNew writes data to a new file at path, all or nothing, and never
+// replaces a file; see atomicfile.WriteNew.
+func WriteNew(path string, data []byte) error { return atomicfile.WriteNew(path, data) }
 
-// WriteFile replaces the file at path atomically.
-func WriteFile(path string, data []byte) error {
-	return write(path, data, true)
-}
-
-func write(path string, data []byte, replace bool) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".*.tmp")
-	if err != nil {
-		return err
-	}
-	name := tmp.Name()
-	defer os.Remove(name)
-	_, err = tmp.Write(data)
-	if err == nil {
-		err = tmp.Sync()
-	}
-	if cerr := tmp.Close(); err == nil {
-		err = cerr
-	}
-	if err != nil {
-		return err
-	}
-	switch {
-	case replace:
-		err = os.Rename(name, path)
-	default:
-		err = os.Link(name, path)
-		if err != nil && !errors.Is(err, fs.ErrExist) {
-			if _, serr := os.Lstat(path); serr == nil {
-				return &fs.PathError{Op: "create", Path: path, Err: fs.ErrExist}
-			}
-			err = os.Rename(name, path)
-		}
-	}
-	if err != nil {
-		return err
-	}
-	syncDir(dir)
-	return nil
-}
-
-// syncDir makes the new directory entry durable where the OS allows it.
-func syncDir(dir string) {
-	if d, err := os.Open(dir); err == nil {
-		_ = d.Sync()
-		d.Close()
-	}
-}
+// WriteFile replaces the file at path atomically; see atomicfile.WriteFile.
+func WriteFile(path string, data []byte) error { return atomicfile.WriteFile(path, data) }

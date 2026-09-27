@@ -64,7 +64,9 @@ type reviewDialog struct {
 	edits  []Staged
 	cursor int
 	target *safety.Run // the run a revert undoes
-	plan   plan.Plan
+	// restore is set when the review writes a backup back to the mouse.
+	restore *restoreReview
+	plan    plan.Plan
 	// planErr is why there is no plan. For a revert whose records the loaded
 	// image lacks, preview is set: the rows come from the journal, and the
 	// session reads the records when it reverts.
@@ -180,9 +182,12 @@ func (d *reviewDialog) replan(c *Context) {
 	d.rev, d.image, d.model, d.last = c.Pending.Rev(), c.Image(), c.Model(), journalLast(c)
 	d.plan, d.planErr, d.preview = plan.Plan{}, nil, false
 	d.refused, d.rows, d.warnings, d.gateOps = nil, nil, nil, nil
-	if d.kind == safety.KindRevert {
+	switch {
+	case d.restore != nil:
+		d.replanRestore(c)
+	case d.kind == safety.KindRevert:
 		d.replanRevert(c)
-	} else {
+	default:
 		d.replanEdits(c)
 	}
 	if d.planErr == nil {
@@ -261,7 +266,7 @@ func (d *reviewDialog) count(t catalog.Tier) int {
 
 // canWrite says why no write of this kind can start now.
 func (d *reviewDialog) canWrite(c *Context) error {
-	if d.kind == safety.KindRevert {
+	if d.kind == safety.KindRevert || d.restore != nil {
 		return c.CanWrite()
 	}
 	return c.CanApply()
@@ -318,14 +323,12 @@ func (d *reviewDialog) planKey(c *Context, k tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	switch s {
-	case "esc":
+	case "esc", "q":
 		return CloseDialog
-	case "q":
-		return askQuit
 	case "enter":
 		return d.proceed(c)
 	}
-	if d.kind != safety.KindApply {
+	if d.kind != safety.KindApply || d.restore != nil {
 		return nil
 	}
 	switch s {
@@ -372,6 +375,9 @@ func (d *reviewDialog) proceed(c *Context) tea.Cmd {
 	if d.planErr == nil && len(d.plan.Ops) == 0 {
 		if d.kind == safety.KindRevert {
 			return tea.Batch(CloseDialog, Notice("Nothing to write: the mouse already holds what the revert would write."))
+		}
+		if d.restore != nil {
+			return tea.Batch(CloseDialog, Notice("Nothing to write: the mouse already holds every record the backup restores."))
 		}
 		if len(d.edits) > 0 {
 			n := c.Pending.Len()
@@ -496,7 +502,7 @@ func (d *reviewDialog) Hints(c *Context) []key.Binding {
 	switch d.step {
 	case reviewPlan:
 		var out []key.Binding
-		if d.kind == safety.KindApply {
+		if d.kind == safety.KindApply && d.restore == nil {
 			out = []key.Binding{hint(dilArrows(c, "↑/↓", "up/down"), "select"), hint("d", "drop edit"), hint("u", "discard all")}
 		}
 		out = append(out, d.pager.hints()...)

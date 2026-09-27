@@ -74,7 +74,9 @@ func TestGuardWiring(t *testing.T) {
 			}
 			if path == p.ImportPath {
 				for _, where := range rawResults(pkg, raw) {
-					t.Errorf("%s.%s returns a hidio.Raw; only hidio may hand one out", path, where)
+					if !slices.Contains(rawPath[strings.TrimPrefix(path, module+"/internal/")], where) {
+						t.Errorf("%s.%s returns a hidio.Raw; only hidio may hand one out", path, where)
+					}
 				}
 			}
 			for _, name := range writeOverrides(pkg, transport) {
@@ -86,9 +88,9 @@ func TestGuardWiring(t *testing.T) {
 
 // checkHidioExports allows hidio to return a Raw only from constructors whose
 // Raw is not a device: the Pipe, the Replay and a Recorder's wrapper of a Raw
-// the caller already holds.
+// the caller already holds. A hwtest build adds the raw path's OpenRaw.
 func checkHidioExports(t *testing.T, hidio *types.Package, raw *types.Interface) {
-	allowed := []string{"NewPipe", "NewReplay", "OpenReplay", "Recorder.Wrap"}
+	allowed := append([]string{"NewPipe", "NewReplay", "OpenReplay", "Recorder.Wrap"}, rawPath["hidio"]...)
 	for _, where := range rawResults(hidio, raw) {
 		if !slices.Contains(allowed, where) {
 			t.Errorf("hidio.%s returns a hidio.Raw; device Raws must stay inside hidio", where)
@@ -96,9 +98,16 @@ func checkHidioExports(t *testing.T, hidio *types.Package, raw *types.Interface)
 	}
 }
 
+// goList runs go list with the build tags this test binary was built with,
+// so a hwtest build checks the files only that build compiles.
+func goList(t *testing.T, args ...string) ([]byte, error) {
+	t.Helper()
+	return exec.Command("go", slices.Concat([]string{"list"}, listTags, args)...).Output()
+}
+
 func listPackages(t *testing.T) []goPackage {
 	t.Helper()
-	out, err := exec.Command("go", "list", "-json=ImportPath,Dir,GoFiles,TestGoFiles,XTestGoFiles", "./...").Output()
+	out, err := goList(t, "-json=ImportPath,Dir,GoFiles,TestGoFiles,XTestGoFiles", "./...")
 	if err != nil {
 		t.Fatalf("go list: %v", err)
 	}
@@ -117,7 +126,7 @@ func listPackages(t *testing.T) []goPackage {
 
 func exportImporter(t *testing.T, fset *token.FileSet) types.Importer {
 	t.Helper()
-	out, err := exec.Command("go", "list", "-export", "-deps", "-test", "-f", "{{.ImportPath}}={{.Export}}", "./...").Output()
+	out, err := goList(t, "-export", "-deps", "-test", "-f", "{{.ImportPath}}={{.Export}}", "./...")
 	if err != nil {
 		t.Fatalf("go list -export: %v", err)
 	}

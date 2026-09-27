@@ -75,7 +75,7 @@ func New(ctx context.Context, o Options) *App {
 		o.Verified = catalog.VerifiedStages()
 	}
 	if o.Tabs == nil {
-		o.Tabs = defaultTabs(o.Session)
+		o.Tabs = defaultTabs(o)
 	}
 	if o.Review == nil {
 		o.Review = NewReview(o.Session)
@@ -108,6 +108,24 @@ func New(ctx context.Context, o Options) *App {
 }
 
 func (a *App) Close() { a.cancel() }
+
+// flusher is a tab that saves files in the background, such as the macro
+// library.
+type flusher interface {
+	flush(ctx context.Context) error
+}
+
+// flush waits, until ctx ends, for the tabs' saves that have not finished,
+// and runs the ones that never started.
+func (a *App) flush(ctx context.Context) error {
+	var errs []error
+	for _, t := range a.tabs {
+		if f, ok := t.(flusher); ok {
+			errs = append(errs, f.flush(ctx))
+		}
+	}
+	return errors.Join(errs...)
+}
 
 // Pending is the store of staged edits the tabs share.
 func (a *App) Pending() *Pending { return a.pending }
@@ -198,7 +216,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 	case backupMsg:
 		a.notice = msg.notice()
-		return a, nil
+		return a, a.broadcast(msg)
 	case hostMsg:
 		a.host = msg
 		return a, nil
@@ -299,6 +317,18 @@ func (a *App) setSnapshot(sn *session.Snapshot) tea.Cmd {
 		a.prompted[run.Run.ID] = true
 		a.push(newRecoveryDialog(c, *run))
 	}
+	if js := sn.Journal; js != nil {
+		for _, r := range js.Resets {
+			if !a.prompted[r.ID] {
+				a.prompted[r.ID] = true
+				path := r.Reset.Backup
+				cmds = append(cmds, func() tea.Msg {
+					return noticeMsg{text: "A factory reset of this mouse ended before arcctl checked what it did. arcctl reads the " +
+						"mouse again and compares it with the backup from before the reset; writes wait until then. The backup:", path: path, bad: true}
+				})
+			}
+		}
+	}
 	return tea.Batch(cmds...)
 }
 
@@ -368,6 +398,10 @@ func (a *App) key(msg tea.KeyPressMsg) tea.Cmd {
 		return a.quit(true)
 	}
 	if a.dialog != nil {
+		if h, ok := a.dialog.(helpful); ok && h.Helps() && key.Matches(msg, k.Help) {
+			a.push(newHelpDialog(a.dialog.Hints(c)))
+			return nil
+		}
 		return a.dialog.Update(c, msg)
 	}
 	if a.sn.State == session.Choosing {
@@ -448,13 +482,36 @@ func (a *App) hiddenWriter() Dialog {
 	return nil
 }
 
-// quit ends arcctl, after asking while a write runs or edits are pending.
-// ctrl+c while that question is open, or once the write was asked to stop,
-// quits at once.
+// busy is a dialog that runs something quitting would cut short, such as
+// a factory reset; Busy says what, or "" when nothing runs.
+type busy interface{ Busy() string }
+
+func (a *App) busyWith() string {
+	for _, d := range a.dialogs() {
+		if b, ok := d.(busy); ok {
+			if what := b.Busy(); what != "" {
+				return what
+			}
+		}
+	}
+	return ""
+}
+
+// quit ends arcctl, after asking while a write or a factory reset runs or
+// edits are pending. ctrl+c while that question is open, or once the write
+// was asked to stop, quits at once.
 func (a *App) quit(ctrlC bool) tea.Cmd {
 	switch {
 	case ctrlC && (a.isOpen(a.quitPrompt) || a.quitAfterWrite):
 		return tea.Quit
+	case a.write == nil && a.busyWith() != "" && !a.isOpen(a.quitPrompt):
+		what := a.busyWith()
+		a.quitPrompt = &Confirm{Title: "Quit while " + what + " runs",
+			Body: []string{"Quit now? " + strings.ToUpper(what[:1]) + what[1:] + " is cut short: once its packet went out, arcctl " +
+				"checks what it did the next time it loads the mouse, and blocks writes until then. ctrl+c again quits at once."},
+			Yes: func(string) tea.Cmd { return tea.Quit }}
+		a.push(a.quitPrompt)
+		return nil
 	case a.write != nil && a.quitAfterWrite:
 		return Notice("The write stops after its current record; arcctl quits then. ctrl+c quits at once.")
 	case a.write == nil && a.pending.Len() == 0:
@@ -581,7 +638,7 @@ func (a *App) startWrite(r writeRequest) tea.Cmd {
 func (a *App) endWrite(d WriteDoneMsg) tea.Cmd {
 	w := a.write
 	a.write = nil
-	if d.Kind == safety.KindApply && d.Err == nil {
+	if d.Kind == safety.KindApply && d.Err == nil && !restoring(a.writer) {
 		a.pending.Clear()
 	}
 	if rv, ok := a.writer.(*reviewDialog); ok && a.isOpen(rv) && d.Err != nil && d.Outcome.Run != "" {
@@ -648,7 +705,7 @@ var (
 // and the wire command, and with a planned op named by its record.
 func plain(err error) string {
 	s := err.Error()
-	for _, p := range []string{"safety: ", "session: ", "plan: ", "mouse: ", "wire: ", "hidio: "} {
+	for _, p := range []string{"safety: ", "session: ", "plan: ", "mouse: ", "wire: ", "hidio: ", "library: "} {
 		s = strings.ReplaceAll(s, p, "")
 	}
 	s = cmdPrefix.ReplaceAllString(s, "")

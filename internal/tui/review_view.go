@@ -40,6 +40,8 @@ func (d *reviewDialog) planLines(c *Context, w int) ([]string, int) {
 	add := func(s ...string) { out = append(out, s...) }
 	title := "Review & Apply"
 	switch {
+	case d.restore != nil:
+		title = "Review the restore"
 	case d.kind == safety.KindRevert && d.target != nil && d.target.Kind == safety.KindRevert:
 		title = "Review: undo the last revert"
 	case d.kind == safety.KindRevert:
@@ -57,10 +59,14 @@ func (d *reviewDialog) planLines(c *Context, w int) ([]string, int) {
 	add(wrap(d.deviceLine(c), w, "", "  ")...)
 	add(d.statusLines(c, w)...)
 	focus := -1
-	if d.kind == safety.KindRevert {
+	switch {
+	case d.restore != nil:
+		add("")
+		add(d.restoreLines(c, w)...)
+	case d.kind == safety.KindRevert:
 		add("")
 		add(d.revertLines(c, w)...)
-	} else {
+	default:
 		add("", st.Bold.Render(fmt.Sprintf("Staged edits (%d)", len(d.edits))))
 		for i, e := range d.edits {
 			line := "  " + reviewEditName(c, e)
@@ -77,19 +83,21 @@ func (d *reviewDialog) planLines(c *Context, w int) ([]string, int) {
 			add(st.Faint.Render("  nothing is staged"))
 		}
 	}
-	if len(d.rows) == 0 {
-		return out, focus
-	}
-	add("", st.Bold.Render("Plan"))
-	add(d.opLines(c, w)...)
-	if len(d.warnings) > 0 {
-		add("", st.Warn.Render("Web app")+" "+st.Faint.Render("(the last-resort fallback) warnings:"))
-		for _, wn := range d.warnings {
-			add(wrap(wn.Text, w, "  "+st.Warn.Render("!")+" ", "    ")...)
+	if len(d.rows) > 0 {
+		add("", st.Bold.Render("Plan"))
+		add(d.opLines(c, w)...)
+		if len(d.warnings) > 0 {
+			add("", st.Warn.Render("Web app")+" "+st.Faint.Render("(the last-resort fallback) warnings:"))
+			for _, wn := range d.warnings {
+				add(wrap(wn.Text, w, "  "+st.Warn.Render("!")+" ", "    ")...)
+			}
 		}
+		add("", st.Bold.Render("Before writing"))
+		add(d.checkLines(c, w)...)
 	}
-	add("", st.Bold.Render("Before writing"))
-	add(d.checkLines(c, w)...)
+	if d.restore != nil {
+		add(d.restoreLeftLines(c, w)...)
+	}
 	return out, focus
 }
 
@@ -112,14 +120,18 @@ func (d *reviewDialog) statusLines(c *Context, w int) []string {
 	switch {
 	case d.step == reviewChecking:
 		style, text = st.Info, "Checking the mouse and the receiver"+c.Glyphs.Ellipsis
-	case d.kind == safety.KindApply && len(d.edits) == 0:
+	case d.kind == safety.KindApply && d.restore == nil && len(d.edits) == 0:
 		style, text = st.Faint, "Nothing is staged."
 	case errors.Is(d.planErr, errNoMouse):
 		style, text = st.Bad, "Blocked. "+plain(d.planErr)+"."
 	case d.planErr != nil && d.kind == safety.KindRevert && !d.preview:
 		style, text = st.Bad, "Cannot revert: "+reviewErrText(d.planErr)+"."
+	case d.planErr != nil && d.restore != nil:
+		style, text = st.Bad, "Cannot plan the restore: "+reviewErrText(d.planErr)+"."
 	case d.planErr != nil && d.kind == safety.KindApply:
 		style, text = st.Bad, "Cannot plan these edits: "+reviewErrText(d.planErr)+". d drops the selected edit."
+	case d.planErr == nil && len(d.plan.Ops) == 0 && d.restore != nil:
+		style, text = st.Info, "Nothing to write: the mouse already holds every record the backup restores."
 	case d.planErr == nil && len(d.plan.Ops) == 0 && d.kind == safety.KindRevert:
 		style, text = st.Info, "Nothing to write: the mouse already holds what the revert would write."
 	case d.planErr == nil && len(d.plan.Ops) == 0:

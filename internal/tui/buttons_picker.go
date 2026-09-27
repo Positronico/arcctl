@@ -12,6 +12,7 @@ import (
 	"github.com/positronico/arcctl/internal/catalog"
 	"github.com/positronico/arcctl/internal/flash"
 	"github.com/positronico/arcctl/internal/keys"
+	"github.com/positronico/arcctl/internal/library"
 	"github.com/positronico/arcctl/internal/mouse"
 )
 
@@ -23,10 +24,11 @@ const (
 	secSpecial
 	secMedia
 	secCombo
+	secMacro
 	pickSections
 )
 
-var pickLabels = [pickSections]string{"button.group.system", "button.group.special", "kbd_key.media", "button.group.combo"}
+var pickLabels = [pickSections]string{"button.group.system", "button.group.special", "kbd_key.media", "button.group.combo", "button.group.macro"}
 
 // pickEntry is one function a list section offers.
 type pickEntry struct {
@@ -40,6 +42,10 @@ type pickEntry struct {
 	// macHidden is set, on the mac tables, for an entry the web app leaves
 	// out on macOS.
 	macHidden bool
+	// where says where a macro comes from; newMacro is the entry that opens
+	// the editor on a new one.
+	where    string
+	newMacro bool
 }
 
 // macHiddenPresets and macHiddenMedia are what the web app leaves out of
@@ -181,9 +187,13 @@ func slotEdit(c *Context, slot int) (mouse.Edit, bool) {
 func deviceEdit(c *Context, slot int) (mouse.Edit, bool) {
 	cfg := c.Config()
 	fn, ok := slotDeviceFn(c, slot)
-	switch {
-	case !ok:
+	if !ok {
 		return nil, false
+	}
+	if e, ok := deviceMacro(cfg, slot, fn); ok {
+		return e, true
+	}
+	switch {
 	case fn.Type != mouse.TypeShortcut:
 		return mouse.SetKey{Slot: slot, Fn: fn}, true
 	case cfg.Slots[slot] != flash.SlotValid:
@@ -196,12 +206,24 @@ func deviceEdit(c *Context, slot int) (mouse.Edit, bool) {
 	return mouse.SetShortcut{Slot: slot, Combo: combo}, true
 }
 
+// deviceMacro is the edit that binds slot to the macro in its own slot, as
+// the mouse does now; false for any other binding.
+func deviceMacro(cfg *mouse.Config, slot int, fn mouse.KeyFn) (mouse.SetMacro, bool) {
+	m := cfg.Macros[slot]
+	if fn.Type != mouse.TypeMacro || int(fn.Param>>8) != slot || cfg.MacroClass[slot] != flash.SlotValid || m == nil {
+		return mouse.SetMacro{}, false
+	}
+	return mouse.SetMacro{Slot: slot, Macro: *m, Cycle: int(fn.Param & 0xFF)}, true
+}
+
 func sameEdit(a, b mouse.Edit) bool {
-	if x, ok := a.(mouse.SetShortcut); ok {
+	switch x := a.(type) {
+	case mouse.SetShortcut:
 		y, ok := b.(mouse.SetShortcut)
 		return ok && x.Slot == y.Slot && slices.Equal(x.Combo, y.Combo)
-	}
-	switch a.(type) {
+	case mouse.SetMacro:
+		y, ok := b.(mouse.SetMacro)
+		return ok && x.Slot == y.Slot && x.Cycle == y.Cycle && x.Macro.Name == y.Macro.Name && slices.Equal(x.Macro.Events, y.Macro.Events)
 	case mouse.SetKey, mouse.SetMedia:
 		return a == b
 	}
@@ -249,6 +271,37 @@ func (p *buttonPicker) entries(c *Context, s pickSection) []pickEntry {
 					edit: mouse.SetMedia{Slot: slot, Usage: u.Code}, macHidden: os == keys.Mac && slices.Contains(macHiddenMedia, u.Code)})
 			}
 		}
+	case secMacro:
+		if t := p.tab.macros; t != nil && c.Visible(mouse.FeatureMacro) {
+			out = append(out, pickEntry{name: "New macro" + c.Glyphs.Ellipsis, info: "opens the editor", newMacro: true})
+			out = append(out, macroEntries(c, t, slot)...)
+		}
+	}
+	return out
+}
+
+// macroEntries are the macros the Macro group offers for slot, each once:
+// those on the mouse, pending ones included, the valid bodies no binding
+// runs, then the library's.
+func macroEntries(c *Context, t *Macros, slot int) []pickEntry {
+	onMouse, inFlash, inLib := t.macroRows(c)
+	var seen []library.Entry
+	var out []pickEntry
+	for _, r := range slices.Concat(onMouse, inFlash, inLib) {
+		if r.macro == nil {
+			continue
+		}
+		e := r.entry()
+		if slices.ContainsFunc(seen, e.Equal) {
+			continue
+		}
+		seen = append(seen, e)
+		where := t.where(c, r)
+		if r.src == srcLibrary {
+			where = "library"
+		}
+		out = append(out, pickEntry{name: shownName(e.Macro.Name), info: cycleText(e.Cycle), search: where, where: where,
+			edit: mouse.SetMacro{Slot: slot, Macro: e.Macro, Cycle: e.Cycle}})
 	}
 	return out
 }
@@ -302,7 +355,7 @@ func (p *buttonPicker) Update(c *Context, msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		if k.String() == "enter" && len(entries) > 0 {
-			return p.tab.stage(c, p.row, entries[p.lists[s].cursor].edit)
+			return p.choose(c, entries[p.lists[s].cursor])
 		}
 	}
 	switch k.String() {
@@ -316,6 +369,27 @@ func (p *buttonPicker) Update(c *Context, msg tea.Msg) tea.Cmd {
 		return CloseDialog
 	}
 	return nil
+}
+
+// choose stages the function of e, or opens the macro editor for a new
+// macro. A macro goes through the Macros tab, which asks about the other
+// buttons whose macros carry its name and reads its slot.
+func (p *buttonPicker) choose(c *Context, e pickEntry) tea.Cmd {
+	if e.newMacro {
+		return p.newMacro(c)
+	}
+	if m, ok := e.edit.(mouse.SetMacro); ok {
+		return p.tab.macros.bind(c, m, Problem, func() tea.Cmd { return closeDialog(p) })
+	}
+	return p.tab.stage(c, p.row, e.edit)
+}
+
+// newMacro puts the Macros tab's editor on a new macro in place of the
+// picker; b there binds it, starting on this button.
+func (p *buttonPicker) newMacro(c *Context) tea.Cmd {
+	ed := newMacroEditor(p.tab.macros, c, macroRow{src: srcNew, slot: -1})
+	ed.bindTo, ed.title = p.row.slot, "New macro for "+p.row.where()
+	return tea.Sequence(closeDialog(p), OpenDialog(ed))
 }
 
 func (p *buttonPicker) Hints(c *Context) []key.Binding {
@@ -401,8 +475,11 @@ func (p *buttonPicker) listLines(c *Context, entries []pickEntry, l *pickList, w
 			mark = c.Glyphs.Cursor + " "
 		}
 		tag := tierTag(c, e.extra)
-		if e.macHidden {
+		switch {
+		case e.macHidden:
 			tag = "not on macOS web app"
+		case tag == "":
+			tag = e.where
 		}
 		line := buttonCells(w, " "+mark, []int{nameW, 22, 12}, c.Glyphs.Ellipsis, e.name, e.info, tag)
 		switch {
@@ -440,9 +517,20 @@ func tierTag(c *Context, fs []mouse.Feature) string {
 // warnings, or why the planner refuses it.
 func (p *buttonPicker) previewLines(c *Context, entry pickEntry, w int) []string {
 	e := entry.edit
-	pv := previewSlot(c, p.row.slot, e)
 	line := func(s string) []string { return wrap(s, w-1, "  ", "    ") }
 	var out []string
+	if m, ok := e.(mouse.SetMacro); ok || entry.newMacro {
+		if entry.newMacro {
+			out = line("opens the macro editor on a new macro; b there binds it to " + p.row.where())
+		} else {
+			out = bindPreview(c, m, p.row, line)
+		}
+		if len(out) > pickPreviewRows {
+			out = append(out[:pickPreviewRows-1], "  "+c.Glyphs.Ellipsis)
+		}
+		return out
+	}
+	pv := previewSlot(c, p.row.slot, e)
 	switch {
 	case pv.ops == 0 && (pv.err == nil || doesNow(c, p.row.slot, e)):
 		out = line("no change: the button already does " + editText(c.Model(), e, p.tab.osFor(c)))

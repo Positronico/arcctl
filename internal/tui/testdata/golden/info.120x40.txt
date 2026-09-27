@@ -35,6 +35,6 @@
                  button.shortcut                        FlywheelState        233+2   ff ff          erased   optional
                  button.shortcut.right-modifier         Flywheel             235+4   ff ff ff ff    erased   optional
                  button.shortcut.menu button.macro      LeftTrigger          239+2   ff ff          erased   optional
- … lines 1-33 of 69
+ … lines 1-33 of 70
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
  0 pending   ↑/↓ scroll   pgup/pgdn page   g/G top/end   r reload   ? help   q quit

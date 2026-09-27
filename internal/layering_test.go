@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"os/exec"
 	"slices"
 	"strings"
 	"testing"
@@ -30,7 +29,7 @@ type listed struct {
 // must be the standard library or another pure package. Standard-library packages
 // may pull in os or time. Test files are not checked.
 func TestPureLayering(t *testing.T) {
-	out, err := exec.Command("go", "list", "-json=ImportPath,Imports,Deps", "./...").Output()
+	out, err := goList(t, "-json=ImportPath,Imports,Deps", "./...")
 	if err != nil {
 		t.Fatalf("go list: %v", err)
 	}

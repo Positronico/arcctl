@@ -14,6 +14,7 @@ import (
 const (
 	LabelBeforeWrite = "auto before write"
 	LabelFirstWrite  = "auto first write"
+	LabelBeforeReset = "auto before reset"
 )
 
 // savedBackups are the I1 backups this session saved for one device.

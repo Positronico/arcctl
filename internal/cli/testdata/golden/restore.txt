@@ -1,0 +1,35 @@
+Source    $TMP/b0.json
+          backup of 260d-1282-7b04, 2026-09-26 12:00:00 UTC, loaded bytes
+Mouse     ProtoArc EM11 Pro (7B04), identity 260d-1282-7b04, onboard profile 0
+
+Records that differ (the mouse now -> the source):
+  DPI stage 2    1600 -> 1200
+                 write, untested
+  Colour 1       #010203 -> #ff0000
+                 not written: no feature writes the DPI colours in this build
+  Button slot 3  Backward -> Cmd+Shift+T
+                 write, untested
+  Shortcut 4     Cmd+Option+Tab -> Ctrl+Tab
+                 write, untested
+
+3 records to write in 6 packets; 1 record left alone; 79 records equal.
+
+Plan, in the order it is written:
+   Op  Record     Phase       Tier          What
+    1  112+4      neutralise  untested      disable binding 4 while its body is
+                                            rewritten
+    2  384+20     body        untested      restore shortcut 4
+    3  108+4      bind        untested      restore button slot 3
+    4  112+4      bind        untested      restore binding 4
+    5  16+4       record      untested      restore DPI stage 2: 1200
+
+   Op  Record     State         What
+    1  112+4      verified      disable binding 4 while its body is rewritten
+    2  384+20     verified      restore shortcut 4
+    3  108+4      verified      restore button slot 3
+    4  112+4      verified      restore binding 4
+    5  16+4       verified      restore DPI stage 2: 1200
+Backup saved before the write:
+  $TMP/backups/em11-pro-260d-1282-7b04/20260926T120000Z-auto-first-write.json
+Restore run $RUN1: 5 writes verified.
+Checked: the mouse now holds what the source holds in every record it restores.

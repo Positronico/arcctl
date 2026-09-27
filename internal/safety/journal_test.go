@@ -18,6 +18,7 @@ import (
 	"github.com/positronico/arcctl/internal/flash"
 	"github.com/positronico/arcctl/internal/plan"
 	"github.com/positronico/arcctl/internal/safety"
+	"github.com/positronico/arcctl/internal/wire"
 )
 
 func journalLines(t testing.TB, path string) []map[string]any {
@@ -308,6 +309,25 @@ func FuzzLoad(f *testing.F) {
 		`{"type":"end","run":"`+runID(good)+`","time":"2026-09-26T10:00:00Z","result":"complete"}`+"\n"...))
 	f.Add([]byte("{}\n"))
 	f.Add([]byte(`{"type":"resolve","run":"a","result":"forward"}` + "\n"))
+	jr, err := safety.OpenJournal(f.TempDir(), identity)
+	if err != nil {
+		f.Fatal(err)
+	}
+	safety.SkipSync(jr)
+	run, _, err := safety.SendReset(context.Background(), jr, identity, nil, "before.json", resetPacket,
+		func(context.Context, wire.Packet) (wire.Packet, error) { return resetPacket, nil })
+	if err != nil {
+		f.Fatal(err)
+	}
+	if err := jr.EndReset(run, safety.VerdictChanged, []flash.Extent{{Addr: 4, Len: 2}}, nil, nil); err != nil {
+		f.Fatal(err)
+	}
+	reset, err := os.ReadFile(jr.Path())
+	if err != nil {
+		f.Fatal(err)
+	}
+	jr.Close()
+	f.Add(slices.Concat(good, reset))
 	f.Fuzz(func(t *testing.T, b []byte) {
 		st, err := safety.Parse(identity.Key(), b)
 		if err != nil {
@@ -317,8 +337,16 @@ func FuzzLoad(f *testing.F) {
 			return
 		}
 		for _, r := range st.Open {
-			if !r.Open() || r.Kind == safety.KindRecover {
+			if !r.Open() || r.Kind == safety.KindRecover || r.Kind == safety.KindReset {
 				t.Fatalf("open list holds %+v", r)
+			}
+		}
+		if st.Last != nil && st.Last.Kind == safety.KindReset {
+			t.Fatalf("a reset is the run to revert: %+v", st.Last)
+		}
+		for _, r := range st.Runs {
+			if (r.Kind == safety.KindReset) != (r.Reset != nil) {
+				t.Fatalf("run %+v", r)
 			}
 		}
 	})

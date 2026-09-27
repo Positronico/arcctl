@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Macros]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ Macros  1 on the mouse, 1 unbound, 2 in the library         labels: mac   "Hello" · macro slot 4
+  Name     Events Bytes Repeat        Runs on                              events   ↓H 30ms, ↑H 30ms, ↓I 10ms, ↑I 10ms
+ On the mouse                                                              size     4 of 70 events, 53 of 384 bytes
+› Hello    4      53    until any key Forward (slot 4)                     tier     untested: writes need
+ Unbound in flash                                                                   --allow-untested
+  copy     4      53                  slot 9, no button
+ Library
+  greet    6      63    ×3
+  Hello    4      53    until any key also on the mouse
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter edit   n new   B bind to button   s save to library   i import   e export   ? help   q quit

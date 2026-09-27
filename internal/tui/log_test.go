@@ -2,7 +2,9 @@ package tui
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -12,6 +14,8 @@ import (
 	"github.com/positronico/arcctl/internal/backup"
 	"github.com/positronico/arcctl/internal/catalog"
 	"github.com/positronico/arcctl/internal/emu"
+	"github.com/positronico/arcctl/internal/flash"
+	"github.com/positronico/arcctl/internal/keys"
 	"github.com/positronico/arcctl/internal/mouse"
 	"github.com/positronico/arcctl/internal/plan"
 	"github.com/positronico/arcctl/internal/safety"
@@ -406,5 +410,107 @@ func TestLogProgressStops(t *testing.T) {
 		if tc.want == "" && len(got) != 0 || tc.want != "" && (len(got) != 1 || got[0].text != tc.want) {
 			t.Errorf("%s then %v: %+v, want %q", tc.job, tc.st, got, tc.want)
 		}
+	}
+}
+
+// A factory reset shows in the log like any other run: its steps from the
+// snapshots, its end with what the reset changed, and the session's last
+// run with the backup taken before it, which no revert goes past.
+func TestLogFactoryReset(t *testing.T) {
+	sn := backupSnap(t)
+	rf := &resetFake{fakeSession: newFake(sn)}
+	h := newHarness(t, sn, func(o *Options) {
+		o.Session = rf
+		o.Tabs = []Tab{NewBackupTab(rf, nil, o.Source), NewLogTab()}
+		o.OS = keys.Mac
+		o.Verified = catalog.Verifications{resetRecord}
+	})
+	release := make(chan struct{})
+	rf.reset = func(context.Context) (session.ResetOutcome, error) {
+		<-release
+		return session.ResetOutcome{
+			Backup: "/data/backups/em11-pro-260d-1282-7b04/20260926T120000Z-auto-before-reset.json", Run: "20260926T120000.000000000Z-42/1",
+			Sent: true, Reply: safety.ReplyAck, Verdict: safety.VerdictChanged,
+			Changed: []flash.Extent{{Addr: 4, Len: 2}, {Addr: 12, Len: 4}, {Addr: 96, Len: 16}},
+		}, nil
+	}
+	h.keys("X", "enter")
+	d := h.app.dialog.(*resetDialog)
+	h.flush(func() bool { return d.step == reviewConfirm })
+	h.typeText("reset")
+	h.keys("enter")
+	for _, p := range []struct {
+		st  session.State
+		job string
+	}{{session.Ready, "backup"}, {session.Applying, "reset"}, {session.Loading, "reset check"}, {session.Ready, ""}} {
+		step := withState(sn, p.st)
+		step.Progress = session.Progress{Job: p.job}
+		h.snap(step)
+	}
+	close(release)
+	h.flush(func() bool { return d.step == reviewDone })
+	h.keys("esc", "2")
+	h.golden("log-reset")
+	var events []string
+	for _, e := range h.app.tabs[1].(*LogTab).entries {
+		events = append(events, e.text)
+	}
+	i := slices.Index(events, "Backing up started")
+	if want := []string{"Backing up started", "State: applying", "Backing up finished", "Factory reset started", "State: loading",
+		"Reading the mouse again after the factory reset started", "State: ready", "Reading the mouse again after the factory reset finished",
+		"Factory reset 20260926T120000.000000000Z-42/1 done: 3 ranges of the configuration differ from the backup (reply: acknowledged)",
+	}; i < 0 || !slices.Equal(events[i:], want) {
+		t.Errorf("events %q\nwant %q", events, want)
+	}
+	text := h.screen(120, 40)
+	for _, want := range []string{"auto-before-reset.json", "none since the factory reset 20260926T120000.000000000Z-42/1; no revert goes past it"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("no %q in\n%s", want, text)
+		}
+	}
+}
+
+func TestLogResetOutcomes(t *testing.T) {
+	run := "20260926T120000.000000000Z-42/1"
+	for _, tc := range []struct {
+		out  session.ResetOutcome
+		err  error
+		tone tone
+		want string
+	}{
+		{session.ResetOutcome{DryRun: true}, nil, toneGood, "Dry run of the factory reset done: the checks passed; nothing was sent"},
+		{session.ResetOutcome{DryRun: true}, &safety.PreflightError{Failures: []error{fmt.Errorf("%w: the mouse is asleep", safety.ErrOffline)}},
+			toneBad, "Dry run of the factory reset refused: "},
+		{session.ResetOutcome{Backup: "b.json"}, safety.ErrAborted, toneWarn, "Factory reset stopped at your request; nothing was sent"},
+		{session.ResetOutcome{}, &safety.PreflightError{Failures: []error{fmt.Errorf("%w: the mouse is asleep", safety.ErrOffline)}},
+			toneBad, "Factory reset refused: "},
+		{session.ResetOutcome{Run: run, Sent: true, Reply: safety.ReplyNone, Verdict: safety.VerdictUnchanged}, nil, toneWarn,
+			"Factory reset " + run + " done: it changed nothing (reply: none within 3 s)"},
+		{session.ResetOutcome{Run: run, Sent: true, Reply: safety.ReplyAck, Verdict: safety.VerdictChanged, Changed: []flash.Extent{{Addr: 4, Len: 2}}},
+			errors.New("the reload failed"), toneGood,
+			"Factory reset " + run + " done: 1 range of the configuration differs from the backup (reply: acknowledged). The reload failed"},
+		{session.ResetOutcome{Run: run, Sent: true, Reply: safety.ReplyError}, fmt.Errorf("%w: %w", safety.ErrResetUnchecked, context.Canceled),
+			toneBad, "Factory reset " + run + " went out, but the mouse was not read again: context canceled (reply: none; the OS reported"},
+	} {
+		got := logReset(tc.out, tc.err)
+		if got.tone != tc.tone || !strings.HasPrefix(got.text, tc.want) {
+			t.Errorf("%+v, %v:\n got %v %q\nwant %v %q", tc.out, tc.err, got.tone, got.text, tc.tone, tc.want)
+		}
+	}
+}
+
+// A factory reset left unchecked by another process is logged from the
+// journal.
+func TestLogUncheckedReset(t *testing.T) {
+	h := dilHarness(t, ready(t))
+	sn := ready(t)
+	sn.Journal = &session.JournalState{Resets: []*safety.Run{{ID: "20260926T115900.000000000Z-42/1", Kind: safety.KindReset,
+		Reset: &safety.ResetRecord{Backup: "b.json", Sending: true}}}}
+	h.snap(sn)
+	h.snap(sn)
+	showLog(h)
+	text := h.screen(120, 40)
+	if n := strings.Count(text, "Journal: factory reset 20260926T115900.000000000Z-42/1 is unchecked"); n != 1 {
+		t.Errorf("the unchecked reset is logged %d times:\n%s", n, text)
 	}
 }

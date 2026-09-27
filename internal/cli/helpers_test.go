@@ -195,9 +195,20 @@ func golden(t *testing.T, name, got string) {
 	if err != nil {
 		t.Fatalf("%v (run the test with -update to write it)", err)
 	}
-	if got != string(want) {
+	if got != string(want) && !rewrapped(string(want), got) {
 		t.Errorf("%s differs from %s:\n%s", name, path, firstDiff(string(want), got))
 	}
+}
+
+// rewrapped reports whether want and got differ only in where lines break,
+// in an output that names a path under $ROOT or $TMP: arcctl wraps a
+// message around the real path, whose length depends on the checkout and
+// the temporary folder.
+func rewrapped(want, got string) bool {
+	if !strings.Contains(got, "$ROOT") && !strings.Contains(got, "$TMP") {
+		return false
+	}
+	return slices.Equal(strings.Fields(want), strings.Fields(got))
 }
 
 func firstDiff(want, got string) string {

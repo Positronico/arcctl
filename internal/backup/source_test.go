@@ -26,7 +26,7 @@ func TestOpenDetectsKinds(t *testing.T) {
 		known int
 	}{
 		"backup.json": {backup.KindBackup, 256},
-		"web.bin":     {backup.KindBin, 256 + 75 + 14 + 20 + 14 + 8 + 53},
+		"web.bin":     {backup.KindBin, 191 + 14 + 20 + 14 + 8},
 		"dump.bin":    {backup.KindDump, 256},
 		"full.bin":    {backup.KindDump, flash.Size},
 	}

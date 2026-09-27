@@ -32,8 +32,14 @@ type rig struct {
 
 func newRig(t *testing.T) *rig {
 	t.Helper()
-	b := newBus(t, emu.Options{})
-	d, err := b.Add(receiver(em11(t)))
+	return newRigOn(t, emu.Options{}, receiver(em11(t)), checkEdit)
+}
+
+// newRigOn is a rig on c, whose packets check vets when the test ends.
+func newRigOn(t *testing.T, o emu.Options, c emu.Config, check func(*testing.T, []emu.Write)) *rig {
+	t.Helper()
+	b := newBus(t, o)
+	d, err := b.Add(c)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +51,7 @@ func newRig(t *testing.T) *rig {
 		Lock:     func() error { return nil },
 		Executor: safety.Options{OfflineWait: 500 * time.Millisecond, LockWait: 500 * time.Millisecond, Poll: 5 * time.Millisecond},
 	}
-	t.Cleanup(func() { checkEdit(t, d.Writes()) })
+	t.Cleanup(func() { check(t, d.Writes()) })
 	return r
 }
 

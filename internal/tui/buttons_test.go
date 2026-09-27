@@ -75,7 +75,7 @@ func (r *btnReads) read(_ context.Context, e ...flash.Extent) (session.Capture, 
 func btnHarness(t *testing.T, sn *session.Snapshot, opts ...func(*Options)) (*harness, *Buttons, *btnReads) {
 	t.Helper()
 	reads := &btnReads{}
-	b := NewButtons(reads.read)
+	b := NewButtons(reads.read, nil)
 	set := func(o *Options) {
 		o.Tabs = []Tab{b}
 		o.OS = keys.Mac
@@ -473,7 +473,7 @@ func TestButtonsEmulatedApply(t *testing.T) {
 			Executor: safety.Options{OfflineWait: 300 * time.Millisecond, Poll: 5 * time.Millisecond},
 		},
 	})
-	b := NewButtons(s.Read)
+	b := NewButtons(s.Read, nil)
 	h := newHarness(t, s.Snapshot(), func(o *Options) {
 		o.Session = s
 		o.Gates.AllowUntested = true

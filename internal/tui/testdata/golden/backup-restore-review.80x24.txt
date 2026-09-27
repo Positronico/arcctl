@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Backup]
+────────────────────────────────────────────────────────────────────────────────
+ Review the restore  2 records, 2 packets
+ ProtoArc EM11 Pro 7B/04 (260d-1282-7b04) · profile none · firmware v1.00
+ Ready: enter checks the mouse again, then asks you to confirm.
+
+ It writes back 20260926T100000Z-auto-before-write.json, a backup of the loaded
+ bytes of 260d-1282-7b04 from 2026-09-26 10:00:00 UTC: every record that
+ differs, and that arcctl writes, goes back to what the backup holds.
+ 2 records differ: 2 records to write, 0 records left alone; 73 records equal.
+
+ Plan
+     #  Record   Phase      Tier         What
+     1  108+4    bind       untested     restore button slot 3
+        Ctrl+Tab → Backward   05 00 00 50 → 01 08 00 4c  1 packet
+     2  16+4     record     untested     restore DPI stage 2: 1600
+        1200 → 1600   1f 1f 00 17 → 2a 2a 00 01  1 packet
+
+ Before writing
+   ✓ The mouse is online and ready.
+ ↓ 12 lines below: pgdn
+────────────────────────────────────────────────────────────────────────────────
+ 1 pending   pgdn/pgup scroll   enter continue   esc close

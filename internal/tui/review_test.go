@@ -701,3 +701,24 @@ func TestReviewIgnoresAPastedPhrase(t *testing.T) {
 		t.Errorf("a paste went on: %v", calls)
 	}
 }
+
+// An unmapped block written back as captured bytes is known before and
+// after; the review shows its bytes without words rather than "not read",
+// which stays for a record that runs into unread bytes.
+func TestReviewCapturedBlockIsNotUnread(t *testing.T) {
+	im := dumpImage(t)
+	e := flash.Extent{Addr: 84, Len: 12}
+	old, ok := im.Get(e)
+	if !ok {
+		t.Fatal("the dump lacks 84+12")
+	}
+	for _, b := range [][]byte{old, make([]byte, 12)} {
+		if got := reviewRecordText(em11(), im, e, b, keys.Mac); got != "" {
+			t.Errorf("84+12 holding % x reads %q", b, got)
+		}
+	}
+	sc, _ := mouse.ShortcutExtent(2)
+	if got := reviewRecordText(em11(), flash.New(), flash.Extent{Addr: sc.Addr, Len: 1}, []byte{0x04}, keys.Mac); got != "not read" {
+		t.Errorf("a shortcut whose events are unread reads %q", got)
+	}
+}

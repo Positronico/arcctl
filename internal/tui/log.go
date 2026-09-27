@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -14,9 +15,10 @@ import (
 	"github.com/positronico/arcctl/internal/session"
 )
 
-// LogTab is the session's event log (§7.8): what the snapshots, the writes
-// and the journal reported, newest last; the last write of this session and
-// the journal's last change; and a review of the revert of that change.
+// LogTab is the session's event log (§7.8): what the snapshots, the writes,
+// the factory reset and the journal reported, newest last; the last write or
+// reset of this session and the journal's last change; and a review of the
+// revert of that change.
 type LogTab struct {
 	prev    *session.Snapshot
 	entries []logEntry
@@ -31,10 +33,14 @@ type logEntry struct {
 	text string
 }
 
-// logWrite is the end of the last write this session started.
+// logWrite is the end of the last write or factory reset this session
+// started: its line, the backup it saved, and the run of a reset that went
+// out, which no revert goes past.
 type logWrite struct {
-	at   time.Time
-	done WriteDoneMsg
+	at     time.Time
+	entry  logEntry
+	backup string
+	reset  string
 }
 
 // logLimit is how many events the tab keeps; older ones are dropped.
@@ -56,8 +62,19 @@ func (t *LogTab) Update(c *Context, msg tea.Msg) tea.Cmd {
 			t.add(c, e)
 		}
 	case WriteDoneMsg:
-		t.add(c, logDone(msg))
-		t.last = &logWrite{at: c.Now, done: msg}
+		e := logDone(msg)
+		t.add(c, e)
+		t.last = &logWrite{at: c.Now, entry: e}
+		if b := msg.Outcome.Backups; len(b) > 0 {
+			t.last.backup = b[len(b)-1]
+		}
+	case resetDoneMsg:
+		e := logReset(msg.out, msg.err)
+		t.add(c, e)
+		t.last = &logWrite{at: c.Now, entry: e, backup: msg.out.Backup}
+		if msg.out.Sent {
+			t.last.reset = msg.out.Run
+		}
 	case tea.KeyPressMsg:
 		return t.key(c, msg.String())
 	}
@@ -218,26 +235,37 @@ func logProgress(a, b session.Progress, st session.State) []logEntry {
 		switch {
 		case a.Job == "" || writeJobs[a.Job]:
 		case a.Done < a.Total && !working[st]:
-			out = append(out, logEntry{tone: toneWarn, text: fmt.Sprintf("%s stopped at %d of %d: %s", jobName(a.Job), a.Done, a.Total, st)})
+			out = append(out, logEntry{tone: toneWarn, text: fmt.Sprintf("%s stopped at %d of %d: %s", logJob(a.Job), a.Done, a.Total, st)})
 		default:
-			out = append(out, logEntry{tone: toneInfo, text: jobName(a.Job) + " finished"})
+			out = append(out, logEntry{tone: toneInfo, text: logJob(a.Job) + " finished"})
 		}
 		if b.Job != "" {
-			out = append(out, logEntry{tone: toneInfo, text: jobName(b.Job) + " started"})
+			out = append(out, logEntry{tone: toneInfo, text: logJob(b.Job) + " started"})
 		}
 	}
 	if b.Job != "" && a.Job == b.Job && a.Paused != b.Paused {
 		if b.Paused {
-			out = append(out, logEntry{tone: toneWarn, text: jobName(b.Job) + " paused: waiting for the mouse"})
+			out = append(out, logEntry{tone: toneWarn, text: logJob(b.Job) + " paused: waiting for the mouse"})
 		} else {
-			out = append(out, logEntry{tone: toneInfo, text: jobName(b.Job) + " resumed"})
+			out = append(out, logEntry{tone: toneInfo, text: logJob(b.Job) + " resumed"})
 		}
 	}
 	return out
 }
 
+// logJob names a job in the log, the steps of a factory reset included.
+func logJob(job string) string {
+	switch job {
+	case "reset":
+		return "Factory reset"
+	case "reset check":
+		return "Reading the mouse again after the factory reset"
+	}
+	return jobName(job)
+}
+
 var (
-	writeJobs = map[string]bool{"apply": true, "revert": true, "recover": true}
+	writeJobs = map[string]bool{"apply": true, "revert": true, "recover": true, "reset": true}
 	working   = map[session.State]bool{session.Ready: true, session.Loading: true, session.Handshaking: true,
 		session.Applying: true, session.Recovering: true}
 )
@@ -277,6 +305,12 @@ func logJournal(a, b *session.JournalState) []logEntry {
 		if a == nil || !slices.ContainsFunc(a.Open, func(p session.OpenRun) bool { return p.Run.ID == o.Run.ID }) {
 			out = append(out, logEntry{tone: toneBad, text: fmt.Sprintf("Journal: %s %s is unfinished (%s)",
 				o.Run.Kind, o.Run.ID, plural(len(o.Run.Ops), "record", "records"))})
+		}
+	}
+	for _, r := range b.Resets {
+		if a == nil || !slices.ContainsFunc(a.Resets, func(p *safety.Run) bool { return p.ID == r.ID }) {
+			out = append(out, logEntry{tone: toneBad, text: fmt.Sprintf("Journal: factory reset %s is unchecked; arcctl compares the mouse "+
+				"with the backup from before it", r.ID)})
 		}
 	}
 	if l := b.Last; l != nil && (a == nil || a.Last == nil || !sameRun(a.Last, l)) {
@@ -352,6 +386,52 @@ func logDone(d WriteDoneMsg) logEntry {
 	return logEntry{tone: toneGood, text: fmt.Sprintf("%s %s done: %d of %d records verified", what, out.Run, out.Verified, out.Ops)}
 }
 
+// logReset is how a factory reset ended: refused or stopped before its
+// packet, or what the full read after it found.
+func logReset(o session.ResetOutcome, err error) logEntry {
+	switch {
+	case o.DryRun && err == nil:
+		return logEntry{tone: toneGood, text: "Dry run of the factory reset done: the checks passed; nothing was sent"}
+	case !o.Sent && errors.Is(err, safety.ErrAborted):
+		return logEntry{tone: toneWarn, text: "Factory reset stopped at your request; nothing was sent"}
+	case !o.Sent:
+		what := "Factory reset"
+		if o.DryRun {
+			what = "Dry run of the factory reset"
+		}
+		if err == nil {
+			return logEntry{tone: toneBad, text: what + " ended; nothing was sent"}
+		}
+		return logEntry{tone: toneBad, text: what + " refused: " + plain(err)}
+	}
+	what := "Factory reset"
+	if o.Run != "" {
+		what += " " + o.Run
+	}
+	var e logEntry
+	switch n := len(o.Changed); o.Verdict {
+	case safety.VerdictChanged:
+		verb := "differ"
+		if n == 1 {
+			verb = "differs"
+		}
+		e = logEntry{tone: toneGood, text: fmt.Sprintf("%s done: %s of the configuration %s from the backup", what, plural(n, "range", "ranges"), verb)}
+	case safety.VerdictUnchanged:
+		e = logEntry{tone: toneWarn, text: what + " done: it changed nothing"}
+	default:
+		e = logEntry{tone: toneBad, text: what + " went out, but the mouse was not read again"}
+		if err != nil {
+			e.text += strings.TrimPrefix(": "+plain(err), ": "+plain(safety.ErrResetUnchecked))
+			err = nil
+		}
+	}
+	e.text += " (reply: " + resetReplyText(o.Reply) + ")"
+	if err != nil {
+		e.text += ". " + plain(err)
+	}
+	return e
+}
+
 func (t *LogTab) View(c *Context, w, h int) string {
 	t.sync(c)
 	top := t.summary(c, w, h)
@@ -386,16 +466,19 @@ func (t *LogTab) summary(c *Context, w, h int) []string {
 	pad := strings.Repeat(" ", label+1)
 	line := func(name, text string) []string { return wrap(text, w-1, fmt.Sprintf(" %-*s", label, name), pad) }
 	var out []string
-	if l := t.last; l != nil {
-		out = append(out, line("This session", l.at.Format("15:04:05")+"  "+logDone(l.done).text)...)
-		if b := l.done.Outcome.Backups; len(b) > 0 {
-			out = append(out, fmt.Sprintf(" %-*s%s", label, "Backup", midCut(c, b[len(b)-1], w-label-2)))
+	l := t.last
+	if l != nil {
+		out = append(out, line("This session", l.at.Format("15:04:05")+"  "+l.entry.text)...)
+		if l.backup != "" {
+			out = append(out, fmt.Sprintf(" %-*s%s", label, "Backup", midCut(c, l.backup, w-label-2)))
 		}
 	}
 	js := c.Snapshot.Journal
 	switch {
 	case js == nil:
 		return append(out, line("Last change", "the journal is not read in this session")...)
+	case js.Last == nil && l != nil && l.reset != "":
+		return append(out, line("Last change", "none since the factory reset "+l.reset+"; no revert goes past it")...)
 	case js.Last == nil:
 		return append(out, line("Last change", "none: the journal holds no write to this mouse")...)
 	}

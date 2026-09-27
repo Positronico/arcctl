@@ -103,7 +103,7 @@ func (l Layout) checkOp(i int, op Op) (ref, error) {
 	if op.Seq != i+1 {
 		return ref{}, newError(ErrMalformed, where+" is at position "+strconv.Itoa(i+1))
 	}
-	if op.Phase < Neutralise || op.Phase > Record {
+	if op.Phase < Neutralise || op.Phase > Captured {
 		return ref{}, newError(ErrMalformed, where+": unknown phase")
 	}
 	if !inImage(op.Extent) {
@@ -122,6 +122,15 @@ func (l Layout) checkOp(i int, op Op) (ref, error) {
 		if f.Overlaps(op.Extent) {
 			return ref{}, newError(ErrFrozen, where+" touches "+f.String())
 		}
+	}
+	if op.Phase == Captured {
+		switch {
+		case !l.Capturable(op.Extent):
+			return ref{}, newError(ErrExtent, where+" is not in the settings page clear of the tables and records")
+		case op.Tier != catalog.Experimental:
+			return ref{}, newError(ErrTier, where+" writes captured bytes at "+op.Tier.String()+"; they are experimental")
+		}
+		return ref{kind: kindCaptured}, nil
 	}
 	r, ok := l.classify(op.Extent)
 	if !ok {

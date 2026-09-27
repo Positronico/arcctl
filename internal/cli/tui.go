@@ -32,6 +32,9 @@ type TUI struct {
 	Backups  session.Backups
 	// DataDir is where the journal and the backups go; empty for a replay.
 	DataDir string
+	// Library is the macro library file: the user's, or one in the
+	// emulator's temporary folder; empty for a replay.
+	Library string
 	// Notes are what arcctl said on stderr before the TUI started, for the
 	// TUI to show again.
 	Notes []string
@@ -81,12 +84,14 @@ func (r *runner) runTUI() error {
 	if w.source == backup.SourceReplay {
 		t.ReadOnly = true
 	} else {
-		data, journal, backups, err := r.writeFolders(w)
+		data, journal, backups, library, done, err := r.writeFolders(w)
 		if err != nil {
 			return err
 		}
+		defer done()
+		t.Library = library
 		if w.source == backup.SourceEmulator {
-			note("the emulated mouse's journal and backups go to %s", data)
+			note("the emulated mouse's journal and backups go to %s, which is removed on exit", data)
 		}
 		t.DataDir = data
 		store := backup.Store{Root: backups, Tool: "arcctl " + r.env.Version, Source: w.source, OS: r.keyOS(), Now: r.env.Now}
@@ -120,22 +125,24 @@ func (r *runner) runTUI() error {
 	return r.env.TUI(r.ctx, t)
 }
 
-// writeFolders are the data, journal and backups folders of a TUI session.
-// The emulator's go to a new temporary folder, so its writes never reach
-// the real device's journal (T120).
-func (r *runner) writeFolders(w *world) (data, journal, backups string, err error) {
+// writeFolders are the data, journal and backups folders and the macro
+// library of a TUI session. The emulator's go to a new temporary folder, so
+// its writes never reach the real device's journal (T120); done removes it
+// once the session has stopped.
+func (r *runner) writeFolders(w *world) (data, journal, backups, library string, done func(), err error) {
 	if w.source == backup.SourceEmulator {
 		tmp, err := os.MkdirTemp("", "arcctl-emulated-")
 		if err != nil {
-			return "", "", "", err
+			return "", "", "", "", nil, err
 		}
-		return tmp, filepath.Join(tmp, "journal"), filepath.Join(tmp, "backups"), nil
+		done = func() { os.RemoveAll(tmp) }
+		return tmp, filepath.Join(tmp, "journal"), filepath.Join(tmp, "backups"), filepath.Join(tmp, "macros.json"), done, nil
 	}
 	paths, err := r.env.Paths()
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", "", nil, err
 	}
-	return paths.Data, paths.Journal, paths.Backups, nil
+	return paths.Data, paths.Journal, paths.Backups, paths.Macros, func() {}, nil
 }
 
 func openInputMonitoring() error {

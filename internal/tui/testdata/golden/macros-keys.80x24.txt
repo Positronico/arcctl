@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Macros]
+────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ Insert into "Hello" after event 4                                  labels: mac
+  [Tap]  Press   Release
+  filter: KeyZ  (esc clears)
+   › Z                  key            KeyZ
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Adds  ↓Z 10ms, ↑Z 10ms
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter choose   / filter   ↑/↓ move   ? all keys   esc back

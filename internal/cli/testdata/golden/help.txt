@@ -10,6 +10,7 @@ Commands:
   show        decode a backup, web .bin or dump; no device needed
   diff        compare two backups, or a backup with the device, per record
   export-bin  write a web app compatible .bin (16448 bytes)
+  restore     write a backup or web .bin back to the mouse, record by record
   journal     list writes a crash left unfinished, and settle them
   redact      copy a --record transcript with private bytes masked, for sharing
   version     show the version, catalog inputs, verified stages, usbhid patches

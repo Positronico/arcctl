@@ -487,3 +487,44 @@ func TestJournalRecoverStopsForAClientThatCameDuringAPause(t *testing.T) {
 		t.Errorf("%d cmd 7 after the browser opened the receiver", n)
 	}
 }
+
+// A factory reset whose process ended before its check shows in journal
+// status as unchecked, and journal recover checks it: the mouse read again
+// and compared with the backup the run names.
+func TestJournalChecksAnInterruptedReset(t *testing.T) {
+	h := newHarness(t)
+	d := h.addWritable(receiver(em11Mouse(t, richImage(t, h.root))))
+	path := filepath.Join(h.tmp, "before.json")
+	_, errs, code := h.run("backup", "--full", "-o", path)
+	expect(t, code, cli.ExitOK, errs)
+	f, err := backup.Load(path)
+	must(t, err)
+	j, err := safety.OpenJournal(h.paths.Journal, f.Identity())
+	must(t, err)
+	defer j.Close()
+	var profile *byte
+	if p := f.Device.Profile; p != nil && p.Supported {
+		profile = &p.Value
+	}
+	reset := wire.MustBuild(wire.Mouse, wire.CmdClear, 0, nil)
+	_, _, err = safety.SendReset(context.Background(), j, f.Identity(), profile, path, reset, func(context.Context, wire.Packet) (wire.Packet, error) {
+		return reset, d.Store(mouse.AddrCurrentDPI, []byte{0x00, 0x55})
+	})
+	must(t, err)
+
+	out, errs, code := h.run("journal", "status")
+	if code != cli.ExitVerify || !strings.Contains(out, "Unchecked reset $RUN1") ||
+		!strings.Contains(out, "compares it with the backup taken before") {
+		t.Fatalf("status: exit %d\n%s%s", code, out, errs)
+	}
+	out, errs, code = h.run("journal", "recover")
+	expect(t, code, cli.ExitOK, errs)
+	if !strings.Contains(out, "Checked reset") || !strings.Contains(out, "it changed 4+2") {
+		t.Errorf("recover:\n%s", out)
+	}
+	out, errs, code = h.run("journal", "status")
+	expect(t, code, cli.ExitOK, errs)
+	if !strings.Contains(out, "Clean: nothing to recover.") {
+		t.Errorf("status after the check:\n%s", out)
+	}
+}

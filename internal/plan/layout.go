@@ -17,7 +17,8 @@ type Layout struct {
 	// Buttons are the binding slots wired to physical buttons; only they count as a remaining Left Click.
 	Buttons []int
 	Frozen  []flash.Extent
-	// Records are the only extents outside the tables a plan may write, each as a whole.
+	// Records are the only extents outside the tables a plan may write, each as a
+	// whole, except for captured bytes (Capturable).
 	Records []flash.Extent
 }
 
@@ -28,9 +29,10 @@ const (
 	kindBinding
 	kindShortcut
 	kindMacro
+	kindCaptured
 )
 
-var kindNames = [...]string{"record", "binding", "shortcut", "macro"}
+var kindNames = [...]string{"record", "binding", "shortcut", "macro", "captured bytes"}
 
 type ref struct {
 	kind kind
@@ -38,7 +40,7 @@ type ref struct {
 }
 
 func (r ref) String() string {
-	if r.kind == kindRecord {
+	if r.kind == kindRecord || r.kind == kindCaptured {
 		return kindNames[r.kind]
 	}
 	return kindNames[r.kind] + " " + strconv.Itoa(r.slot)
@@ -148,6 +150,21 @@ func (l Layout) classify(e flash.Extent) (ref, bool) {
 		return ref{k, i}, true
 	}
 	return ref{kind: kindRecord}, slices.Contains(l.Records, e)
+}
+
+// Capturable reports whether a plan may write captured bytes over e: e lies
+// in the settings page, before the body tables, clear of every table and
+// frozen extent, and is either one of Records or clear of all of them.
+func (l Layout) Capturable(e flash.Extent) bool {
+	if !inImage(e) || e.End() > min(l.Shortcuts.Base, l.Macros.Base) || slices.ContainsFunc(l.Frozen, e.Overlaps) {
+		return false
+	}
+	for _, k := range []kind{kindBinding, kindShortcut, kindMacro} {
+		if l.table(k).region().Overlaps(e) {
+			return false
+		}
+	}
+	return slices.Contains(l.Records, e) || !slices.ContainsFunc(l.Records, e.Overlaps)
 }
 
 func targets(slot int, b []byte) []ref {

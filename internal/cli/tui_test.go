@@ -3,8 +3,10 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"errors"
+	"io/fs"
 	"os"
-	"strings"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -25,15 +27,17 @@ func TestTUIGetsTheSession(t *testing.T) {
 			h.add(receiver(em11Mouse(t, dumpImage(t, h.root))))
 			return nil
 		}, func(t *testing.T, got cli.TUI) {
-			if got.Source != backup.SourceDevice || got.ReadOnly || got.DryRun || got.Permission == nil || got.Backups == nil {
+			if got.Source != backup.SourceDevice || got.ReadOnly || got.DryRun || got.Permission == nil || got.Backups == nil ||
+				got.Library != filepath.Join(got.DataDir, "macros.json") {
 				t.Errorf("%+v", got)
 			}
 		}},
 		{"emulated dry run", func(h *harness) []string {
 			return []string{"--emulate", h.dump(), "--dry-run", "--allow-untested"}
 		}, func(t *testing.T, got cli.TUI) {
-			if got.Source != backup.SourceEmulator || !got.DryRun || !got.Gates.DryRun || !got.Gates.AllowUntested || got.Permission != nil {
-				t.Errorf("%+v", got)
+			if got.Source != backup.SourceEmulator || !got.DryRun || !got.Gates.DryRun || !got.Gates.AllowUntested || got.Permission != nil ||
+				got.Library != filepath.Join(got.DataDir, "macros.json") {
+				t.Errorf("the emulator's macro library must stay in its temporary folder: %+v", got)
 			}
 		}},
 	}
@@ -59,8 +63,8 @@ func TestTUIGetsTheSession(t *testing.T) {
 				t.Fatal("the TUI did not run")
 			}
 			tc.check(t, got)
-			if tmp, ok := strings.CutPrefix(strings.TrimSpace(errb.String()), "arcctl: the emulated mouse's journal and backups go to "); ok {
-				os.RemoveAll(tmp)
+			if _, err := os.Stat(got.DataDir); got.Source == backup.SourceEmulator && !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("the emulator's folder %q is left behind (%v)", got.DataDir, err)
 			}
 		})
 	}

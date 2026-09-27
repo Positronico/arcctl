@@ -36,13 +36,19 @@ const (
 	FeatureDPILock               Feature = "button.dpi-lock"
 	FeatureHiddenSlot            Feature = "button.hidden-slot"
 	FeatureUnmappedSlot          Feature = "button.unmapped-slot"
+	// FeatureRestore is a restore from a backup, which hardware test H6
+	// promotes; every record a restore writes also takes its tier.
+	FeatureRestore Feature = "backup.restore"
+	// FeatureReset is the factory reset. No plan writes it: its gate is
+	// the H7 record itself (D4), and its tier only reports that record.
+	FeatureReset Feature = "device.reset"
 )
 
 func Features() []Feature {
 	out := []Feature{FeatureStages, FeatureCurrent, FeatureDPI, FeatureSystem, FeatureMedia, FeatureMediaCustom,
 		FeatureShortcut, FeatureShortcutRightModifier, FeatureShortcutMenu, FeatureShortcutCustom, FeatureMacro,
 		FeatureMacroForeign, FeatureRateSwitch, FeatureDragScroll, FeatureFireKey, FeatureProfileSwitch,
-		FeatureDPILock, FeatureHiddenSlot, FeatureUnmappedSlot}
+		FeatureDPILock, FeatureHiddenSlot, FeatureUnmappedSlot, FeatureRestore, FeatureReset}
 	for _, h := range hiddenFields {
 		out = append(out, h.feature)
 	}
@@ -61,6 +67,12 @@ type Options struct {
 // Experimental one is written only after that record exists.
 func (f Feature) Tier(m *catalog.Model, opt Options) (catalog.Tier, bool) {
 	t := baseTier(m, f)
+	if f == FeatureReset {
+		if t == catalog.Off && m != nil && opt.Verified.Covers(m.Key, string(f), opt.Firmware) {
+			return catalog.Verified, false
+		}
+		return t, false
+	}
 	covered := t >= catalog.Experimental && opt.Verified.Covers(m.Key, string(f), opt.Firmware)
 	switch t {
 	case catalog.Untested:
@@ -83,8 +95,11 @@ func baseTier(m *catalog.Model, f Feature) catalog.Tier {
 	}
 	switch f {
 	case FeatureStages, FeatureCurrent, FeatureDPI, FeatureSystem, FeatureMedia,
-		FeatureShortcut, FeatureShortcutRightModifier, FeatureShortcutMenu, FeatureMacro, FeatureUnmappedSlot:
+		FeatureShortcut, FeatureShortcutRightModifier, FeatureShortcutMenu, FeatureMacro, FeatureUnmappedSlot,
+		FeatureRestore:
 		return catalog.Untested
+	case FeatureReset:
+		return catalog.Off
 	case FeatureRateSwitch:
 		return shownTier(!m.UI.Office)
 	case FeatureDragScroll:
@@ -505,7 +520,7 @@ func comboFeatures(c keys.Combo) []Feature {
 func (e SetMacro) apply(p *planner) error {
 	for i, ev := range e.Macro.Events {
 		if ev.Delay < minDelay {
-			return newError(ErrValue, "macro event "+strconv.Itoa(i)+" delay "+strconv.Itoa(int(ev.Delay))+" ms is under 10 ms")
+			return newError(ErrValue, "macro event "+strconv.Itoa(i+1)+" delay "+strconv.Itoa(int(ev.Delay))+" ms is under 10 ms")
 		}
 	}
 	body, err := EncodeMacro(e.Macro)

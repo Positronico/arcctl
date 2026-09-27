@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Backup]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Backups of ProtoArc EM11 Pro (260d-1282-7b04)
+ No backup of this mouse yet. f takes a full backup; b saves what is loaded. arcctl also saves one before its first
+ write to a mouse.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   ↑/↓ select   f full backup   X factory reset   r reload   ? help   q quit

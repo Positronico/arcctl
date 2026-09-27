@@ -96,6 +96,11 @@ func (s *Session) gather(ctx context.Context, t *writeTask, p plan.Plan, w *writ
 				return f, err
 			}
 		}
+		if t.reset != nil {
+			if f.Firmware, err = s.askFirmware(ctx); err != nil {
+				return f, err
+			}
+		}
 		s.noticeChange(loaded, f)
 	}
 	f.Clients, f.ScanErr = s.foreignClients()
