@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Review & Apply  4 records, 5 packets
+ ProtoArc EM11 Pro 7B/04 (260d-1282-7b04) · profile none · firmware v1.00
+ Blocked. The plan writes experimental features (1 record): restart arcctl with --experimental.
+
+ Staged edits (2)
+ › Slot 7: Wheel Click
+   Forward (slot 4): RCtrl+C
+
+ Plan
+     #  Record   Phase      Tier         What
+     1  112+4    neutralise untested     disable binding 4 while its body is rewritten
+        Win+Shift+Tab → Do nothing   05 00 00 50 → 00 00 00 55  1 packet
+     2  384+14   body       untested     shortcut 4
+        Win+Shift+Tab → RCtrl+C
+        06 80 08 00 80 02 00 81 … (14 bytes) → 04 80 10 00 81 06 00 41 … (14 bytes)  2 packets
+     3  112+4    bind       untested     restore binding 4
+        Do nothing → RCtrl+C   00 00 00 55 → 05 00 00 50  1 packet
+     4  124+4    bind       experimental slot 7: Wheel Click
+        DPI Cycle → Wheel Click   02 01 00 52 → 01 04 00 50  1 packet
+
+ Web app (the last-resort fallback) warnings:
+   ! shortcut 4 uses a right-side modifier, which the web app cannot enter
+   ! slot 7 is not shown by the web app on 7B04
+
+ Before writing
+   ✓ The mouse is online and ready.
+   ✓ The journal holds no unfinished write.
+   ✓ No other program had the receiver open at the last scan.
+   · Before the first packet arcctl checks again: the same mouse and profile, every record as planned, other programs
+     on the receiver, the screen lock and Secure Input.
+   · A backup of the loaded configuration is saved before this session's first write. Every record is journaled before
+     it is sent, then read back and compared.
+   ! No write to this mouse is on record: arcctl first reads its whole configuration and saves a full backup. A partial
+     one needs your consent.
+ ↓ 3 lines below: pgdn
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 2 pending   ↑/↓ select   d drop edit   u discard all   pgdn/pgup scroll   enter continue   esc close

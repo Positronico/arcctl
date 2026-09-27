@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ All 16 slots  labels: mac                                                 Slot 6 · not shown by the vendor app
+  Button      Slot Function                 Tier         State    Web app  now      Profile Switch
+  Left Click  0    Left Click               untested     guarded           tier     experimental: writes need
+  Right Click 1    Right Click              untested     valid                      --experimental
+  Wheel Click 2    Cmd+V (Paste)            untested     valid             web app  slot 6 is not shown by the web app
+  Backward    3    Ctrl+Tab                 untested     valid                      on 7B04
+  Forward     4    Cmd+Tab                  untested     valid                      the web app cannot assign profile
+  DPI Cycle   5    Cmd+C (Copy)             untested     valid                      switch on 7B04 (slot 6)
+› Slot 6      6    Profile Switch           experimental valid    hidden   bytes    09 00 00 4c
+  Slot 7      7    DPI Cycle                experimental valid    hidden
+  Slot 8      8    Scroll Left              experimental valid    hidden
+  Slot 9      9    Scroll Right             experimental valid    hidden
+  Slot 10     10   DPI+                     experimental valid    hidden
+  Slot 11     11   DPI-                     experimental valid    hidden
+  Slot 12     12   Do nothing               experimental valid    hidden
+  Slot 13     13   Do nothing               experimental valid    hidden
+  Slot 14     14   Do nothing               experimental valid    hidden
+  Slot 15     15   Do nothing               experimental valid    hidden
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter change   s buttons only   o win labels   r reload   ? help   q quit

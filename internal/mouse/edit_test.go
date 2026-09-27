@@ -829,3 +829,22 @@ func TestPlanNeverTouchesUnknownBytes(t *testing.T) {
 		}
 	}
 }
+
+// Slots the web app shows past the six physical buttons H3 covers (12 and
+// 13 on mid 6) stay Untested until H3b maps them, whatever H3 promoted.
+func TestUnmappedSlotsStayUntested(t *testing.T) {
+	im := maintainerImage(t)
+	edit := []mouse.Edit{mouse.SetKey{Slot: 12, Fn: mouse.KeyFn{Type: mouse.TypeDPI, Param: mouse.ParamDPICycle}}}
+	p := planFor(t, "7B06", im, allow("7B06", mouse.FeatureSystem), edit...)
+	if p.Ops[0].Tier != catalog.Untested {
+		t.Errorf("slot 12 on mid 6 with button.system verified is %v", p.Ops[0].Tier)
+	}
+	p = planFor(t, "7B06", im, allow("7B06", mouse.FeatureSystem, mouse.FeatureUnmappedSlot), edit...)
+	if p.Ops[0].Tier != catalog.Verified {
+		t.Errorf("slot 12 on mid 6 once H3b passed is %v", p.Ops[0].Tier)
+	}
+	p = planFor(t, "7B06", im, allow("7B06", mouse.FeatureSystem), mouse.SetKey{Slot: 5, Fn: mouse.KeyFn{Type: mouse.TypeDPI, Param: mouse.ParamDPICycle}})
+	if p.Ops[0].Tier != catalog.Verified {
+		t.Errorf("slot 5 on mid 6 with button.system verified is %v", p.Ops[0].Tier)
+	}
+}

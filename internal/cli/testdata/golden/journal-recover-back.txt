@@ -2,8 +2,7 @@ ProtoArc EM11 Pro, identity 260d-1282-7b04
 Rolling back apply $RUN1
    Op  Record     State         What
     1  384+20     verified      roll back: shortcut 4
-    2  112+4      verified      roll back: disable binding 4 while its body is
-                                rewritten
+    2  112+4      verified      roll back: restore binding 4
 Backup saved before the write:
   $TMP/backups/em11-pro-260d-1282-7b04/20260926T120000Z-auto-before-write.json
 Run $RUN1 is settled back.

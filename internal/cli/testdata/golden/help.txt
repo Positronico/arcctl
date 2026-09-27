@@ -40,7 +40,7 @@ Global flags (before or after the command):
   -model key
       model key of a dump or .bin, as in 'arcctl info' (default 7B04)
   -no-color
-      no colour (the CLI prints none)
+      no colour in the TUI (the CLI prints none); NO_COLOR works too
   -os os
       key names for os: mac or win (default: this computer's)
   -record file

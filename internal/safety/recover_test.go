@@ -332,3 +332,27 @@ func TestRecoverBackRebindsABodyTheImageLacks(t *testing.T) {
 	}
 	sameImage(t, "device after rolling back", f.image(), f.start)
 }
+
+// A record that a run disabled and then bound again is described by what
+// the run meant to leave there, not by the step in between.
+func TestRecoveryDescribesTheBindingItRestores(t *testing.T) {
+	f := newFixture(t, setup{seed: boundMacro})
+	p := f.plan(macroChanges(t, 5, "new", 70))
+	if p.Ops[0].Phase != plan.Neutralise || p.Ops[2].Phase != plan.Bind || p.Ops[0].Extent != p.Ops[2].Extent {
+		t.Fatalf("plan phases %v, %v", p.Ops[0].Phase, p.Ops[2].Phase)
+	}
+	f.applyKilled(p, 21)
+	r := f.status().Open[0]
+	in := must[*safety.Inspection](t)(f.x.Inspect(context.Background(), r, f.device()))
+	if got := in.Extents[0].Desc; got != p.Ops[2].Desc {
+		t.Errorf("the binding is described as %q, want %q", got, p.Ops[2].Desc)
+	}
+	for how, word := range map[safety.Strategy]string{safety.Forward: "finish: ", safety.Back: "roll back: "} {
+		rp := must[plan.Plan](t)(safety.RecoveryPlan(in, how, f.device()))
+		for _, op := range rp.Ops {
+			if op.Extent == p.Ops[0].Extent && op.Phase == plan.Bind && op.Desc != word+p.Ops[2].Desc {
+				t.Errorf("%v binds with %q", how, op.Desc)
+			}
+		}
+	}
+}

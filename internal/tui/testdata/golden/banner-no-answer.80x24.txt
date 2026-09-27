@@ -1,0 +1,24 @@
+ arcctl  NO RECEIVER  [EDIT]
+ [1 Info]  2 Log
+────────────────────────────────────────────────────────────────────────────────
+ NO RECEIVER  Receivers were found, but none answered. arcctl keeps trying.
+   · Plug the receiver in.
+   · Give the terminal access to input devices (Input Monitoring on macOS);
+     'arcctl doctor' checks it.
+   · Close any ProtoArc HUB tab in a browser.
+ Info tab body, 80 x 14
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter change   ? help   q quit

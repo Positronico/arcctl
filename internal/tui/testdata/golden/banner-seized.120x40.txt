@@ -1,0 +1,40 @@
+ arcctl  rx v1.0  SEIZED  [EDIT]
+ [1 Info]  2 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ SEIZED  Another app holds the receiver exclusively (for example Karabiner 'Modify events'). Waiting.
+   Holding it: karabiner_grabber (pid 402) exclusively.
+ Info tab body, 120 x 33
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter change   ? help   q quit

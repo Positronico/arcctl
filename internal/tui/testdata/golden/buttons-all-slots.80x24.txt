@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]
+────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ All 16 slots  labels: mac
+  Button      Slot Function                        Tier         State    Web app
+  Left Click  0    Left Click                      untested     guarded
+  Right Click 1    Right Click                     untested     valid
+  Wheel Click 2    Cmd+V (Paste)                   untested     valid
+  Backward    3    Ctrl+Tab                        untested     valid
+  Forward     4    Cmd+Tab                         untested     valid
+  DPI Cycle   5    Cmd+C (Copy)                    untested     valid
+› Slot 6      6    Profile Switch                  experimental valid    hidden
+  Slot 7      7    DPI Cycle                       experimental valid    hidden
+  1-8 of 16
+
+ Slot 6 · not shown by the vendor app
+ now      Profile Switch
+ tier     experimental: writes need --experimental
+ web app  slot 6 is not shown by the web app on 7B04
+          the web app cannot assign profile switch on 7B04 (slot 6)
+ bytes    09 00 00 4c
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter change   s buttons only   o win labels   ? help   q quit

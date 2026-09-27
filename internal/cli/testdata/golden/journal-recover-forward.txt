@@ -2,8 +2,7 @@ ProtoArc EM11 Pro, identity 260d-1282-7b04
 Finishing apply $RUN1
    Op  Record     State         What
     1  384+20     verified      finish: shortcut 4
-    2  112+4      verified      finish: disable binding 4 while its body is
-                                rewritten
+    2  112+4      verified      finish: restore binding 4
     3  12+4       verified      finish: DPI stage 1: 900
 Backup saved before the write:
   $TMP/backups/em11-pro-260d-1282-7b04/20260926T120000Z-auto-before-write.json

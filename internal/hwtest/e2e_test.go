@@ -19,6 +19,7 @@ import (
 	"github.com/positronico/arcctl/internal/catalog"
 	"github.com/positronico/arcctl/internal/emu"
 	"github.com/positronico/arcctl/internal/hidio"
+	"github.com/positronico/arcctl/internal/mouse"
 	"github.com/positronico/arcctl/internal/safety"
 	"github.com/positronico/arcctl/internal/session"
 	"github.com/positronico/arcctl/internal/wire"
@@ -180,8 +181,8 @@ func TestH3bRecordsTheMap(t *testing.T) {
 	res := r.run("H3b")
 	r.passed(res)
 	r.unchanged()
-	if len(res.Promoted) != 0 || r.generated != 0 {
-		t.Errorf("H3b promoted %v", res.Promoted)
+	if len(res.Promoted) != 1 || res.Promoted[0].Feature != string(mouse.FeatureUnmappedSlot) || r.generated != 1 {
+		t.Errorf("H3b promoted %v, generated %d times", res.Promoted, r.generated)
 	}
 	log := r.read(logPath)
 	if !strings.Contains(log, "wheel tilt left") || !strings.Contains(log, "DPI button") {

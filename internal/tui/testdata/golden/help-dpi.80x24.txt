@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 DPI]  2 Info   3 Log
+────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ Keys
+
+ a            review & apply             x            raw & colours
+ u            discard                    U            revert last apply
+ ←/→          step                       r            reload
+ enter        type a value               tab          next tab
+ space        set current                shift+tab    previous tab
+ +/-          stage count                1-9          tab by number
+ ↑/↓          stage                      ?            help
+ del          undo stage                 q            quit
+
+ No key needs the mouse, and none uses Cmd or Ctrl+Tab.
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 1 pending   esc close

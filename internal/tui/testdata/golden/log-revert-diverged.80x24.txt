@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+  1 DPI   2 Info  [3 Log]
+────────────────────────────────────────────────────────────────────────────────
+ Review the revert
+ ProtoArc EM11 Pro 7B/04 (260d-1282-7b04) · profile none · firmware v1.00
+ Cannot revert: The device no longer holds what the run left: 16+4 holds 1f 1f
+ 00 17, run 20260926T115000Z-4242 left 2a 2a 00 01.
+
+ It undoes apply 20260926T115000Z-4242, started 2026-09-26 11:50 UTC, which
+ changed 1 record. The revert writes back what they held before it.
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter continue   esc close

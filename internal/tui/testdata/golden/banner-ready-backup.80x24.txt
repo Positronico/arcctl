@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────
+ BUSY  Backing up █████████░░░░░░░░░░░ 360 of 725
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ Buttons tab body, 80 x 17
+ decoded: 6 stages
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter change   r reload   ? help   q quit

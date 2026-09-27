@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [DRY-RUN]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────
+ Dry run of 4 records?
+
+   · The packets go to an overlay; nothing reaches the mouse. The tabs then
+     show what the write would leave.
+   ✓ The preflight passed just now; the write runs it again.
+
+ y runs it; n or esc goes back.
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 2 pending   y go on   n/esc back

@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]
+────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ Right Click · slot 1  now Right Click                              labels: mac
+  System  [Special]  Media   Combo Key
+  / filters
+  On macOS the web app does not offer the dimmed entries.
+ › Dictation       Option+Esc             not on macOS web app
+   Action Center   Cmd+Space              not on macOS web app
+   Task View       Ctrl+↑
+   Screenshot      Shift+Cmd+3
+   Close Window    Cmd+W
+   Maximize Window Ctrl+Cmd+F
+   Minimize Window Cmd+M
+   Cut             Cmd+X
+   Copy            Cmd+C
+   1-9 of 15
+
+  tier untested: writes need --allow-untested
+  its body at 288+32 was never read; choosing this reads it
+  web app: macOS does not offer this; the web app shows it only on Windows
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   / filter   tab group   ↑/↓ move   enter choose   esc back

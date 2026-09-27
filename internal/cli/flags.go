@@ -64,7 +64,7 @@ func (g *globals) define(fs *flag.FlagSet) {
 	fs.StringVar(&g.os, "os", g.os, "key names for `os`: mac or win (default: this computer's)")
 	fs.DurationVar(&g.wait, "wait", g.wait, "how long to wait for a sleeping mouse, or while replies go missing")
 	fs.BoolVar(&g.ascii, "ascii", g.ascii, "print only ASCII")
-	fs.BoolVar(&g.noColor, "no-color", g.noColor, "no colour (the CLI prints none)")
+	fs.BoolVar(&g.noColor, "no-color", g.noColor, "no colour in the TUI (the CLI prints none); NO_COLOR works too")
 	fs.BoolVar(&g.dryRun, "dry-run", g.dryRun, "writes go to an in-memory overlay and their exact packets are printed; nothing reaches the mouse")
 	fs.BoolVar(&g.allowUntested, "allow-untested", g.allowUntested, "let a write include features no hardware test has verified yet; a typed confirmation is still needed")
 	fs.BoolVar(&g.experimental, "experimental", g.experimental, "let a write include experimental features that have a hardware-test record; a typed confirmation is still needed")

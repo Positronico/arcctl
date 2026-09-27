@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+  1 DPI   2 Info  [3 Log]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Review the revert  7 records, 7 packets
+ ProtoArc EM11 Pro 7B/04 (260d-1282-7b04) · profile none · firmware v1.00
+ Ready: enter checks the mouse again, then asks you to confirm.
+
+ It undoes apply 20260926T115000Z-4242, started 2026-09-26 12:00 UTC, which changed 7 records. The revert writes back
+ what they held before it.
+
+ Plan
+     #  Record   Phase      Tier         What
+     1  12+4     record     untested     revert: DPI stage 1: 1000
+        1000 → 800   1a 1a 00 21 → 15 15 00 2b  1 packet
+     2  16+4     record     untested     revert: DPI stage 2: 1100
+        1100 → 1200   1d 1d 00 1b → 1f 1f 00 17  1 packet
+     3  20+4     record     untested     revert: DPI stage 3: 1200
+        1200 → 1600   1f 1f 00 17 → 2a 2a 00 01  1 packet
+     4  24+4     record     untested     revert: DPI stage 4: 1300
+        1300 → 2400   22 22 00 11 → 3f 3f 00 d7  1 packet
+     5  28+4     record     untested     revert: DPI stage 5: 1400
+        1400 → 3200   25 25 00 0b → 54 54 00 ad  1 packet
+     6  32+4     record     untested     revert: DPI stage 6: 1500
+        1500 → 4800 × 2400   27 27 00 07 → 3f 3f 01 d6  1 packet
+     7  2+2      record     untested     revert: stage count: 5
+        5 stages → 6 stages   05 50 → 06 4f  1 packet
+
+ Before writing
+   ✓ The mouse is online and ready.
+   ✓ The journal holds no unfinished write.
+   ✓ No other program had the receiver open at the last scan.
+   · Before the first packet arcctl checks again: the same mouse and profile, other programs on the receiver, the
+     screen lock and Secure Input; then it reads each record and stops if one no longer holds what that write left.
+   · A backup of the loaded configuration is saved before this session's first write. Every record is journaled before
+     it is sent, then read back and compared.
+   ! 7 records are untested on firmware v1.00; --allow-untested is set.
+   · You type "write untested" to write features no hardware test has verified.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter continue   esc close

@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Backward · slot 3  now Ctrl+Tab                                                                            labels: mac
+  System   Special  [Media]  Combo Key
+  filter: vol_
+  On macOS the web app does not offer the dimmed entries.
+ › Volume Up   0x00E9
+   Volume Down 0x00EA
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  tier untested: the review asks you to type a confirmation
+  web app: shows and edits this
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   type filter   ↑/↓ move   enter done   esc clear

@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 DPI]  2 Info   3 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ Keys
+
+ a            review & apply
+ u            discard
+ ←/→          step
+ enter        type a value
+ space        set current
+ +/-          stage count
+ ↑/↓          stage
+ del          undo stage
+ x            raw & colours
+ U            revert last apply
+ r            reload
+ tab          next tab
+ shift+tab    previous tab
+ 1-9          tab by number
+ ?            help
+ q            quit
+
+ No key needs the mouse, and none uses Cmd or Ctrl+Tab.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 1 pending   esc close

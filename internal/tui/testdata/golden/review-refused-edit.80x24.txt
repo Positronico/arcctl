@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────
+ Review & Apply
+ ProtoArc EM11 Pro 7B/04 (260d-1282-7b04) · profile none · firmware v1.00
+ Cannot plan these edits: The last Left Click would be reassigned: the binding
+ at 96+4. d drops the selected edit.
+
+ Staged edits (2)
+ › Left Click (slot 0): Do nothing
+     refused: The last Left Click would be reassigned: the binding at 96+4
+   DPI
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 2 pending   ↑/↓ select   d drop edit   enter continue   esc close

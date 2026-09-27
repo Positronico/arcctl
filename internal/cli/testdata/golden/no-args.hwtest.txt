@@ -1,4 +1,4 @@
-arcctl: the TUI arrives in M4. Commands available now:
+arcctl: the TUI needs a terminal. Commands:
   doctor      check permissions, the receiver, other HID clients and the lock
   info        show the device: online state, versions, battery, model, tiers
   trace       print every input report of every interface; sends nothing

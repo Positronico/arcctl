@@ -1,0 +1,24 @@
+ arcctl  rx v1.0  OFFLINE  [EDIT]
+ [1 Info]  2 Log
+────────────────────────────────────────────────────────────────────────────────
+ OFFLINE  The mouse is asleep or out of range. Move it, or switch it to its 2.4
+   GHz channel.
+ Info tab body, 80 x 17
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter change   ? help   q quit

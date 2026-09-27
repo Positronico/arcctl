@@ -1,0 +1,40 @@
+ arcctl  rx v1.0  LOCKED  [EDIT]
+ [1 Info]  2 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ LOCKED  Secure Input is on, held by Ghostty (pid 812), so the receiver is locked (0xE00002E2). Waiting. Ghostty turns
+   it on at password prompts when macos-auto-secure-input is set.
+ Info tab body, 120 x 33
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter change   ? help   q quit

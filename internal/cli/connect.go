@@ -57,8 +57,24 @@ func chain(fs ...func()) func() {
 	}
 }
 
-// attach runs a session on w's devices; stopping it leaves w open.
+// attach runs a session on w's devices and waits until it reaches st;
+// stopping it leaves w open.
 func (r *runner) attach(w *world, st stage) (*conn, *session.Snapshot, error) {
+	c, first, err := r.start(w)
+	if err != nil {
+		return nil, nil, err
+	}
+	sn, err := r.await(c, first, st)
+	if err != nil {
+		c.stop()
+		return nil, sn, err
+	}
+	return c, sn, nil
+}
+
+// start runs a session on w's devices and returns the sequence number of
+// its first snapshot; stopping it leaves w open.
+func (r *runner) start(w *world) (*conn, uint64, error) {
 	var cleanup []func()
 	stop := func() {
 		for i := len(cleanup) - 1; i >= 0; i-- {
@@ -70,7 +86,7 @@ func (r *runner) attach(w *world, st stage) (*conn, *session.Snapshot, error) {
 		release, err := r.lock()
 		if err != nil {
 			stop()
-			return nil, nil, err
+			return nil, 0, err
 		}
 		cleanup = append(cleanup, release)
 	}
@@ -78,13 +94,13 @@ func (r *runner) attach(w *world, st stage) (*conn, *session.Snapshot, error) {
 	logClose, err := r.logger(&opt)
 	if err != nil {
 		stop()
-		return nil, nil, err
+		return nil, 0, err
 	}
 	cleanup = append(cleanup, logClose)
 	recClose, err := r.recorder(&opt)
 	if err != nil {
 		stop()
-		return nil, nil, err
+		return nil, 0, err
 	}
 	cleanup = append(cleanup, recClose)
 
@@ -102,13 +118,7 @@ func (r *runner) attach(w *world, st stage) (*conn, *session.Snapshot, error) {
 		cancel()
 		<-done
 	})
-	c := &conn{w: w, s: s, stop: stop}
-	sn, err := r.await(c, first, st)
-	if err != nil {
-		stop()
-		return nil, sn, err
-	}
-	return c, sn, nil
+	return &conn{w: w, s: s, stop: stop}, first, nil
 }
 
 func (r *runner) lock() (func(), error) {

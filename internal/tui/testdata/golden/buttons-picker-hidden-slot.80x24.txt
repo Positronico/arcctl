@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]
+────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ Slot 6 · not shown by the vendor app  now Profile Switch           labels: mac
+  System  [Special]  Media   Combo Key
+  / filters
+  On macOS the web app does not offer the dimmed entries.
+   Cut                 Cmd+X
+   Copy                Cmd+C
+   Paste               Cmd+V
+   Undo                Cmd+Z
+   Zoom In             Cmd++
+   Zoom Out            Cmd+-
+   New Browser Tab     Cmd+T
+   Lock                Ctrl+Cmd+Q
+   Polling Rate Switch                        experimental
+   Drag Scroll                                experimental
+ › Profile Switch                             experimental
+   8-18 of 18
+
+  no change: the button already does Profile Switch
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   / filter   tab group   ↑/↓ move   enter choose   esc back

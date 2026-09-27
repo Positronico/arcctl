@@ -1,0 +1,40 @@
+ arcctl  Full-size keyboard 03/01  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [READ-ONLY MODEL]
+ [1 Info]  2 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ READ-ONLY  Keyboards are shown read-only in this version.
+ Info tab body, 120 x 34
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter change   ? help   q quit

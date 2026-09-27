@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────
+ Review & Apply  4 records, 4 packets
+ ProtoArc EM11 Pro 7B/04 (260d-1282-7b04) · profile none · firmware v1.00
+ Ready: enter checks the mouse again, then asks you to confirm.
+
+ Staged edits (2)
+ › Backward (slot 3): Play/Pause
+   DPI stage 2: 1600
+
+ Plan
+     #  Record   Phase      Tier         What
+     1  108+4    neutralise untested     disable binding 3 while its body is
+                                         rewritten
+        Ctrl+Tab → Do nothing   05 00 00 50 → 00 00 00 55  1 packet
+     2  352+8    body       untested     media 3: Play/Pause
+        Ctrl+Tab → Play/Pause
+        04 80 01 00 81 2b 00 41 → 02 82 cd 00 42 cd 00 f5  1 packet
+     3  108+4    bind       untested     restore binding 3
+        Do nothing → Play/Pause   00 00 00 55 → 05 00 00 50  1 packet
+ ↓ 17 lines below: pgdn
+────────────────────────────────────────────────────────────────────────────────
+ 2 pending   ↑/↓ select   d drop edit   enter continue   esc close

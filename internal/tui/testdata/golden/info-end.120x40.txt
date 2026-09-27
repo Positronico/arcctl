@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+  1 DPI  [2 Info]  3 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+                 button.macro.foreign                   RightFastTrigger     247+2   ff ff          erased   optional
+                 button.rate-switch                     RightTactileFeedback 249+2   ff ff          erased   optional
+                 button.drag-scroll button.fire-key     unmapped             251+5   ff ff ff ff ff erased   unmapped
+                 button.profile-switch                  DynamicSensitivity   6960+2  --             not read optional
+                 button.dpi-lock button.hidden-slot     DynamicSensitivityM… 6962+2  --             not read optional
+                 setting.lod setting.dpi-light-mode     VirtualCenter        6984+2  --             not read optional
+                 setting.dpi-light-brightness           once tested: writable only after its own hardware test passed,
+                 setting.dpi-light-speed                with --experimental. never: KeyOperation stays read-only, so a
+                 setting.dpi-light-state                button can always click. optional: a feature this model lacks.
+                 setting.light setting.debounce         unmapped: no known field.
+                 setting.motion-sync setting.sleep
+                 setting.angle setting.ripple
+                 setting.moving-off-light
+                 setting.performance-state
+                 setting.performance
+                 setting.sensor-mode
+   read-only     setting.key-operation
+   off           setting.angle-tune
+                 setting.angle-tune-state
+                 setting.sensor-fps20k
+                 setting.wheel-debounce
+                 setting.debounce-release
+                 setting.flywheel-state
+                 setting.flywheel
+                 setting.left-trigger
+                 setting.left-fast-trigger
+                 setting.left-tactile-feedback
+                 setting.right-trigger
+                 setting.right-fast-trigger
+                 setting.right-tactile-feedback
+                 setting.dynamic-sensitivity
+                 setting.dynamic-sensitivity-mode
+                 setting.virtual-center
+ … lines 37-69 of 69
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   ↑/↓ scroll   pgup/pgdn page   g/G top/end   r reload   ? help   q quit

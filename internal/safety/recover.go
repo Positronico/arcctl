@@ -31,7 +31,7 @@ type ExtentState struct {
 	Found  []byte
 	Class  Class // ClassOld, ClassNew, ClassMid or ClassTorn
 	Tier   catalog.Tier
-	Desc   string
+	Desc   string // the last op's: what the run meant to leave there
 	mids   [][]byte
 }
 
@@ -173,7 +173,7 @@ func spans(ops []OpRecord) []ExtentState {
 			out = append(out, ExtentState{Extent: o.Extent, Before: o.Old, After: o.New, Tier: o.Tier, Desc: o.Desc})
 			continue
 		}
-		out[i].After, out[i].Tier = o.New, min(out[i].Tier, o.Tier)
+		out[i].After, out[i].Tier, out[i].Desc = o.New, min(out[i].Tier, o.Tier), o.Desc
 	}
 	for i := range out {
 		for _, o := range ops {

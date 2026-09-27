@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+  1 DPI  [2 Info]  3 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ Device                                                Hidden fields (read-only)
+ Model        ProtoArc EM11 Pro (7B/04), mouse          Field                Record  Raw            State    Writable
+ Sensor       3104, 1-6 DPI stages, up to 7200 DPI      ReportRate           0+2     04 51          ok       once tested
+ Identity     260d-1282-7b04 (the receiver's USB        unmapped             6+2     00 55          ok       unmapped
+              IDs and the model)                        KeyOperation         8+2     00 55          ok       never
+ Address      read, not trusted yet: backups and        LOD                  10+2    00 55          ok       once tested
+              the journal key on the receiver's USB     DPIEffectMode        76+2    00 55          ok       once tested
+              IDs and the model                         DPIEffectBrightness  78+2    80 d5          ok       once tested
+ Receiver     260d:1282, interface 1, Emulated          DPIEffectSpeed       80+2    03 52          ok       once tested
+              receiver                                  DPIEffectState       82+2    00 55          ok       once tested
+ Path         emu:1/IOUSBHostInterface@1                unmapped             84+12   ff 00 ff 57 …  unknown  unmapped
+ Connection   wireless 1 kHz, reports up to 1000 Hz     Light                160+7   01 ff 00 00 …  ok       once tested
+ Mouse        online                                    unmapped             167+2   01 54          ok       unmapped
+ Firmware     mouse v1.00, receiver v1.0                DebounceTime         169+2   02 53          ok       once tested
+ Battery      80% raw (reply byte 5), 3900 mV, not      MotionSync           171+2   00 55          ok       once tested
+              charging                                  SleepTime            173+2   01 54          ok       once tested
+ Profiles     cmd 14 refused: no onboard profiles       Angle                175+2   00 55          ok       once tested
+ Long range   cmd 23: on                                Ripple               177+2   00 55          ok       once tested
+ Loaded       256 bytes                                 MovingOffLight       179+2   00 55          ok       once tested
+ Clients      no other program seen on the receiver     PerformanceState     181+2   04 51          ok       once tested
+ Traffic      57 transactions, 0 unanswered tries,      Performance          183+2   06 4f          ok       once tested
+              0 NAKs, 0 foreign, 0 duplicate and 0      SensorMode           185+2   03 53          invalid  once tested
+              late replies                              unmapped             187+2   00 55          ok       unmapped
+ Writes       staged, then Review & Apply; guard        AngleTune            189+2   00 ff          invalid  optional
+              read-only                                 AngleTuneState       191+2   ff ff          erased   optional
+                                                        unmapped             193+32  ff ff ff ff …  erased   unmapped
+ Feature tiers on firmware v1.00                        SensorFPS20K         225+2   ff ff          erased   optional
+   verified      none                                   WheelDebounceTime    227+2   ff ff          erased   optional
+   untested      dpi.stages dpi.current dpi.value       DebounceReleaseTime  229+2   ff ff          erased   optional
+                 button.system button.media             unmapped             231+2   ff ff          erased   unmapped
+                 button.shortcut                        FlywheelState        233+2   ff ff          erased   optional
+                 button.shortcut.right-modifier         Flywheel             235+4   ff ff ff ff    erased   optional
+                 button.shortcut.menu button.macro      LeftTrigger          239+2   ff ff          erased   optional
+ … lines 1-33 of 69
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   ↑/↓ scroll   pgup/pgdn page   g/G top/end   r reload   ? help   q quit

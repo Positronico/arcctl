@@ -230,6 +230,12 @@ func (s *Session) Preflight(ctx context.Context, p plan.Plan, g safety.Gates) er
 	return s.call(ctx, request{kind: reqPreflight, task: &writeTask{kind: safety.KindApply, plan: p, gates: g}}).err
 }
 
+// PreflightRevert runs the checks of a revert of the journal's last run
+// (§6.3) and writes nothing, as Preflight does for an apply.
+func (s *Session) PreflightRevert(ctx context.Context, g safety.Gates) error {
+	return s.call(ctx, request{kind: reqPreflight, task: &writeTask{kind: safety.KindRevert, gates: g}}).err
+}
+
 func (s *Session) preflight(ctx context.Context, r request) {
 	switch {
 	case s.opt.Writes == nil:

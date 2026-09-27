@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 DPI]  2 Info   3 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ 3 of 6 stages active (was 6, pending) · current ● 3 (was 4, pending)
+ Legal DPI  200-4000 step 100 · 4200-7200 step 200; typed values snap up
+
+     1   800  █████
+     2  1200  ████████
+   ● 3  1600  ███████████
+     4  2400  ████████████████                                  inactive
+ ›   5  3200  █████████████████████                             inactive
+     6  4800  ████████████████████████████████                  X/Y differ, inactive
+     7  4000    8  4000    unused by the ProtoArc EM11 Pro, read-only
+
+ Stage 5  X 3200, Y 3200; record 28+4 holds 54 54 00 ad.
+
+ Pending    stage count: 3 · current stage: 3
+ Tiers      values untested · count untested · current untested
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Stage 5 is inactive; raise the stage count with + first
+ 2 pending   a review & apply   u discard   ←/→ step   enter type a value   space set current   ? help   q quit

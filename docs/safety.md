@@ -60,7 +60,7 @@ Once the journal is clean, the last run that changed the mouse can be undone: ev
 
 When something goes wrong, in order:
 
-1. **Settle the journal.** `arcctl journal recover` finishes an interrupted write or rolls it back; once the journal is clean, the last write can be reverted (from the TUI, M4).
+1. **Settle the journal.** `arcctl journal recover` finishes an interrupted write or rolls it back; once the journal is clean, the last write can be reverted from the TUI with `U`, which opens the revert review.
 2. **Restore from a backup.** arcctl saved one before its first write, and `arcctl backups` lists them. The `restore` command arrives in M5; until then, `arcctl show BACKUP` prints every setting a backup holds, to enter again by hand.
 3. **Factory reset.** Disabled until hardware test H7 has documented what it clears on this mouse.
 4. **The vendor web app.** It can reset the mouse and edit what its pages show, but it cannot restore a configuration: on the maintainer's unit an invalid record cuts its import short, so it writes a single byte at address 0. Whatever its pages cannot show has to be entered again by hand from `arcctl show BACKUP`.

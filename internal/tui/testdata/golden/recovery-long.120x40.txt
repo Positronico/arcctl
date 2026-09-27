@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  RECOVERY  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ RECOVERY  An earlier write did not finish: apply 20260926T115900Z-4242. Writes stay blocked until it is settled; R
+   opens the prompt.
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ Unfinished write
+
+ apply 20260926T115900Z-4242, started 2026-09-26 11:59 UTC, 5 records. It stopped: rejected by the device.
+
+ Record     Now   What
+ 108+4      torn  disable binding 3 while its body is rewritten
+ 352+8      torn  media 3: Play/Pause
+ 16+4       torn  DPI stage 2: 1600
+ 20+4       torn  DPI stage 3: 2000
+
+ old: as before the write; new: as it meant to leave; mid: a step in between; torn: neither, the write was cut short.
+
+ f  finish: write what the run meant to leave (4 writes)
+ b  roll back: write what the records held before it (4 writes)
+ l  leave: refused while a record is torn
+ esc  later; writes stay blocked
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   f finish   b roll back   l leave   esc later

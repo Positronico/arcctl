@@ -161,7 +161,7 @@ func comboWarnings(k int, c keys.Combo, warn func(Reason, string)) {
 		case RightModifier:
 			warn(r, name+" uses a right-side modifier, which the web app cannot enter")
 		case MenuKey:
-			warn(r, name+" uses the Menu key (kind 7), which the web app enters only by key capture")
+			warn(r, name+" uses the Menu key, which the web app's composer cannot build; only its key capture can")
 		case MediaCode:
 			warn(r, name+": media usage "+hex16(c[0].Value)+" is not in the web app's media list")
 		case CustomCombo:

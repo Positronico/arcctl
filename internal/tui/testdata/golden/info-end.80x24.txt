@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+  1 DPI  [2 Info]  3 Log
+────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+  DebounceReleaseTime  229+2   ff ff          erased   optional
+  unmapped             231+2   ff ff          erased   unmapped
+  FlywheelState        233+2   ff ff          erased   optional
+  Flywheel             235+4   ff ff ff ff    erased   optional
+  LeftTrigger          239+2   ff ff          erased   optional
+  LeftFastTrigger      241+2   ff ff          erased   optional
+  LeftTactileFeedback  243+2   ff ff          erased   optional
+  RightTrigger         245+2   ff ff          erased   optional
+  RightFastTrigger     247+2   ff ff          erased   optional
+  RightTactileFeedback 249+2   ff ff          erased   optional
+  unmapped             251+5   ff ff ff ff ff erased   unmapped
+  DynamicSensitivity   6960+2  --             not read optional
+  DynamicSensitivityM… 6962+2  --             not read optional
+  VirtualCenter        6984+2  --             not read optional
+  once tested: writable only after its own hardware test passed, with
+  --experimental. never: KeyOperation stays read-only, so a button can always
+  click. optional: a feature this model lacks. unmapped: no known field.
+ … lines 73-89 of 89
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   ↑/↓ scroll   pgup/pgdn page   g/G top/end   ? help   q quit

@@ -1,0 +1,40 @@
+ arcctl  rx v1.0  STALLED  [EDIT]
+ [1 Info]  2 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ STALLED  The receiver stopped responding to writes. Replug it. It stalled 2 times this session.
+ Info tab body, 120 x 34
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter change   ? help   q quit

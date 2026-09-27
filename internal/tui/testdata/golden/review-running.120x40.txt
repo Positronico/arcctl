@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  WRITING  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ WRITING  Applying: 1 of 4 records verified. q stops it after the current record and quits.
+ Applying 4 records to ProtoArc EM11 Pro 7B/04 (260d-1282-7b04)
+ 1 of 4 records verified.
+
+        #  Record   Phase      State         What
+   ✓    1  108+4    neutralise verified      disable binding 3 while its body is rewritten
+   ›    2  352+8    body       sending       media 3: Play/Pause
+        3  108+4    bind       planned       restore binding 3
+        4  16+4     record     planned       DPI stage 2: 1600
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 2 pending   esc hide   q quit   s stop after this record

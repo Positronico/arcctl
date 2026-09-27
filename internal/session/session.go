@@ -48,6 +48,8 @@ type API interface {
 	Revert(ctx context.Context, g safety.Gates, on func(safety.OpEvent)) (Outcome, error)
 	// Preflight runs the checks of an apply of p and writes nothing.
 	Preflight(ctx context.Context, p plan.Plan, g safety.Gates) error
+	// PreflightRevert runs the checks of a Revert and writes nothing.
+	PreflightRevert(ctx context.Context, g safety.Gates) error
 	// Abort asks a running write to stop after its current op.
 	Abort()
 	// ClearConflict leaves Conflict once the device has been quiet for

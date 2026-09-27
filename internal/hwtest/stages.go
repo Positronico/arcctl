@@ -35,7 +35,7 @@ var stages = []*stageDef{
 	{name: "H1", title: "settings pairs, echo and NAK behaviour", promotes: []mouse.Feature{mouse.FeatureCurrent}, build: buildH1},
 	{name: "H2", title: "4-byte records (DPI)", promotes: []mouse.Feature{mouse.FeatureDPI, mouse.FeatureStages}, build: buildH2},
 	{name: "H3", title: "button system functions", promotes: []mouse.Feature{mouse.FeatureSystem}, build: buildH3},
-	{name: "H3b", title: "physical slot map", build: buildH3b},
+	{name: "H3b", title: "physical slot map", promotes: []mouse.Feature{mouse.FeatureUnmappedSlot}, build: buildH3b},
 }
 
 type stepKind uint8
@@ -222,11 +222,11 @@ func (b *builder) plan(changes []plan.Change) (plan.Plan, error) {
 	return p, nil
 }
 
-// tier is the lowest tier of the features, plus the hidden-slot feature for
-// a slot the model does not show; slot -1 is no slot.
+// tier is the lowest tier of the features, plus the slot's own, as the
+// planner adds them; slot -1 is no slot.
 func (b *builder) tier(slot int, fs ...mouse.Feature) (catalog.Tier, error) {
-	if slot >= 0 && !slices.ContainsFunc(b.m.Buttons, func(x catalog.Button) bool { return x.Slot == slot && x.Visible }) {
-		fs = append(fs, mouse.FeatureHiddenSlot)
+	if slot >= 0 {
+		fs = append(fs, mouse.SlotFeatures(b.m, slot)...)
 	}
 	t := catalog.Verified
 	for _, f := range fs {

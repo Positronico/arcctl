@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [DRY-RUN]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────
+ Dry run done: 4 of 4 records verified against the overlay.
+ Nothing reached the mouse. The tabs now show what the write would leave.
+
+ 4 packets sent to the overlay instead of the mouse:
+     1  108+4    07 00 00 6c 04 00 00 00 55 00 00 00 00 00 00 81
+     2  352+8    07 00 01 60 08 02 82 cd 00 42 cd 00 f5 00 00 88
+     3  108+4    07 00 00 6c 04 05 00 00 50 00 00 00 00 00 00 81
+     4  16+4     07 00 00 10 04 2a 2a 00 01 00 00 00 00 00 00 dd
+
+        #  Record   Phase      State         What
+        1  108+4    neutralise planned       disable binding 3 while its body
+                                             is rewritten
+        2  352+8    body       planned       media 3: Play/Pause
+        3  108+4    bind       planned       restore binding 3
+        4  16+4     record     planned       DPI stage 2: 1600
+
+
+
+
+ Dry run of the apply done: 4 of 4 records verified, 4 packets to the overlay.
+ 0 pending   enter/esc close

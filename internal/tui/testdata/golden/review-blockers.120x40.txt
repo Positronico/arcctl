@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  OFFLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ OFFLINE  The mouse is asleep or out of range. Move it, or switch it to its 2.4 GHz channel.
+   Showing the last loaded configuration. Edits can be staged; applying waits for the mouse.
+ Review & Apply  4 records, 4 packets
+ ProtoArc EM11 Pro 7B/04 (260d-1282-7b04) · profile none · firmware v1.00
+ Blocked. The mouse is asleep; wake it to apply.
+
+ Staged edits (2)
+ › Backward (slot 3): Play/Pause
+   DPI stage 2: 1600
+
+ Plan
+     #  Record   Phase      Tier         What
+     1  108+4    neutralise untested     disable binding 3 while its body is rewritten
+        Ctrl+Tab → Do nothing   05 00 00 50 → 00 00 00 55  1 packet
+     2  352+8    body       untested     media 3: Play/Pause
+        Ctrl+Tab → Play/Pause   04 80 01 00 81 2b 00 41 → 02 82 cd 00 42 cd 00 f5  1 packet
+     3  108+4    bind       untested     restore binding 3
+        Do nothing → Play/Pause   00 00 00 55 → 05 00 00 50  1 packet
+     4  16+4     record     untested     DPI stage 2: 1600
+        1200 → 1600   1f 1f 00 17 → 2a 2a 00 01  1 packet
+
+ Before writing
+   ✗ The mouse is asleep; wake it to apply.
+   ✓ The journal holds no unfinished write.
+   ✗ Google Chrome Helper (pid 4242) had the receiver open at the last scan: quit it, or restart arcctl with
+     --allow-foreign-client.
+   · Before the first packet arcctl checks again: the same mouse and profile, every record as planned, other programs
+     on the receiver, the screen lock and Secure Input.
+   · A backup of the loaded configuration is saved before this session's first write. Every record is journaled before
+     it is sent, then read back and compared.
+   ! No write to this mouse is on record: arcctl first reads its whole configuration and saves a full backup. A partial
+     one needs your consent.
+   ! 4 records are untested on firmware v1.00; --allow-untested is set.
+   · You type "write untested" to write features no hardware test has verified.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 2 pending   ↑/↓ select   d drop edit   u discard all   enter continue   esc close

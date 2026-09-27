@@ -2,14 +2,12 @@ ProtoArc EM11 Pro, identity 260d-1282-7b04
 Finishing apply $RUN1
    Op  Record     State         What
     1  384+20     verified      finish: shortcut 4
-    2  112+4      not written   finish: disable binding 4 while its body is
-                                rewritten
+    2  112+4      not written   finish: restore binding 4
 Backup saved before the write:
   $TMP/backups/em11-pro-260d-1282-7b04/20260926T120000Z-auto-before-write.json
 --- stderr
 arcctl: stopping after the current record. Press Ctrl-C again to quit at once;
   the journal then keeps the write for 'arcctl journal recover'.
-arcctl: the recovery was aborted before 112+4 (finish: disable binding 4 while
-  its body is rewritten)
+arcctl: the recovery was aborted before 112+4 (finish: restore binding 4)
   The records before it are written and verified. Run 'arcctl journal recover'
   to finish or roll back.

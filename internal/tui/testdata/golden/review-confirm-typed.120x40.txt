@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Write 4 records to ProtoArc EM11 Pro 7B/04 (260d-1282-7b04)?
+
+   ! 4 records are untested on firmware v1.00; --allow-untested is set.
+   · A backup is saved first; every record is journaled, then read back and compared.
+   ! No write to this mouse is on record: a full backup runs first. Its progress shows here.
+   ✓ The preflight passed just now; the write runs it again.
+
+ Type "write untested" and press enter to write; esc goes back.
+ > write unt_   does not match
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 2 pending   enter confirm   esc back

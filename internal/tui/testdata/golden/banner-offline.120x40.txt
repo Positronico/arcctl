@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  OFFLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ OFFLINE  The mouse is asleep or out of range. Move it, or switch it to its 2.4 GHz channel.
+   Showing the last loaded configuration. Edits can be staged; applying waits for the mouse.
+   Backing up paused at 120 of 725; it resumes when the mouse wakes.
+ Buttons tab body, 120 x 32
+ decoded: 6 stages
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter change   r reload   ? help   q quit

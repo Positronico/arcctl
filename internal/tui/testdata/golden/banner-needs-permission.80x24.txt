@@ -1,0 +1,24 @@
+ arcctl  NO ACCESS  [EDIT]
+ [1 Info]  2 Log
+────────────────────────────────────────────────────────────────────────────────
+ NO ACCESS  The OS refused access to the receiver.
+   Allow Input Monitoring for Ghostty in System Settings > Privacy & Security >
+   Input Monitoring, then quit and reopen Ghostty.
+   o opens the settings. 'arcctl doctor' shows what is missing; arcctl retries
+   on its own.
+ Info tab body, 80 x 14
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   o open settings   enter change   ? help   q quit

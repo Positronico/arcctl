@@ -6,9 +6,9 @@ arcctl is unofficial. It is not affiliated with, endorsed by, or supported by Pr
 
 ## Status
 
-M3 write engine code complete; hardware stages H0-H3 pending.
+M4 TUI code complete; hardware stages H0-H4 pending.
 
-Pre-alpha. The pure core (M1), the read-only transport, session and CLI (M2) and the write engine (M3: preflight, executor, journal, recovery, revert and dry run) are built and tested against an emulator, including a fault-injection matrix. No command changes a setting yet; editing arrives with the TUI (M4). The only command that writes is `arcctl journal recover`, which settles a write a crash left unfinished. None of this has run on a real receiver: the hardware stages H0 to H3 have not been signed off.
+Pre-alpha. The pure core (M1), the read-only transport, session and CLI (M2), the write engine (M3: preflight, executor, journal, recovery, revert and dry run) and the TUI (M4: button mapping and DPI editing with a review screen) are built and tested against an emulator, including a fault-injection matrix. Settings change only through the TUI's review screen, and `arcctl journal recover` settles a write a crash left unfinished. None of this has run on a real receiver: the hardware stages H0 to H4 have not been signed off, so writes need `--allow-untested` and a typed confirmation.
 
 Commands:
 
@@ -26,6 +26,39 @@ Commands:
 | `arcctl redact IN -o OUT` | strip addresses and shortcut and macro content from a `--record` transcript |
 
 On macOS, arcctl first checks that the terminal app has Input Monitoring (System Settings, Privacy & Security); `arcctl doctor` names the app to grant it to. `--emulate FILE` runs a command against an emulated mouse, with no hardware; the `journal` commands refuse it, because only a real mouse has a journal.
+
+## The TUI
+
+`arcctl` with no command starts the TUI. It is laid out for terminals of 80x24 and larger; when stdin or stdout is not a terminal, arcctl prints the command list instead. Every action works from the keyboard.
+
+Try it without hardware on the demo mouse, `flash-dump.bin` plus its shortcut bodies:
+
+```sh
+arcctl --emulate testdata/demo-em11.json --allow-untested
+```
+
+The emulated mouse's journal and backups go to a new temporary folder, named on stderr and on the Info tab, never to the real data folder. `--dry-run` sends every write to an in-memory overlay and shows its packets, `--replay FILE` opens a recorded transcript read-only, `--os mac|win` picks the key names, `--ascii` limits the screen to ASCII, and `--no-color` (or `NO_COLOR`) turns colour off.
+
+Tabs: **Buttons** (system functions, media keys, the shortcut presets of the current OS, and a key composer; there is no live key capture), **DPI** (stage values, stage count, current stage), **Info** (identity, versions, tiers, hidden fields read-only) and **Log** (what the session did, and the revert review). Edits are staged: nothing reaches the mouse until you open the review with `a`, read the exact diff, its web-app warnings and tier gates, and confirm. Untested changes need the phrase `write untested`; each written record is read back and compared.
+
+| Key | Action |
+|---|---|
+| `1`-`9`, `tab`, `shift+tab` | switch tabs |
+| `↑↓` or `jk` | move |
+| `enter` | change the selected button or stage |
+| `a` | review and apply the staged edits |
+| `u` | discard the staged edits |
+| `U` | review a revert of the last write |
+| `r` | reload from the mouse |
+| `b` | back up now |
+| `o` | switch labels and presets between mac and win |
+| `?` | help for the current tab |
+| `esc` | back, or close a dialog |
+| `q`, `ctrl+c` | quit; asks first while writing or with staged edits |
+
+Buttons: `s` shows all 16 slots and `d` drops the selected button's staged edit. The last button on Left Click is guarded and cannot be changed. In the picker, `tab` or `←→` switch groups and `/` filters; in the composer, `1`-`8` toggle the modifiers and `0` clears them. DPI: `←→` steps through legal values, `enter` types a value, `space` sets the current stage, `+`/`-` changes the stage count, `del` undoes a stage's edit and `x` shows the raw bytes and colours. Log: `v` opens the revert review and `G` jumps to the newest entry.
+
+A write the TUI starts can be stopped with `s` in the review; it stops after the current record. If a write is cut short, by a stop or a crash, the TUI shows the unfinished write, at once or at the next start (`R` reopens it), and offers to finish it, roll it back, or leave it as it is.
 
 ## Planned scope
 

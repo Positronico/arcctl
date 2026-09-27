@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ 6 buttons  labels: win                                                    Wheel Click · slot 2
+  Button      Slot Function                 Tier         State    Web app  now      Win+V
+  Left Click  0    Left Click               untested     guarded           tier     untested: writes need
+  Right Click 1    Right Click              untested     valid                      --allow-untested
+› Wheel Click 2    Win+V                    untested     valid             web app  shows and edits this
+  Forward     4    Win+Tab (Task View)      untested     valid             bytes    05 00 00 50 · body @320: 04 80 08
+  Backward    3    Ctrl+Tab                 untested     valid                      00 81 19 00 41 19 00 40 08 00 8d
+  DPI Cycle   5    Win+C                    untested     valid
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter change   s all 16 slots   o mac labels   r reload   ? help   q quit

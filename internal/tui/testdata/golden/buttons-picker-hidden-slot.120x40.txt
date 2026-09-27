@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ Slot 6 · not shown by the vendor app  now Profile Switch                                                   labels: mac
+  System  [Special]  Media   Combo Key
+  / filters
+  On macOS the web app does not offer the dimmed entries.
+   Dictation           Option+Esc             not on macOS web app
+   Action Center       Cmd+Space              not on macOS web app
+   Task View           Ctrl+↑
+   Screenshot          Shift+Cmd+3
+   Close Window        Cmd+W
+   Maximize Window     Ctrl+Cmd+F
+   Minimize Window     Cmd+M
+   Cut                 Cmd+X
+   Copy                Cmd+C
+   Paste               Cmd+V
+   Undo                Cmd+Z
+   Zoom In             Cmd++
+   Zoom Out            Cmd+-
+   New Browser Tab     Cmd+T
+   Lock                Ctrl+Cmd+Q
+   Polling Rate Switch                        experimental
+   Drag Scroll                                experimental
+ › Profile Switch                             experimental
+
+
+
+
+
+
+
+
+
+
+
+  no change: the button already does Profile Switch
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   / filter   tab group   ↑/↓ move   o win labels   enter choose   esc back

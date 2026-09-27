@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ OTHER CLIENT  Google Chrome Helper (pid 4242) has the receiver open. Close it: writes are blocked.
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ UNREAD  1 chunk could not be read; those fields show as unread.
+ Buttons tab body, 120 x 32
+ decoded: 6 stages
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter change   r reload   ? help   q quit

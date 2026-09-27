@@ -15,7 +15,9 @@ import (
 	"github.com/positronico/arcctl/internal/backup"
 	"github.com/positronico/arcctl/internal/catalog"
 	"github.com/positronico/arcctl/internal/emu"
+	"github.com/positronico/arcctl/internal/flash"
 	"github.com/positronico/arcctl/internal/hidio"
+	"github.com/positronico/arcctl/internal/mouse"
 	"github.com/positronico/arcctl/internal/platform"
 	"github.com/positronico/arcctl/internal/safety"
 	"github.com/positronico/arcctl/internal/session"
@@ -56,6 +58,9 @@ type world struct {
 	locks   bool   // the real device: take the single-instance lock
 	replay  *replayDevices
 	close   func()
+	// bodiesMissing lists the emulated mouse's slots bound to a shortcut or
+	// macro body its file does not hold, such as those of a bare dump.
+	bodiesMissing []int
 }
 
 func (r *runner) world() (*world, error) {
@@ -186,7 +191,21 @@ func (r *runner) emulator(path string) (*world, error) {
 		bus.Close()
 		return nil, err
 	}
-	return &world{source: backup.SourceEmulator, devices: bus, host: emuHost{bus}, device: r.g.device, close: bus.Close}, nil
+	return &world{source: backup.SourceEmulator, devices: bus, host: emuHost{bus}, device: r.g.device, close: bus.Close,
+		bodiesMissing: unreadBodies(m, src.Image)}, nil
+}
+
+// unreadBodies lists the slots whose binding runs a shortcut or macro body
+// that im does not hold.
+func unreadBodies(m *catalog.Model, im *flash.Image) []int {
+	cfg := mouse.Decode(m, im)
+	var out []int
+	for k, b := range cfg.Keys {
+		if t := b.Fn.Type; (t == mouse.TypeShortcut || t == mouse.TypeMacro) && cfg.Slots[k] == flash.SlotUnknown {
+			out = append(out, k)
+		}
+	}
+	return out
 }
 
 // modelOf picks the model of a source: the backup's own, else --model, else

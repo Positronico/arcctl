@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]
+────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ 6 buttons  labels: win
+  Button      Slot Function                        Tier         State    Web app
+  Left Click  0    Left Click                      untested     guarded
+  Right Click 1    Right Click                     untested     valid
+› Wheel Click 2    Win+V                           untested     valid
+  Forward     4    Win+Tab (Task View)             untested     valid
+  Backward    3    Ctrl+Tab                        untested     valid
+  DPI Cycle   5    Win+C                           untested     valid
+
+ Wheel Click · slot 2
+ now      Win+V
+ tier     untested: writes need --allow-untested
+ web app  shows and edits this
+ bytes    05 00 00 50 · body @320: 04 80 08 00 81 19 00 41 19 00 40 08 00 8d
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter change   s all 16 slots   o mac labels   ? help   q quit

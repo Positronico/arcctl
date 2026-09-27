@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  RECOVERY  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ RECOVERY  An earlier write did not finish: apply 20260926T115900Z-4242. Writes stay blocked until it is settled; R
+   opens the prompt.
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ Settle the unfinished write
+
+ Finish apply 20260926T115900Z-4242: 1 write.
+
+ y goes on, n or esc cancels.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   y go on   n/esc cancel

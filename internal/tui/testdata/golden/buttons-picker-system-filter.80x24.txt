@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]
+────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ Right Click · slot 1  now Right Click                              labels: mac
+ [System]  Special   Media   Combo Key
+  filter: dpi_
+ › DPI Cycle  DPI Switch
+   DPI+       DPI Switch
+   DPI-       DPI Switch
+
+
+
+
+
+
+
+
+
+
+  tier untested: writes need --allow-untested
+  web app: shows and edits this
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   type filter   ↑/↓ move   enter done   esc clear

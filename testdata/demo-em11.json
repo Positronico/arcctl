@@ -1,0 +1,372 @@
+{
+  "format": "arcctl-backup/1",
+  "created": "2026-09-27T12:00:00Z",
+  "tool": "arcctl demo",
+  "source": "emulator",
+  "label": "demo",
+  "device": {
+    "vid": "260D",
+    "pid": "1282",
+    "cid": "7B",
+    "mid": 4,
+    "conn": null,
+    "addr_trusted": false,
+    "key": "260d-1282-7b04",
+    "profile": null
+  },
+  "model": {
+    "key": "7B04",
+    "name": "ProtoArc EM11 Pro",
+    "sensor": "3104"
+  },
+  "full": false,
+  "started": "2026-09-27T12:00:00Z",
+  "finished": "2026-09-27T12:00:00Z",
+  "ranges": [
+    {
+      "addr": 0,
+      "len": 256,
+      "status": "ok",
+      "hex": "0451064f03520055005500551515002b1f1f00172a2a00013f3f00d7545400ad3f3f01d66969008369690083ff0000560000ff5600ff0056ffff0057ff8000d6ff00ff57ff7d7d5c7d7dff5c005580d503520055ff00ff57005580d5035200550101005301020052050000500500005005000050050000500900004c02010052030100510302005002020051020300500000005500000055000000550000005501ff000007024c01540253005501540055005500550451064f0353005500ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    {
+      "addr": 320,
+      "len": 128,
+      "status": "ok",
+      "hex": "048008008119004119004008008dffffffffffffffffffffffffffffffffffff04800100812b00412b0040010077ffffffffffffffffffffffffffffffffffff04800800812b00412b0040080069ffffffffffffffffffffffffffffffffffff04800800810600410600400800b3ffffffffffffffffffffffffffffffffffff"
+    }
+  ],
+  "summary": {
+    "os": "mac",
+    "rate_hz": 250,
+    "stages": 6,
+    "current_stage": 4,
+    "dpi": [
+      {
+        "stage": 1,
+        "x": 800,
+        "y": 800,
+        "color": "#ff0000",
+        "active": true,
+        "state": "ok"
+      },
+      {
+        "stage": 2,
+        "x": 1200,
+        "y": 1200,
+        "color": "#0000ff",
+        "active": true,
+        "state": "ok"
+      },
+      {
+        "stage": 3,
+        "x": 1600,
+        "y": 1600,
+        "color": "#00ff00",
+        "active": true,
+        "state": "ok"
+      },
+      {
+        "stage": 4,
+        "x": 2400,
+        "y": 2400,
+        "color": "#ffff00",
+        "active": true,
+        "current": true,
+        "state": "ok"
+      },
+      {
+        "stage": 5,
+        "x": 3200,
+        "y": 3200,
+        "color": "#ff8000",
+        "active": true,
+        "state": "ok"
+      },
+      {
+        "stage": 6,
+        "x": 4800,
+        "y": 2400,
+        "color": "#ff00ff",
+        "active": true,
+        "state": "ok"
+      },
+      {
+        "stage": 7,
+        "x": 4000,
+        "y": 4000,
+        "color": "#ff7d7d",
+        "active": false,
+        "state": "ok"
+      },
+      {
+        "stage": 8,
+        "x": 4000,
+        "y": 4000,
+        "color": "#7d7dff",
+        "active": false,
+        "state": "ok"
+      }
+    ],
+    "buttons": [
+      {
+        "slot": 0,
+        "button": "Left Click",
+        "action": "Left Click",
+        "state": "ok"
+      },
+      {
+        "slot": 1,
+        "button": "Right Click",
+        "action": "Right Click",
+        "state": "ok"
+      },
+      {
+        "slot": 2,
+        "button": "Wheel Click",
+        "action": "Paste (Cmd+V)",
+        "state": "ok"
+      },
+      {
+        "slot": 3,
+        "button": "Backward",
+        "action": "Ctrl+Tab",
+        "state": "ok"
+      },
+      {
+        "slot": 4,
+        "button": "Forward",
+        "action": "Cmd+Tab",
+        "state": "ok"
+      },
+      {
+        "slot": 5,
+        "button": "DPI Cycle",
+        "action": "Copy (Cmd+C)",
+        "state": "ok"
+      },
+      {
+        "slot": 6,
+        "action": "Profile switch",
+        "state": "ok"
+      },
+      {
+        "slot": 7,
+        "action": "DPI Cycle",
+        "state": "ok"
+      },
+      {
+        "slot": 8,
+        "action": "Scroll Left",
+        "state": "ok"
+      },
+      {
+        "slot": 9,
+        "action": "Scroll Right",
+        "state": "ok"
+      },
+      {
+        "slot": 10,
+        "action": "DPI+",
+        "state": "ok"
+      },
+      {
+        "slot": 11,
+        "action": "DPI-",
+        "state": "ok"
+      },
+      {
+        "slot": 12,
+        "action": "Do nothing",
+        "state": "ok"
+      },
+      {
+        "slot": 13,
+        "action": "Do nothing",
+        "state": "ok"
+      },
+      {
+        "slot": 14,
+        "action": "Do nothing",
+        "state": "ok"
+      },
+      {
+        "slot": 15,
+        "action": "Do nothing",
+        "state": "ok"
+      }
+    ],
+    "shortcuts": [
+      {
+        "slot": 2,
+        "keys": "Cmd+V",
+        "preset": "Paste",
+        "bound": true,
+        "state": "valid"
+      },
+      {
+        "slot": 3,
+        "keys": "Ctrl+Tab",
+        "bound": true,
+        "state": "valid"
+      },
+      {
+        "slot": 4,
+        "keys": "Cmd+Tab",
+        "bound": true,
+        "state": "valid"
+      },
+      {
+        "slot": 5,
+        "keys": "Cmd+C",
+        "preset": "Copy",
+        "bound": true,
+        "state": "valid"
+      }
+    ],
+    "macros": [],
+    "settings": [
+      {
+        "name": "unmapped",
+        "addr": 6,
+        "raw": "00 55",
+        "value": 0,
+        "state": "ok"
+      },
+      {
+        "name": "KeyOperation",
+        "addr": 8,
+        "raw": "00 55",
+        "value": 0,
+        "state": "ok"
+      },
+      {
+        "name": "LOD",
+        "addr": 10,
+        "raw": "00 55",
+        "value": 0,
+        "state": "ok"
+      },
+      {
+        "name": "DPIEffectMode",
+        "addr": 76,
+        "raw": "00 55",
+        "value": 0,
+        "state": "ok"
+      },
+      {
+        "name": "DPIEffectBrightness",
+        "addr": 78,
+        "raw": "80 d5",
+        "value": 128,
+        "state": "ok"
+      },
+      {
+        "name": "DPIEffectSpeed",
+        "addr": 80,
+        "raw": "03 52",
+        "value": 3,
+        "state": "ok"
+      },
+      {
+        "name": "DPIEffectState",
+        "addr": 82,
+        "raw": "00 55",
+        "value": 0,
+        "state": "ok"
+      },
+      {
+        "name": "unmapped",
+        "addr": 84,
+        "raw": "ff 00 ff 57 00 55 80 d5 03 52 00 55",
+        "state": "raw"
+      },
+      {
+        "name": "Light",
+        "addr": 160,
+        "raw": "01 ff 00 00 07 02 4c",
+        "state": "ok"
+      },
+      {
+        "name": "unmapped",
+        "addr": 167,
+        "raw": "01 54",
+        "value": 1,
+        "state": "ok"
+      },
+      {
+        "name": "DebounceTime",
+        "addr": 169,
+        "raw": "02 53",
+        "value": 2,
+        "state": "ok"
+      },
+      {
+        "name": "MotionSync",
+        "addr": 171,
+        "raw": "00 55",
+        "value": 0,
+        "state": "ok"
+      },
+      {
+        "name": "SleepTime",
+        "addr": 173,
+        "raw": "01 54",
+        "value": 1,
+        "state": "ok"
+      },
+      {
+        "name": "Angle",
+        "addr": 175,
+        "raw": "00 55",
+        "value": 0,
+        "state": "ok"
+      },
+      {
+        "name": "Ripple",
+        "addr": 177,
+        "raw": "00 55",
+        "value": 0,
+        "state": "ok"
+      },
+      {
+        "name": "MovingOffLight",
+        "addr": 179,
+        "raw": "00 55",
+        "value": 0,
+        "state": "ok"
+      },
+      {
+        "name": "PerformanceState",
+        "addr": 181,
+        "raw": "04 51",
+        "value": 4,
+        "state": "ok"
+      },
+      {
+        "name": "Performance",
+        "addr": 183,
+        "raw": "06 4f",
+        "value": 6,
+        "state": "ok"
+      },
+      {
+        "name": "unmapped",
+        "addr": 187,
+        "raw": "00 55",
+        "value": 0,
+        "state": "ok"
+      }
+    ],
+    "invalid": [
+      {
+        "name": "SensorMode",
+        "addr": 185,
+        "len": 2,
+        "raw": "03 53",
+        "error": "invalid: pair 03 53 does not sum to 0x55"
+      }
+    ]
+  },
+  "sha256": "70ec70afbd1ec6a0c1f8117d77f908380f5c781837b11ebc3240d16975c8d782"
+}

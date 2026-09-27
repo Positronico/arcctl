@@ -61,7 +61,7 @@ Reason: test-only switches inside the core packages would put bypasses into code
 
 ## Technical choices
 
-T1 to T40 were made during M1, T41 to T86 during M2 and T87 on during M3 (all 2026-09-26) unless dated otherwise. Each entry gives the choice and, where it is not obvious, the reason. Values marked "until H0" or "until H1" are guesses the hardware tests will settle.
+T1 to T40 were made during M1, T41 to T86 during M2 and T87 to T136 during M3 (all 2026-09-26), and T137 on during M4 (2026-09-27), unless dated otherwise. Each entry gives the choice and, where it is not obvious, the reason. Values marked "until H0" or "until H1" are guesses the hardware tests will settle.
 
 ### Layering and tooling
 
@@ -317,7 +317,7 @@ T1 to T40 were made during M1, T41 to T86 during M2 and T87 on during M3 (all 20
 
 **T111: recording.** Only confirmed stages are recorded: a redacted transcript in `testdata/transcripts/<date>-<stage>.jsonl` (H0 also commits `-h0-info`), a log entry and the stage's status in `docs/hardware-tests.md`, log lines scrubbed of local and device paths, and on a real-device pass `verified.json` merged and sorted, then `go generate ./internal/catalog`, rolled back if the generator fails.
 
-**T112: promotions.** H1 promotes `dpi.current`; H2 `dpi.value` and `dpi.stages`; H3 `button.system`; H0 and H3b nothing. H3b covers slots 6 to 11, and the slots from 12 on that the model shows (12 and 13 on mid 6).
+**T112: promotions.** H1 promotes `dpi.current`; H2 `dpi.value` and `dpi.stages`; H3 `button.system`; H0 and H3b nothing. H3b covers slots 6 to 11, and the slots from 12 on that the model shows (12 and 13 on mid 6). Amended by T159: H3b now promotes `button.unmapped-slot`.
 
 **T113: H0.** H0's sessions have no write setup, its raw path sends only cmd 3 and cmd 8, and its interface probes go through a fresh read-only guard.
 
@@ -372,3 +372,85 @@ T1 to T40 were made during M1, T41 to T86 during M2 and T87 on during M3 (all 20
 **T135: hwtest tests in `make check`.** `make test-hwtest` runs `go test -race -tags hwtest ./...` as part of `make check`, so CI runs it on Ubuntu and macOS. The command list differs between the two builds, so the help and no-args output have a golden file per build (`help.txt` and `help.hwtest.txt`, `no-args.txt` and `no-args.hwtest.txt`), chosen by a constant set in build-tagged test files; `help hwtest` has its own golden file in the tagged build.
 
 **T136: the verified.json test.** It no longer requires an empty list: every entry must cover its own model, feature and firmware and no other firmware. The generator already validates each entry, so promotions do not break the test.
+
+### TUI shell (M4)
+
+**T137: stack.** `charm.land/bubbletea/v2` v2.0.10, `bubbles/v2` v2.2.1 (only `key`), `lipgloss/v2` v2.0.6, `x/ansi` for width, cutting and stripping, and `colorprofile` for `--no-color`. `huh` is not used, because its Form is not a `tea.Model` in v2, and neither are `textinput` and `list`, which would add clipboard and fuzzy-search modules: text entry reads key events. `THIRD_PARTY_NOTICES` lists the new modules.
+
+**T138: starting the TUI.** `arcctl` with no command starts the TUI when stdin and stdout are terminals, and otherwise prints the command list. `cli` never imports `tui`; `cmd/arcctl` connects `cli.Env.TUI` to `tui.Run`. `cli.TUI` carries the running session, the mode, the gates, the source, the label OS, `--ascii` and `--no-color`, the backup store, the data folder, the notes printed before the TUI started and the OS hooks the banners need.
+
+**T139: the emulator in the TUI.** With `--emulate`, the journal and backups go to a new temporary folder, named on stderr and on the Info tab, never to the real data folder (T120). The emulator holds exactly what the file holds, with no placeholder bodies; when the file lacks bodies its shortcut or macro bindings run, arcctl names those slots on stderr and in the first notice, and the emulated mouse reads them as erased flash. `testdata/demo-em11.json` is an `arcctl-backup/1` file with source "emulator": `flash-dump.bin` plus the test vectors' shortcut bodies for slots 2 to 5, encoded with `mouse.EncodeShortcut` and padded with 0xFF to 32 bytes, identity 260d-1282-7b04, with no address, firmware or profile. `TestDemoBackup` rebuilds and checks it.
+
+**T140: colour and glyphs.** `--no-color` uses the ASCII colour profile, and `NO_COLOR` is honoured by Bubble Tea's own detection. `--ascii` swaps the glyph set and filters every line to ASCII; the footer measures its hints after that filter. State is always a text badge.
+
+**T141: snapshots.** One command waits on `Changed()`, waits 33 ms to fold bursts, then reads `Snapshot()`; the shell re-arms it after each, and drops a snapshot with the same `Seq`. The shell sends its first snapshot to the tabs in `Init`.
+
+**T142: write progress.** The executor callback appends to a locked queue and never blocks the session goroutine. One listener drains the events, then the end, so `WriteDoneMsg` always follows the last `OpEventMsg`.
+
+**T143: tabs.** A tab is shown when one of the features it needs has a visible tier on the mouse; Experimental features count only with `--experimental`, and a tab with no needs is always shown. Tab numbers follow the visible tabs in order. The active tab is the user's choice: while it is hidden the first visible tab shows, and it comes back once it is visible again. The default tabs are Buttons (given `Session.Read`), DPI, Info and Log, and the default review is `NewReview(Session)`; `tui.New` builds them when the options leave them nil.
+
+**T144: keys.** The shell takes q, ctrl+c, ?, tab, shift+tab, 1 to 9, a, u, U, r and b before the tab, plus R while a write is unfinished, c in Conflict, o in NeedsPermission and the picker keys while Choosing. A tab that needs those keys (typing a DPI value, a filter) says so with `Capturing()`, and the footer then shows only its hints. Otherwise the footer always keeps its last two hints, puts the review and discard keys first when edits are pending, and shows the others where they fit. No key uses Cmd or Ctrl+Tab.
+
+**T145: dialogs.** The shell keeps a stack: `OpenDialog` pushes, `CloseDialog` closes the top and shows the one beneath. Open dialogs get every broadcast; only the top one gets keys and pastes. Typed confirmations read key events and echo them on a plain line, compared after trimming; a paste into a phrase is ignored with a notice. There is no cursor blink, so the golden files stay stable.
+
+**T146: header.** The mode badge reads EDIT, DRY-RUN (`--dry-run`: every write is a dry run) or READ-ONLY (`--replay`). The tier badge is the lowest tier of the web app's features, or "UNTESTED ON THIS FIRMWARE" when `verified.json` records a feature for another firmware. While a write runs the state badge reads BACKING UP or WRITING. When the header does not fit, the receiver and mouse versions, the connection and the battery are dropped first, then `[EMULATED]` or `[REPLAY]`, then the tier badge; the state and mode badges always stay.
+
+**T147: staged edits.** One store, shared by the tabs and keyed by field; staging a key again replaces its edit in place. It is cleared after a successful apply, on discard, and when another mouse identity answers.
+
+**T148: writes need an approving dialog.** Tabs cannot write. A write starts only from the open dialog that approved it, and only once: the review while it runs with the same plan and gates, or a confirmed recovery prompt. Any other request is refused with a notice. Every write goes through the session's `Apply`, `Revert` or `Recover`, so preflight, the I1 backups, the journal and the read-back always run.
+
+**T149: quitting.** q and ctrl+c ask while a write runs or edits are pending; a second ctrl+c while that question is open quits at once. y during a write stops it and quits when it ends; the question is replaced when the write ends, and its y applies only to the write that was running.
+
+**T150: unfinished writes.** The recovery prompt opens once per open run and R reopens it; f, b or l, then y, calls `Recover`. Leave is refused while a record is torn, and the write counts come from `safety.RecoveryPlan`. At 80x24 the choices stay at the bottom and the records scroll above them. A write that stops under an open review marks its run as prompted, so the review's own recovery prompt is the only one. Recovery progress counts the recovery plan's records. An extent's description, in recovery, revert and inspection, is its last op's.
+
+**T151: notices.** A notice takes up to two lines, and paths are cut in the middle so the file name shows. The notes arcctl printed before the TUI started are the first notice and are listed on the Info tab.
+
+### Buttons (M4)
+
+**T152: rows.** The catalog's visible buttons in catalog order. `s` shows all 16 slots in slot order; the others are named "Slot N" and tagged "not shown by the vendor app".
+
+**T153: labels.** System functions use catalog label ids and media keys the HID usage label. Shortcuts use `Combo.Format` in stored order, plus a preset name when `MatchPreset` matches in any order for the label OS; on win the maintainer's Cmd+V reads Win+V, as the bytes say. Macro names are quoted. Only Profile Switch, DPI Lock and the Fire Key parameters are labelled in our own words. The label OS lives in the shell and starts at `--os` or this computer's; `o` switches the labels and the preset table on every screen, and the review uses the Buttons tab's labels.
+
+**T154: tier and web-app columns.** A slot's tier is its function's feature plus the slot's own (`mouse.SlotFeatures`); a pending edit shows the lowest tier of its ops in a trial plan. The web-app column is `mouse.WebCompat` over a trial plan: for the device state, one that rewrites the slot's binding and body with the bytes it holds now.
+
+**T155: previews and staging.** A choice is planned with `PlanEdits` together with the other pending edits, as the review will plan them, keeping only that slot's ops and warnings; when another edit is what fails, it is planned alone. Staging refuses what the planner refuses, and choosing what the button already does drops its pending edit. A body that was never read previews as 0xFF on a cloned image, for display only; staging reads it through `Session.Read` when the session is Ready.
+
+**T156: Left Click guard (I9).** The tab counts the visible buttons on Left Click, pending over device. Staging or dropping an edit that would leave none is refused, and the review's `d` uses the same count. The last one is marked "guarded" and does not open the picker.
+
+**T157: picker.** Groups System, Special (the current OS's presets), Media (the 17 codes) and Combo Key (the composer); tab or ←/→ switch groups, `/` filters each group by substring, ignoring case, and the first enter ends filtering while the second chooses. It opens on the current function, or on the composer when the composer can build the current combo. On macOS, presets diy1, diy2 and diy4 and media codes 0x0183, 0x018A, 0x0192, 0x0194 and 0x0223 to 0x0227 are dimmed as not offered by the web app; the list is a table in the TUI until `facts/` carries it.
+
+**T158: composer (D3).** 1 to 8 toggle the modifiers, pressed in toggle order, at most 4 (`MaxShortcutKeys-1`); 0 clears them. The keys are the kind-1 entries of the key table plus ContextMenu, searched by mac name, win name or key code, punctuation included. Right-side modifiers and ContextMenu carry their own feature's tier while it is below Verified. There is no live key capture.
+
+**T159: unmapped slots (amends T35 and T112).** `button.unmapped-slot`, an Untested feature, covers the slots from 6 on that the model shows (12 and 13 on mid 6); slots the model hides keep `button.hidden-slot` (Experimental). `mouse.SlotFeatures` adds the slot's feature in the planner, the Buttons tab and hwtest. H3b promotes `button.unmapped-slot`, so slots 12 and 13 stay Untested until H3b even after H3 promotes `button.system`.
+
+### DPI, Info and Log (M4)
+
+**T160: DPI values.** The legal values are `mouse.DPIs(sensor)` up to the lower of the model's and the sensor's maximum. ←/→ moves to the next legal value. A typed value rounds up to the next legal one, and anything above the maximum becomes the maximum; a notice says which. Typing takes the keyboard, so digits do not switch tabs.
+
+**T161: DPI edits.** Setting a stage back to what the mouse holds on both axes removes its pending edit, and `del` removes the selected stage's edit. An asymmetric stage shows X and Y and is not written unless changed; a change writes X equal to Y (T33). Lowering the count below the current stage also stages the current stage as the last active one, because the planner needs current below count, and gives the old value back once the count leaves room again. The planner's objection to the staged DPI edits shows under the table. Edits are refused in read-only mode and while a write runs, because a successful apply clears the store.
+
+**T162: DPI colours and extra records.** Stage colours are a read-only column behind `x` on office mice (D5) and shown by default on other models. Records past the model's stage count are listed read-only.
+
+**T163: Info.** It never prints the mouse address, only whether it is trusted, and prints the identity key only when the key holds no address. At 100 columns or more, facts and tiers sit left and hidden fields right; below that they stack, under one scroll. The hidden fields' "Writable" column comes from `mouse.Layout`: frozen means never (I9), records mean after H8 (D5), and the rest are unmapped or optional.
+
+**T164: Log.** Built in the TUI from snapshot changes, op events (not chunks) and write ends, stamped with the shell's clock, keeping the last 2000 entries. A view scrolled back stays put when entries arrive, and `G` returns to the newest. A job ends "stopped at x of y" only when the session moved to a state that cuts it short, and "finished" otherwise, because snapshots skip steps; a write's end comes from its result.
+
+### Review and apply (M4)
+
+**T165: the review.** `NewReview(api)` builds it. The pending edits are planned with `PlanEdits`; each op shows its sequence, record, phase, tier and description, the record before and after in words, its old and new bytes and its packet count. The old side is decoded over the loaded image and the new side over the image with the whole plan applied, so a binding shows the body it will run. Web-app warnings, a line that says whether the plan can go ahead, and the checks (session state, journal, other programs at the last scan, preflight, the I1 backups, with a note when a full backup comes first) follow.
+
+**T166: refusals and re-planning.** When the plan fails, each staged edit is planned alone to name the one the planner refuses; with no mouse loaded the review says so, blames no edit and keeps the edits. The review plans again when the pending edits, the image or the model change, compared op by op; a changed plan sends a confirmation in progress back to the review.
+
+**T167: preflight and confirmation.** Enter runs `Session.Preflight` before the confirmation, leaving out the tier and phrase failures the review asks for itself. The phrase is `safety.ConfirmPhrase` ("write untested" or "write experimental", T96), not the word "apply" of the plan; a Verified-only plan and a dry run need `y`, and a dry run skips the tier gates, as the session does.
+
+**T168: running and results.** Progress shows the full-backup bar, then each op's step. `s` stops after the current record ("nothing was written" when no packet went out), esc hides the dialog and `a` shows it again, and `q` hands over to the shell's quit prompt, whose n returns to the review. While a dialog is open the Applying banner shows only its summary line. The result screens: verified (run ID and backup paths), dry run (the exact packets under each op), stopped (the op, the packets acknowledged, the reason, what the record holds now, then the recovery prompt), refused (each failure; enter goes back to the review) and the Overlap note. A partial first backup (`*safety.PartialError` alone in a `PreflightError`) is accepted with `y`, which retries the same plan with `AcceptPartial`.
+
+**T169: undo in the review.** `d` drops the selected edit, keeping the Left Click guard; `u` discards them all after asking; a plan that already matches the mouse drops its edits on enter.
+
+**T170: revert.** `U` and the Log's `v` open the same review for a revert of the journal's last change. It previews with `safety.RevertPlan` on the loaded image and shows each record before and after, the bytes and the web-app warnings. The session's new `PreflightRevert` runs before the phrase; the gates and the phrase come from the tiers of the run it undoes (T97), Untested and Experimental checked separately. When the loaded image lacks a record, the review shows the journal's records and still lets the revert go on, since the session reads the records itself. A different last run blocks it. Undoing a revert is titled "undo last revert" and names the run it puts back.
+
+### TUI tests (M4)
+
+**T171: snapshot tests.** The harness runs commands inline and delivers the ones that block on `flush`. Golden files are ANSI-stripped screens at 80x24 and 120x40, and every line must be exactly as wide as the screen, with as many lines as it is tall; `-update` rewrites them.
+
+**T172: acceptance.** `TestAcceptance` is the M4 exit script: 80x24, keys only, the default tabs and review, a real session on an emulator seeded from the demo backup. Slot 3 becomes Play/Pause, DPI stage 2 becomes 1600, and `U` reverts the last apply; each run must end complete, every op verified in the journal, and the emulated flash must hold what the last run left.

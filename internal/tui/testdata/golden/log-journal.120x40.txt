@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+  1 DPI   2 Info  [3 Log]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Last change  apply 20260926T115000Z-4242, 2026-09-26 11:50 UTC, 1 record, complete
+   16+4      record     1f 1f 00 17 → 2a 2a 00 01  verified  DPI stage 2: 1600
+   v reviews a revert of it
+
+ Events newest last
+ 12:00:00  State: ready
+ 12:00:00  Receiver 260d:1282, interface 1: Emulated receiver
+ 12:00:00  Handshake: 7B/04 ProtoArc EM11 Pro, wireless 1 kHz
+ 12:00:00  Firmware: mouse v1.00, receiver v1.0
+ 12:00:00  Battery 80% raw
+ 12:00:00  Profiles: cmd 14 refused
+ 12:00:00  Journal: last change apply 20260926T115000Z-4242, 2026-09-26 11:50 UTC, 1 record, complete
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   v review revert   ↑/↓ scroll   g/G oldest/newest   U revert last apply   r reload   ? help   q quit

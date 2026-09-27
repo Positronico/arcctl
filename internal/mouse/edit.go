@@ -35,13 +35,14 @@ const (
 	FeatureProfileSwitch         Feature = "button.profile-switch"
 	FeatureDPILock               Feature = "button.dpi-lock"
 	FeatureHiddenSlot            Feature = "button.hidden-slot"
+	FeatureUnmappedSlot          Feature = "button.unmapped-slot"
 )
 
 func Features() []Feature {
 	out := []Feature{FeatureStages, FeatureCurrent, FeatureDPI, FeatureSystem, FeatureMedia, FeatureMediaCustom,
 		FeatureShortcut, FeatureShortcutRightModifier, FeatureShortcutMenu, FeatureShortcutCustom, FeatureMacro,
 		FeatureMacroForeign, FeatureRateSwitch, FeatureDragScroll, FeatureFireKey, FeatureProfileSwitch,
-		FeatureDPILock, FeatureHiddenSlot}
+		FeatureDPILock, FeatureHiddenSlot, FeatureUnmappedSlot}
 	for _, h := range hiddenFields {
 		out = append(out, h.feature)
 	}
@@ -82,7 +83,7 @@ func baseTier(m *catalog.Model, f Feature) catalog.Tier {
 	}
 	switch f {
 	case FeatureStages, FeatureCurrent, FeatureDPI, FeatureSystem, FeatureMedia,
-		FeatureShortcut, FeatureShortcutRightModifier, FeatureShortcutMenu, FeatureMacro:
+		FeatureShortcut, FeatureShortcutRightModifier, FeatureShortcutMenu, FeatureMacro, FeatureUnmappedSlot:
 		return catalog.Untested
 	case FeatureRateSwitch:
 		return shownTier(!m.UI.Office)
@@ -247,10 +248,25 @@ func (p *planner) tier(fs ...Feature) (catalog.Tier, error) {
 }
 
 func (p *planner) slotTier(slot int, fs ...Feature) (catalog.Tier, error) {
-	if !slices.ContainsFunc(p.m.Buttons, func(b catalog.Button) bool { return b.Slot == slot && b.Visible }) {
-		fs = append(fs, FeatureHiddenSlot)
+	return p.tier(append(fs, SlotFeatures(p.m, slot)...)...)
+}
+
+// mappedSlots are the slots H3 covers, 0 to 5, which every model's web app
+// shows; a slot past them needs the physical map of H3b first (§3.1).
+const mappedSlots = 6
+
+// SlotFeatures are the features that writing slot k of m needs besides
+// those of what it writes there: button.hidden-slot for a slot the web app
+// does not show, button.unmapped-slot for one it shows past the six H3
+// covers (12 and 13 on mid 6).
+func SlotFeatures(m *catalog.Model, slot int) []Feature {
+	switch {
+	case !slices.ContainsFunc(m.Buttons, func(b catalog.Button) bool { return b.Slot == slot && b.Visible }):
+		return []Feature{FeatureHiddenSlot}
+	case slot >= mappedSlots:
+		return []Feature{FeatureUnmappedSlot}
 	}
-	return p.tier(fs...)
+	return nil
 }
 
 func (p *planner) record(to *[]plan.Change, f Feature, addr int, b []byte, desc string) error {

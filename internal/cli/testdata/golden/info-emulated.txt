@@ -16,7 +16,7 @@ Writes      journal recovery only; editing arrives with the TUI
 Feature tiers
   untested     dpi.stages dpi.current dpi.value button.system button.media
                button.shortcut button.shortcut.right-modifier
-               button.shortcut.menu button.macro
+               button.shortcut.menu button.macro button.unmapped-slot
   experimental button.media.custom button.shortcut.custom button.macro.foreign
                button.rate-switch button.drag-scroll button.fire-key
                button.profile-switch button.dpi-lock button.hidden-slot

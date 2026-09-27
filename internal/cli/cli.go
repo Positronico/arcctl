@@ -49,20 +49,28 @@ type Env struct {
 	Executor safety.Options
 	// Interactive shows progress on Stderr.
 	Interactive bool
+	// Terminal means stdin and stdout are a terminal the TUI can take.
+	Terminal bool
+	// TUI runs the terminal UI, which arcctl starts with no command; nil
+	// in builds and tests without one.
+	TUI func(ctx context.Context, t TUI) error
 }
 
 // Main runs arcctl with the process's arguments and returns its exit code.
 // The first interrupt cancels the command, which lets a write stop after its
 // current record; a second one ends the process at once, as a crash would,
 // and the journal settles the write later.
-func Main(version string) int {
+func Main(version string) int { return MainEnv(DefaultEnv(version)) }
+
+// MainEnv is Main in env.
+func MainEnv(env Env) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go func() {
 		<-ctx.Done()
 		stop()
 	}()
-	return Run(ctx, os.Args[1:], DefaultEnv(version))
+	return Run(ctx, os.Args[1:], env)
 }
 
 // DefaultEnv is the environment of a real run.
@@ -76,6 +84,7 @@ func DefaultEnv(version string) Env {
 		Host:        systemHost{},
 		HID:         hidDevices,
 		Interactive: isTerminal(os.Stderr),
+		Terminal:    isTerminal(os.Stdin) && isTerminal(os.Stdout),
 	}
 }
 
@@ -153,9 +162,7 @@ func (r *runner) main(args []string) error {
 		return err
 	}
 	if len(rest) == 0 {
-		fmt.Fprintln(r.out, "arcctl: the TUI arrives in M4. Commands available now:")
-		r.commandList(r.out)
-		return nil
+		return r.runTUI()
 	}
 	c, ok := lookup(rest[0])
 	if !ok {

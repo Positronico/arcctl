@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]
+────────────────────────────────────────────────────────────────────────────────
+ 6 buttons  labels: mac
+  Button      Slot Function                        Tier         State    Web app
+  Left Click  0    Left Click                      untested     guarded
+  Right Click 1    Right Click                     untested     valid
+  Wheel Click 2    Cmd+V (Paste)                   untested     valid
+  Forward     4    Cmd+Tab                         untested     valid
+› Backward    3    Play/Pause                      untested     pending
+  DPI Cycle   5    Cmd+C (Copy)                    untested     valid
+
+ Backward · slot 3
+ now      Ctrl+Tab
+ pending  Play/Pause (d drops it)
+ tier     untested: the review asks you to type a confirmation
+ web app  shows and edits this
+ bytes    05 00 00 50 · body @352: 04 80 01 00 81 2b 00 41 2b 00 40 01 00 77
+
+
+
+
+ Pending: Backward (slot 3) → Play/Pause. a reviews and applies.
+ 1 pending   a review & apply   u discard   enter change   ? help   q quit

@@ -1,0 +1,40 @@
+ arcctl  device 7B/42  wireless 1 kHz  rx v1.0  UNKNOWN DEVICE  [EDIT]
+ [1 Info]  2 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ UNKNOWN  Unknown device 0x7B/0x42: read-only.
+ Device                                                Hidden fields (read-only)
+ Model        unknown device 7B/42: read-only           decoded once a mouse configuration is loaded
+ Identity     260d-1282-7b42 (the receiver's USB
+              IDs and the model)
+ Address      not read
+ Receiver     260d:1282, interface 1, Emulated
+              receiver
+ Path         emu:1/IOUSBHostInterface@1
+ Connection   wireless 1 kHz, reports up to 1000 Hz
+ Mouse        asleep or out of range
+ Firmware     mouse ?, receiver v1.0
+ Battery      not read yet
+ Profiles     cmd 14 not asked yet
+ Long range   cmd 23 not asked yet
+ Loaded       nothing yet
+ Clients      no other program seen on the receiver
+ Traffic      0 transactions, 0 unanswered tries, 0
+              NAKs, 0 foreign, 0 duplicate and 0
+              late replies
+ Writes       none: arcctl only reads this device
+
+ Feature tiers on firmware ?
+   none until the model is known
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   ↑/↓ scroll   pgup/pgdn page   g/G top/end   ? help   q quit

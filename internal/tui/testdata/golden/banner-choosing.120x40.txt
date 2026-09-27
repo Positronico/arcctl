@@ -1,0 +1,40 @@
+ arcctl  CHOOSE  [EDIT]
+ [1 Info]  2 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ CHOOSE  Several ProtoArc devices answer. Pick one with the arrows and enter.
+     › ProtoArc EM11 Pro 7B/04  wireless 1 kHz  260d:1282  emu:1/IOUSBHostInterface@1
+       mouse offline                            260d:1283  emu:2/IOUSBHostInterface@0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   ↑/k up   ↓/j down   enter use this device   q quit

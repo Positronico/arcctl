@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ The full backup is partial
+
+ No write to this mouse is on record, so arcctl read its whole configuration and saved it before the first write.
+
+ The backup at backups/em11-pro-260d-1282-7b04/20260926T120000Z-auto-first-write.json lacks 2 ranges that could not be
+ read: 9504+10, 9514+10. A restore from it cannot bring those bytes back.
+
+ Nothing was written yet.
+
+ y writes anyway with this backup; n or esc stops here.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Apply refused: Write blocked: the full backup is partial:
+   backups/em11-pro-260d-1282-7b04/20260926T120000Z-auto-first-write.json lacks 9504+10, 9514+10; accept it as partial …
+ 1 pending   y write anyway   n/esc stop

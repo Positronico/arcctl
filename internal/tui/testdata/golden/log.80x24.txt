@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+  1 DPI   2 Info  [3 Log]
+────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ This session 12:00:00 Apply 20260926T120000Z-4242 done: 1 of 1 records
+              verified
+ Backup       backups/em11-pro-260d-…04/20260926T120000Z-auto-before-write.json
+ Last change  apply 20260926T115000Z-4242, 2026-09-26 11:50 UTC, 1 record,
+              complete
+   16+4      record     1f 1f 00 17 → 2a 2a 00 01  verified  DPI stage 2: 1600
+   v reviews a revert of it
+
+ Events newest last
+ 12:00:00  1 push (1 in all)
+ 12:00:00  Other programs on the receiver: Google Chrome (pid 4242)
+ 12:00:00  State: ready
+ 12:00:00  No other program on the receiver
+ 12:00:00    op 1 16+4 DPI stage 2: 1600: start
+ 12:00:00    op 1 16+4 DPI stage 2: 1600: written
+ 12:00:00    op 1 16+4 DPI stage 2: 1600: verified
+ 12:00:00  Apply 20260926T120000Z-4242 done: 1 of 1 records verified
+ 12:00:00  Journal: last change apply 20260926T115000Z-4242, 2026-09-26 11:50 U…
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   v review revert   ↑/↓ scroll   g/G oldest/newest   ? help   q quit

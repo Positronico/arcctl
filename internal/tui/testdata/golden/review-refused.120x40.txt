@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Refused: nothing was sent to the mouse.
+ ✗ Another program has the receiver open: Google Chrome Helper (pid 4242); quit it or pass --allow-foreign-client.
+ ✗ The screen is locked: unlock the Mac, then retry.
+
+ enter goes back to the review, which plans again against what the mouse holds now.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Apply refused: Write blocked: another program has the receiver open: Google Chrome Helper (pid 4242); quit it or pass
+   --allow-foreign-client; the screen is locked: unlock the Mac, then retry
+ 2 pending   enter back to the review   esc close

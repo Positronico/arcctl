@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/06  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ UNTESTED  Writes need --allow-untested until hardware tests verify them.
+ 8 buttons  labels: mac                                                    Scroll Left · slot 12
+  Button       Slot Function                Tier         State    Web app  now      Do nothing
+  Left Click   0    Left Click              untested     guarded           tier     untested: writes need
+  Right Click  1    Right Click             untested     valid                      --allow-untested
+  Wheel Click  2    shortcut (not read)     untested     unread            web app  the web app may not read slot 12:
+  Forward      4    shortcut (not read)     untested     unread                     it scans only slots 0-7 on 7B06
+  Backward     3    shortcut (not read)     untested     unread            bytes    00 00 00 55
+  DPI Cycle    5    shortcut (not read)     untested     unread
+› Scroll Left  12   Do nothing              untested     valid    warns
+  Scroll Right 13   Do nothing              untested     valid    warns
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter change   s all 16 slots   o win labels   r reload   ? help   q quit

@@ -215,6 +215,40 @@ func TestPreflightWritesNothing(t *testing.T) {
 	}
 }
 
+// PreflightRevert runs the checks of a revert of the last run, its tier
+// gates included, and writes nothing.
+func TestPreflightRevertWritesNothing(t *testing.T) {
+	r := newRig(t)
+	s, sn := r.ready(nil)
+	p := planOn(t, sn, sn.Image, mouse.SetDPI{Stage: 0, DPI: 900})
+	if err := s.PreflightRevert(ctxT(t), allow(p)); !errors.Is(err, safety.ErrNothing) {
+		t.Fatalf("with no run: err = %v, want nothing to revert", err)
+	}
+	out, err := s.Apply(ctxT(t), p, allow(p), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	await(t, s, "the reload", func(sn *session.Snapshot) bool {
+		return idle(sn) && sn.Journal != nil && sn.Journal.Last != nil && sn.Journal.Last.ID == out.Run
+	})
+	n := len(r.cmd7())
+	if err := s.PreflightRevert(ctxT(t), allow(p)); err != nil {
+		t.Fatal(err)
+	}
+	g := allow(p)
+	g.AllowUntested = false
+	if err := s.PreflightRevert(ctxT(t), g); !errors.Is(err, safety.ErrUntested) {
+		t.Fatalf("err = %v, want the untested gate", err)
+	}
+	r.dev.AddClient(emu.Client{PID: 4242, Process: emu.ChromeProcess})
+	if err := s.PreflightRevert(ctxT(t), allow(p)); !errors.Is(err, safety.ErrForeignClient) {
+		t.Fatalf("err = %v, want the foreign client", err)
+	}
+	if len(r.cmd7()) != n || len(journalOf(t, r, sn).Runs) != 1 {
+		t.Fatal("the preflight wrote")
+	}
+}
+
 // Trusting the address changes the identity key and the journal folder. A
 // torn run left under the old key still blocks writes (I6), and shows as
 // unfinished.

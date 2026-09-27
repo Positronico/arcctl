@@ -112,6 +112,10 @@
       "tier": "experimental"
     },
     {
+      "feature": "button.unmapped-slot",
+      "tier": "untested"
+    },
+    {
       "feature": "setting.key-operation",
       "tier": "read-only"
     },

@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  CONFLICT  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ CONFLICT  Another configurator is talking to the receiver. Close the ProtoArc HUB tab. Writes are disabled.
+   c clears the conflict once the receiver has been quiet for 10 s.
+ Clear the conflict
+
+ Did you close every other configurator, such as a ProtoArc HUB tab? arcctl clears the conflict only after the receiver
+   has been quiet for a while.
+
+ y goes on, n or esc cancels.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   y go on   n/esc cancel

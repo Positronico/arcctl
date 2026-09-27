@@ -1,0 +1,40 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  wireless 1 kHz  mouse v1.00  rx v1.0  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+ [1 Buttons]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ DPI Cycle · slot 5  now Cmd+C (Copy)                                                                       labels: mac
+  System   Special   Media  [Combo Key]
+  Modifiers, pressed in the order toggled (up to 4):
+  [x] 1 Ctrl    [x] 2 Shift   [ ] 3 Option  [ ] 4 Cmd
+  [ ] 5 RCtrl   [ ] 6 RShift  [ ] 7 ROption [ ] 8 RCmd     right side: untested
+  Key   filter: f5  (esc clears)
+   › F5               F5
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Combo  Shift+Ctrl+F5
+  tier untested: the review asks you to type a confirmation
+  web app: shows and edits this
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 0 pending   1-8 modifier   / filter keys   tab group   ↑/↓ key   0 no modifiers   o labels   enter stage   esc back

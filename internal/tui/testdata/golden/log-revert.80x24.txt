@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  ONLINE  [EDIT]  [UNTESTED]
+  1 DPI   2 Info  [3 Log]
+────────────────────────────────────────────────────────────────────────────────
+ Revert 1 record on ProtoArc EM11 Pro 7B/04 (260d-1282-7b04)?
+
+   ! 1 record is untested on firmware v1.00; --allow-untested is set.
+   · A backup is saved first; every record is journaled, then read back and
+     compared.
+   ✓ The preflight passed just now; the write runs it again.
+
+ Type "write untested" and press enter to write; esc goes back.
+ > write unt_   does not match
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 0 pending   enter confirm   esc back

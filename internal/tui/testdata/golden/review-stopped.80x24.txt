@@ -1,0 +1,24 @@
+ arcctl  ProtoArc EM11 Pro 7B/04  battery 80%  RECOVERY  [EDIT]  [UNTESTED]
+ [1 Buttons]  2 DPI   3 Info   4 Log
+────────────────────────────────────────────────────────────────────────────────
+ RECOVERY  An earlier write did not finish: apply 20260926T120000Z-4242. Writes
+   stay blocked until it is settled; R opens the prompt.
+ Stopped: 1 of 2 records verified.
+ Record 2 of 2, DPI stage 3: 2000 (20+4, record phase), stopped with 0 of 1
+ packet acknowledged: rejected by the device. It holds neither its old nor its
+ new bytes: it is torn.
+
+ Unfinished write
+
+ apply 20260926T120000Z-4242, started 2026-09-26 11:59 UTC, 2 records. It
+   stopped: stopped at op 2.
+
+ Record     Now   What
+ 16+4       new   DPI stage 2: 1600
+ 20+4       torn  DPI stage 3: 2000
+
+ old: as before the write; new: as it meant to leave; mid: a step in between;
+ ↓ 10 lines below: pgdn
+ Apply stopped: 1 of 2 records verified. Stopped at the record at 20+4 after 0
+   chunks, extent torn: rejected by the device
+ 2 pending   f finish   b roll back   l leave   esc later   pgdn/pgup scroll
