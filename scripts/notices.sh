@@ -42,7 +42,10 @@ trap 'rm -f "$tmp"' EXIT
 	echo "library it bundles; their licenses come with their source."
 	section "The Go standard library and runtime (https://go.dev)" "$golicense"
 	section "rafaelmartins.com/p/usbhid, vendored in internal/third_party/usbhid" internal/third_party/usbhid/LICENSE
-	CGO_ENABLED=0 "$go" list -deps -f '{{with .Module}}{{if not .Main}}{{.Path}} {{.Version}}	{{.Dir}}{{end}}{{end}}' ./cmd/arcctl |
+	for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64; do
+		CGO_ENABLED=0 GOOS="${target%/*}" GOARCH="${target#*/}" "$go" list -deps \
+			-f '{{with .Module}}{{if not .Main}}{{.Path}} {{.Version}}	{{.Dir}}{{end}}{{end}}' ./cmd/arcctl
+	done |
 		sort -u | while IFS='	' read -r mod dir; do
 			lic=""
 			for f in "$dir"/LICENSE "$dir"/LICENSE.* "$dir"/COPYING; do
