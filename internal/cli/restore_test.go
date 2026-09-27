@@ -28,7 +28,7 @@ func (h *harness) runIn(stdin string, args ...string) (stdout, stderr string, co
 	defer cancel()
 	env := h.env(&out, &errb)
 	env.Stdin = strings.NewReader(stdin)
-	code = cli.Run(ctx, args, env)
+	code = runCLI(ctx, args, env)
 	return h.clean(out.String()), h.clean(errb.String()), code
 }
 

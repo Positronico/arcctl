@@ -88,6 +88,7 @@ type Session struct {
 	hs        *Handshake
 	model     *catalog.Model
 	versions  Versions
+	rxAgain   bool // cmd 29 went unanswered while the mouse slept
 	battery   *Battery
 	profile   Probe
 	longRange Probe

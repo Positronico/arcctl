@@ -45,6 +45,15 @@ type stageDef struct {
 	// selfCheck stages check the device themselves at the end, instead of
 	// comparing every touched extent with the fresh backup.
 	selfCheck bool
+	// steps are the steps a run may pick with Config.Steps, in the order
+	// they run; a stage without them runs whole.
+	steps []stepInfo
+}
+
+// stepInfo is a step a run can pick: its name, its title in the log, and
+// the step it needs earlier in the same run.
+type stepInfo struct {
+	name, title, needs string
 }
 
 type question struct {
@@ -52,7 +61,7 @@ type question struct {
 }
 
 var stages = []*stageDef{
-	{name: "H0", title: "read-only session, latency, coexistence", run: runH0},
+	{name: "H0", title: "read-only session, latency, coexistence", run: runH0, steps: h0Infos()},
 	{name: "H1", title: "settings pairs, echo and NAK behaviour", promotes: []mouse.Feature{mouse.FeatureCurrent}, build: buildH1},
 	{name: "H2", title: "4-byte records (DPI)", promotes: []mouse.Feature{mouse.FeatureDPI, mouse.FeatureStages}, build: buildH2},
 	{name: "H3", title: "button system functions", promotes: []mouse.Feature{mouse.FeatureSystem}, build: buildH3},
@@ -500,8 +509,8 @@ func buildH2(b *builder) error {
 }
 
 // H3: an identity write of slot 15, slot 15 to Left Click and back (no
-// control uses it), and the Backward button to Scroll Up and back through
-// the revert.
+// control uses it), the Backward button to Scroll Up and back through the
+// revert, then the push check on that button bound to DPI Cycle.
 func buildH3(b *builder) error {
 	e15, _ := mouse.KeyFnExtent(15)
 	if err := b.identity("identity write of slot 15 at "+e15.String(), e15, 15, mouse.FeatureSystem); err != nil {
@@ -542,7 +551,7 @@ func buildH3(b *builder) error {
 		return err
 	}
 	b.ask("restored", fmt.Sprintf("Press the %s button again. Does it do what it did before the stage (%s)?", label, action), true)
-	return nil
+	return b.pushCase()
 }
 
 // H3b: slots 6 to 11, and the slots from 12 on the model shows (12 and 13

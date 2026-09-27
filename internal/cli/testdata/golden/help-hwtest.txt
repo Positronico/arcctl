@@ -1,5 +1,5 @@
-Usage: arcctl hwtest --stage name [--dry-run] [--repo dir] [--trace-for d]
-                     [--debug-abort-after-chunk n]
+Usage: arcctl hwtest --stage name [--steps names] [--dry-run] [--repo dir]
+                     [--trace-for d] [--debug-abort-after-chunk n]
 
 Run a hardware test stage, with you at the mouse. A write stage takes a fresh
 full backup, prints every step with its exact packets, and writes only after you
@@ -16,12 +16,21 @@ Flags:
       with --emulate records to a temporary folder)
   -stage stage
       the stage to run: H0, H1, H2, H3, H3b, H4, H5, H6, H7, H9
+  -steps names
+      run only these steps of H0, comma-separated (names as below)
   -trace-for duration
       how long H0 listens while the web app is connected (default 20s)
 
 With --dry-run, a write stage (every stage but H0) prints only that preview and
 exits: it takes no backup, asks nothing, writes nothing and records nothing, and
 needs no tier flag. H0 writes nothing and has no dry run.
+
+With --steps, H0 runs only the steps named, in the stage's order: doctor, trace,
+info, latency, loads, backups, dump, interfaces, cycles, sleep-wake, unplug,
+coexist, cable, typed, revoke (dump needs backups in the same run). The run gets
+its own log entry, "H0 (steps: ...)", and its own transcript. The log counts H0
+as passed once each of its steps has passed in some recorded run on the same
+mouse firmware.
 
 A stage that ended after H5's torn-write drill or after H7's factory reset
 leaves a checkpoint in the logs folder, and its next run goes on from there: the

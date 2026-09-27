@@ -23,7 +23,8 @@ func (d *Device) Release() {
 	d.releaseHangs()
 }
 
-// Sleep puts the mouse to sleep: the receiver still answers, the mouse does not.
+// Sleep puts the mouse to sleep: the receiver still answers cmd 3, the mouse
+// nothing.
 func (d *Device) Sleep() {
 	d.bus.mu.Lock()
 	defer d.bus.mu.Unlock()
@@ -60,6 +61,7 @@ func (d *Device) Noise(n int) {
 }
 
 func (d *Device) noise(n int) {
+	d.keepAwake()
 	for range n {
 		for _, c := range d.clientsOn(d.answering) {
 			c.deliver(noiseID, []byte{0, 1, 0, 0xff, 0xff, 0, 0})
@@ -85,7 +87,8 @@ func (d *Device) Deliver(p wire.Packet) {
 }
 
 // PressDPI presses the mouse's DPI button: the current stage moves to the next
-// one in flash, and the mouse pushes StatusChanged 0x01.
+// one in flash, and the mouse pushes StatusChanged 0x01 unless
+// Behavior.SilentDPI.
 func (d *Device) PressDPI() error {
 	d.bus.mu.Lock()
 	defer d.bus.mu.Unlock()
@@ -110,7 +113,10 @@ func (d *Device) PressDPI() error {
 		m.awake = true
 		d.pushOnline()
 	}
-	d.route(d.answering, statusChanged(0x01, 0))
+	d.keepAwake()
+	if !d.behavior.SilentDPI {
+		d.route(d.answering, statusChanged(0x01, 0))
+	}
 	return nil
 }
 
@@ -132,6 +138,7 @@ func (d *Device) SwitchProfile(p byte) error {
 		return errors.New("emu: the mouse has no profiles")
 	}
 	*m.profile = p
+	d.keepAwake()
 	d.route(d.answering, statusChanged(0x04, 0))
 	return nil
 }
@@ -184,6 +191,7 @@ func (d *Device) Pair(m *Mouse) error {
 	d.bus.mu.Lock()
 	defer d.bus.mu.Unlock()
 	d.mouse = ms
+	d.keepAwake()
 	return nil
 }
 

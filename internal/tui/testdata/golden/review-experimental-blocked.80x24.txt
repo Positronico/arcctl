@@ -14,9 +14,9 @@
      #  Record   Phase      Tier         What
      1  112+4    neutralise untested     disable binding 4 while its body is
                                          rewritten
-        Win+Shift+Tab → Do nothing   05 00 00 50 → 00 00 00 55  1 packet
+        Cmd+Shift+Tab → Do nothing   05 00 00 50 → 00 00 00 55  1 packet
      2  384+14   body       untested     shortcut 4
-        Win+Shift+Tab → RCtrl+C
+        Cmd+Shift+Tab → RCtrl+C
         06 80 08 00 80 02 00 81 … (14 bytes) →
           04 80 10 00 81 06 00 41 … (14 bytes)  2 packets
  ↓ 26 lines below: pgdn

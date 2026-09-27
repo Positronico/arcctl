@@ -80,6 +80,9 @@ func TestGuardWiring(t *testing.T) {
 				}
 			}
 			for _, name := range writeOverrides(pkg, transport) {
+				if path == safetyPath+"_test" {
+					continue
+				}
 				t.Errorf("%s.%s is a hidio.Transport with its own Write, which would bypass the guard", path, name)
 			}
 		}

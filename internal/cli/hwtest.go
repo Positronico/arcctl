@@ -24,13 +24,13 @@ import (
 // This init runs after the one in cli.go, which builds the table: a package
 // initializes its files in name order.
 func init() {
-	commands = append(commands, command{"hwtest", "--stage name [--dry-run] [--repo dir] [--trace-for d] [--debug-abort-after-chunk n]",
+	commands = append(commands, command{"hwtest", "--stage name [--steps names] [--dry-run] [--repo dir] [--trace-for d] [--debug-abort-after-chunk n]",
 		"run a hardware test stage, with you at the mouse", runHWTest})
 }
 
 func (r *runner) hwUsage(fs *flag.FlagSet) {
-	fmt.Fprint(r.out, "Usage: arcctl hwtest --stage name [--dry-run] [--repo dir] [--trace-for d]\n")
-	fmt.Fprint(r.out, "                     [--debug-abort-after-chunk n]\n\n")
+	fmt.Fprint(r.out, "Usage: arcctl hwtest --stage name [--steps names] [--dry-run] [--repo dir]\n")
+	fmt.Fprint(r.out, "                     [--trace-for d] [--debug-abort-after-chunk n]\n\n")
 	fmt.Fprintln(r.out, fill("Run a hardware test stage, with you at the mouse. A write stage takes a fresh full backup, "+
 		"prints every step with its exact packets, and writes only after you confirm.", "", 80))
 	fmt.Fprintln(r.out, "\nFlags:")
@@ -42,6 +42,9 @@ func (r *runner) hwUsage(fs *flag.FlagSet) {
 	fmt.Fprintln(r.out, "\n"+fill("With --dry-run, a write stage (every stage but H0) prints only that preview and exits: "+
 		"it takes no backup, asks nothing, writes nothing and records nothing, and needs no tier flag. H0 writes nothing "+
 		"and has no dry run.", "", 80))
+	fmt.Fprintln(r.out, "\n"+fill("With --steps, H0 runs only the steps named, in the stage's order: "+strings.Join(hwtest.Steps("H0"), ", ")+
+		" (dump needs backups in the same run). The run gets its own log entry, \"H0 (steps: ...)\", and its own transcript. "+
+		"The log counts H0 as passed once each of its steps has passed in some recorded run on the same mouse firmware.", "", 80))
 	fmt.Fprintln(r.out, "\n"+fill("A stage that ended after H5's torn-write drill or after H7's factory reset leaves a "+
 		"checkpoint in the logs folder, and its next run goes on from there: the reset is never sent again.", "", 80))
 	fmt.Fprintln(r.out, "\n"+fill("Global flags: see 'arcctl help'. The write flags --allow-untested, --experimental "+
@@ -52,6 +55,7 @@ func runHWTest(r *runner, args []string) error {
 	fs := r.flagSet("hwtest", synopsis("hwtest"))
 	fs.Usage = func() { r.hwUsage(fs) }
 	stage := fs.String("stage", "", "the `stage` to run: "+strings.Join(hwtest.Stages(), ", "))
+	steps := fs.String("steps", "", "run only these steps of H0, comma-separated (`names` as below)")
 	repo := fs.String("repo", "", "the arcctl checkout that gets the transcripts, the log entry and verified.json (default: the one around the current folder; a rehearsal with --emulate records to a temporary folder)")
 	traceFor := fs.Duration("trace-for", hwtest.DefaultTraceFor, "how long H0 listens while the web app is connected")
 	abort := fs.Int("debug-abort-after-chunk", 0, "end the process right after chunk `n` of a record is acknowledged, as a crash would; "+
@@ -68,6 +72,15 @@ func runHWTest(r *runner, args []string) error {
 		return usageError("hwtest: the stage records its own transcript; drop --record")
 	case *abort < 0:
 		return usageError("hwtest: --debug-abort-after-chunk must be positive")
+	}
+	var picked []string
+	for _, s := range strings.Split(*steps, ",") {
+		if s = strings.TrimSpace(s); s != "" {
+			picked = append(picked, s)
+		}
+	}
+	if err := hwtest.CheckSteps(*stage, picked); err != nil {
+		return usageError("%v", err)
 	}
 	paths, err := r.env.Paths()
 	if err != nil {
@@ -141,6 +154,7 @@ func runHWTest(r *runner, args []string) error {
 		Source:          source,
 		Tool:            "arcctl " + r.env.Version,
 		OS:              r.keyOS(),
+		Steps:           picked,
 		Gates:           r.g.gates(),
 		Wait:            wait,
 		TraceFor:        *traceFor,
@@ -186,7 +200,14 @@ func (r *runner) hwSummary(res *hwtest.Result, root string) {
 	if res.Passed {
 		verdict = "passed"
 	}
-	fmt.Fprintf(r.out, "\nStage %s %s.\n", res.Stage, verdict)
+	stage := res.Stage
+	if len(res.Selected) > 0 {
+		stage += " (steps: " + strings.Join(res.Selected, ", ") + ")"
+	}
+	fmt.Fprintf(r.out, "\nStage %s %s.\n", stage, verdict)
+	if res.Status != "" {
+		fmt.Fprintf(r.out, "  Stage status: %s\n", res.Status)
+	}
 	fmt.Fprintf(r.out, "  Log: %s\n", filepath.Join(root, "docs", "hardware-tests.md"))
 	for _, t := range res.Transcripts {
 		fmt.Fprintf(r.out, "  Transcript: %s\n", filepath.Join(root, filepath.FromSlash(t)))

@@ -313,15 +313,16 @@ func TestDebugAbortLeavesTheJournalToSettle(t *testing.T) {
 }
 
 // H0 end to end: the physical steps are acted out on the emulator, and the
-// stage never writes.
+// stage never writes. The Wheel Click button runs DPI Cycle, so the trace
+// has a DPI button to press.
 func TestH0RunsReadOnly(t *testing.T) {
-	r := newRig(t, nil)
+	r := newRig(t, dpiOnWheel(t))
 	r.cfg.TraceFor = 300 * time.Millisecond
 	var chrome *emu.Competitor
 	var cable *emu.Device
 	s := r.script
 	s.yes("h0.run").set("h0.revoke", false).set("h0.typed", confirmWord).
-		set("h0.dump", "the DPI button pressed during the trace")
+		set("h0.dump", "the Wheel Click on DPI Cycle, pressed during the trace")
 	s.on("h0.trace-dpi", func() { must(t, r.dev.PressDPI()) }).
 		on("h0.trace-sleep", r.dev.Sleep).
 		on("h0.trace-wake", r.dev.Wake).
@@ -346,16 +347,17 @@ func TestH0RunsReadOnly(t *testing.T) {
 	}
 	joined := strings.Join(res.Findings, "\n")
 	for _, f := range []string{
-		"trace: DPI button -> cmd 10 flags 01 00",
+		"trace: DPI button (Wheel Click, DPI Cycle) -> cmd 10 flags 01 00",
 		"info: mid 4",
 		"latency: 200 reads of 96+10",
 		"full backups took",
 		"host traffic kept the mouse awake: yes",
-		"0..256 differs from flash-dump.bin at 4+2: the DPI button pressed during the trace",
+		"0..256 differs from flash-dump.bin at 4+2, 104+",
+		"the Wheel Click on DPI Cycle, pressed during the trace",
 		"interfaces answering cmd 3: 1",
 		"50 open/close cycles: 0 without an answer",
 		"cmd-3 address across sleep and wake: unchanged",
-		"unplug while idle: seen yes; address across a replug unchanged",
+		"unplug while idle: seen yes; address across a replug unchanged; the mouse awake after the replug; Ready again after",
 		"replies are broadcast",
 		"the scan names Google Chrome Helper; a session ends up conflict",
 		"with the cable in, 2 interfaces answer cmd 3",
@@ -376,8 +378,19 @@ func TestH0RunsReadOnly(t *testing.T) {
 	if len(res.Backups) != 2 {
 		t.Errorf("backups %v", res.Backups)
 	}
-	if !strings.Contains(r.read(logPath), "### 2026-09-27 H0 (read-only session, latency, coexistence): passed") {
-		t.Error("H0 is not logged")
+	log := r.read(logPath)
+	for _, want := range []string{"### 2026-09-27 H0 (read-only session, latency, coexistence): passed",
+		"| H0 | read-only session, latency, coexistence | passed 2026-09-27 (v0.42) |",
+		"  2. trace: DPI button, sleep and wake, screen lock (`trace`): ok", "  1. doctor: ok", "  11. unplug while idle, address across a replug (`unplug`): ok"} {
+		if !strings.Contains(log, want) {
+			t.Errorf("the log lacks %q", want)
+		}
+	}
+	if !strings.Contains(s.text("h0.trace-dpi"), "Press the Wheel Click button (DPI Cycle) once") {
+		t.Errorf("the DPI press says %q", s.text("h0.trace-dpi"))
+	}
+	if strings.Contains(s.saidText(), hint) {
+		t.Error("the hint came with the mouse awake after the replug")
 	}
 }
 

@@ -122,8 +122,26 @@ func (h *harness) runCtx(ctx context.Context, args ...string) (stdout, stderr st
 	var out, errb bytes.Buffer
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	code = cli.Run(ctx, args, h.env(&out, &errb))
+	code = runCLI(ctx, args, h.env(&out, &errb))
 	return h.clean(out.String()), h.clean(errb.String()), code
+}
+
+// runCLI is cli.Run with the key names of a Mac unless args choose an OS
+// with --os, so no output depends on the system the tests run on.
+func runCLI(ctx context.Context, args []string, env cli.Env) int {
+	return cli.Run(ctx, pinOS(args), env)
+}
+
+func pinOS(args []string) []string {
+	for _, a := range args {
+		if a == "--" {
+			break
+		}
+		if name, _, _ := strings.Cut(strings.TrimLeft(a, "-"), "="); name == "os" && strings.HasPrefix(a, "-") {
+			return args
+		}
+	}
+	return append([]string{"--os", "mac"}, args...)
 }
 
 func (h *harness) clean(s string) string {

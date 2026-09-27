@@ -4,6 +4,8 @@ import (
 	"context"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -229,6 +231,51 @@ func TestBackupTabFullBackup(t *testing.T) {
 	if !strings.Contains(h.app.notice.text, "Backup saved") {
 		t.Errorf("notice %q", h.app.notice.text)
 	}
+}
+
+// heldLister reads the folder at once on its first List but answers only
+// once release is called, as a slow read does.
+type heldLister struct {
+	deviceStore
+	read    chan struct{}
+	release func()
+	held    chan struct{}
+	calls   *atomic.Int32
+}
+
+func newHeldLister(t *testing.T, s deviceStore) heldLister {
+	held := make(chan struct{})
+	l := heldLister{deviceStore: s, read: make(chan struct{}), held: held, calls: new(atomic.Int32),
+		release: sync.OnceFunc(func() { close(held) })}
+	t.Cleanup(l.release)
+	return l
+}
+
+func (l heldLister) List(id plan.Identity) ([]backup.Listing, error) {
+	list, err := l.deviceStore.List(id)
+	if l.calls.Add(1) == 1 {
+		close(l.read)
+		<-l.held
+	}
+	return list, err
+}
+
+// A full backup saved while the list is still being read, from before the
+// save, shows up once that read is done.
+func TestBackupTabFullBackupDuringListing(t *testing.T) {
+	sn := backupSnap(t)
+	store, _ := seedBackups(t, sn)
+	l := newHeldLister(t, deviceStore{store, sn})
+	h := backupHarness(t, sn, l)
+	select {
+	case <-l.read:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the tab never read the folder")
+	}
+	h.keys("f")
+	h.flush(func() bool { return strings.Contains(h.app.notice.text, "Backup saved") })
+	l.release()
+	h.flush(func() bool { return len(backupTab(h).list) == 4 })
 }
 
 // TestBackupRestoreEmulated takes a full backup from the Backup tab of an

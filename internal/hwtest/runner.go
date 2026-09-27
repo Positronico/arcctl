@@ -48,6 +48,7 @@ var (
 	// ErrUnknownFeature is a stage whose feature this build cannot record:
 	// running it would spend its drill for nothing.
 	ErrUnknownFeature = errors.New("hwtest: this build cannot record the feature the stage verifies")
+	ErrSteps          = errors.New("hwtest: the steps cannot be picked")
 )
 
 // Config is everything a stage needs from outside.
@@ -71,6 +72,9 @@ type Config struct {
 	Source string
 	Tool   string
 	OS     keys.OS
+	// Steps are the names of the steps to run, for a stage that names its
+	// steps (H0); empty runs the whole stage.
+	Steps []string
 	// Gates are the flags the user passed. With DryRun a write stage only
 	// shows its preview; Confirm is the runner's own.
 	Gates    safety.Gates
@@ -131,8 +135,11 @@ func (c Config) withDefaults() Config {
 // is false, and only the local transcript exists. A dry run records nothing
 // at all.
 type Result struct {
-	Stage       string
-	Title       string
+	Stage string
+	Title string
+	// Selected are the steps the run picked, in the stage's order; nil for
+	// a whole run.
+	Selected    []string
 	Rehearsal   bool
 	DryRun      bool
 	Recorded    bool
@@ -146,7 +153,10 @@ type Result struct {
 	Promoted    []catalog.Verification
 	Transcripts []string // relative to the repo
 	Backups     []string // local paths; never logged
-	Err         error
+	// Status is the stage's cell in the log's table of stages, as the run
+	// left it.
+	Status string
+	Err    error
 }
 
 type Device struct {
@@ -160,6 +170,7 @@ type Device struct {
 }
 
 type StepResult struct {
+	Name   string // for a step a run can pick
 	Title  string
 	OK     bool
 	Detail []string
@@ -204,18 +215,95 @@ func Stages() []string {
 	return out
 }
 
+// Steps lists the steps of stage a run can pick, in the order they run; a
+// stage that runs whole has none.
+func Steps(stage string) []string {
+	def, err := stageOf(stage)
+	if err != nil {
+		return nil
+	}
+	out := make([]string, len(def.steps))
+	for i, s := range def.steps {
+		out[i] = s.name
+	}
+	return out
+}
+
+// CheckSteps reports whether a run of stage can pick names.
+func CheckSteps(stage string, names []string) error {
+	def, err := stageOf(stage)
+	if err != nil {
+		return err
+	}
+	_, err = def.pick(names)
+	return err
+}
+
+func stageOf(name string) (*stageDef, error) {
+	i := slices.IndexFunc(stages, func(s *stageDef) bool { return strings.EqualFold(s.name, name) })
+	if i < 0 {
+		return nil, fmt.Errorf("%w %q (have %s)", ErrStage, name, strings.Join(Stages(), ", "))
+	}
+	return stages[i], nil
+}
+
+// pick returns the steps names select, in the stage's order; nil when they
+// select every step, or none.
+func (def *stageDef) pick(names []string) ([]string, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+	if len(def.steps) == 0 {
+		return nil, fmt.Errorf("%w: stage %s runs whole; --steps is for %s", ErrSteps, def.name, strings.Join(named(), ", "))
+	}
+	var out []string
+	for _, s := range def.steps {
+		if slices.Contains(names, s.name) {
+			out = append(out, s.name)
+		}
+	}
+	for _, n := range names {
+		if !slices.ContainsFunc(def.steps, func(s stepInfo) bool { return s.name == n }) {
+			return nil, fmt.Errorf("%w: stage %s has no step %q (have %s)", ErrSteps, def.name, n, strings.Join(Steps(def.name), ", "))
+		}
+	}
+	for _, s := range def.steps {
+		if slices.Contains(out, s.name) && s.needs != "" && !slices.Contains(out, s.needs) {
+			return nil, fmt.Errorf("%w: step %s needs step %s in the same run", ErrSteps, s.name, s.needs)
+		}
+	}
+	if len(out) == len(def.steps) {
+		return nil, nil
+	}
+	return out, nil
+}
+
+// named lists the stages whose steps a run can pick.
+func named() []string {
+	var out []string
+	for _, s := range stages {
+		if len(s.steps) > 0 {
+			out = append(out, s.name)
+		}
+	}
+	return out
+}
+
 // Run runs one stage and records it. The error is set only when the stage
 // could not start or its records could not be written; a stage that ran and
 // failed returns a Result with Passed false.
 func Run(ctx context.Context, cfg Config, stage string) (*Result, error) {
-	i := slices.IndexFunc(stages, func(s *stageDef) bool { return strings.EqualFold(s.name, stage) })
-	if i < 0 {
-		return nil, fmt.Errorf("%w %q (have %s)", ErrStage, stage, strings.Join(Stages(), ", "))
+	def, err := stageOf(stage)
+	if err != nil {
+		return nil, err
+	}
+	selected, err := def.pick(cfg.Steps)
+	if err != nil {
+		return nil, err
 	}
 	cfg = cfg.withDefaults()
-	def := stages[i]
 	r := &runner{cfg: cfg, def: def, devs: newDevices(cfg.Raw), res: &Result{
-		Stage: def.name, Title: def.title, Rehearsal: cfg.Source != backup.SourceDevice, DryRun: cfg.Gates.DryRun, Started: cfg.Now(),
+		Stage: def.name, Title: def.title, Selected: selected, Rehearsal: cfg.Source != backup.SourceDevice, DryRun: cfg.Gates.DryRun, Started: cfg.Now(),
 	}}
 	if !r.res.DryRun {
 		for _, f := range slices.Concat(def.promotes, def.extras) {
@@ -237,12 +325,20 @@ func Run(ctx context.Context, cfg Config, stage string) (*Result, error) {
 	if err := r.checkRepo(); err != nil {
 		return nil, err
 	}
-	rec, err := r.startRecording(strings.ToLower(def.name))
+	name := strings.ToLower(def.name)
+	if len(selected) > 0 {
+		name += "-steps"
+	}
+	rec, err := r.startRecording(name)
 	if err != nil {
 		return nil, err
 	}
 	r.rec = rec
-	r.say(fmt.Sprintf("Stage %s: %s", def.name, def.title))
+	if len(selected) > 0 {
+		r.say(fmt.Sprintf("Stage %s: %s; only the steps %s", def.name, def.title, strings.Join(selected, ", ")))
+	} else {
+		r.say(fmt.Sprintf("Stage %s: %s", def.name, def.title))
+	}
 	if r.res.Rehearsal {
 		r.say("Rehearsal on the " + cfg.Source + ": nothing this run finds is promoted.")
 	}

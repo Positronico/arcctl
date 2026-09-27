@@ -40,6 +40,9 @@ type Device struct {
 	extra     []Client
 	faults    []*fault
 	writes    []Write
+	radioSeq  uint64 // radio requests the receiver took, for OneAtATime
+	idle      Timer  // puts the mouse to sleep after SleepAfter
+	idleGen   uint64
 	locked    bool
 	seized    bool
 	denied    bool
@@ -54,16 +57,17 @@ type Write struct {
 }
 
 type mouseState struct {
-	cid, mid  byte
-	conn      byte
-	addr      [3]byte
-	image     *flash.Image
-	factory   *flash.Image
-	firmware  Version
-	battery   Battery
-	profile   *byte
-	longRange *bool
-	awake     bool
+	cid, mid   byte
+	conn       byte
+	addr       [3]byte
+	image      *flash.Image
+	factory    *flash.Image
+	firmware   Version
+	battery    Battery
+	profile    *byte
+	longRange  *bool
+	awake      bool
+	sleepAfter time.Duration
 }
 
 func newDevice(b *Bus, c Config) (*Device, error) {
@@ -93,19 +97,21 @@ func newDevice(b *Bus, c Config) (*Device, error) {
 			return nil, err
 		}
 		d.mouse = m
+		d.keepAwake()
 	}
 	return d, nil
 }
 
 func newMouse(c Mouse) (*mouseState, error) {
 	m := &mouseState{
-		cid:      c.CID,
-		mid:      c.MID,
-		conn:     c.Conn,
-		addr:     c.Addr,
-		firmware: c.Firmware,
-		battery:  c.Battery,
-		awake:    !c.Asleep,
+		cid:        c.CID,
+		mid:        c.MID,
+		conn:       c.Conn,
+		addr:       c.Addr,
+		firmware:   c.Firmware,
+		battery:    c.Battery,
+		awake:      !c.Asleep,
+		sleepAfter: c.SleepAfter,
 	}
 	if c.Model != nil {
 		m.cid = cmp0(m.cid, c.Model.CID)
@@ -274,6 +280,11 @@ func (d *Device) process(cl *client, p wire.Packet, act Action, f *fault) {
 	if cl.iface != d.answering {
 		return
 	}
+	var seq uint64
+	if d.overRadio(p) {
+		d.radioSeq++
+		seq = d.radioSeq
+	}
 	undo := d.misstore(p, act)
 	replies := d.respond(p)
 	undo()
@@ -286,16 +297,35 @@ func (d *Device) process(cl *client, p wire.Packet, act Action, f *fault) {
 		replies = append(replies, replies...)
 	}
 	for _, r := range replies {
-		delay := d.latency.Receiver
-		if r.radio {
-			delay = d.latency.Mouse
+		if r.radio && d.behavior.Loss > 0 && d.bus.rng.Float64() < d.behavior.Loss {
+			continue
 		}
-		delay += d.bus.jitter(d.latency.Jitter)
+		delay := d.delay(r.radio)
 		if act == Late {
 			delay = f.Delay
 		}
-		d.send(cl.iface, r.p, delay)
+		d.send(cl.iface, r.p, delay, seq)
 	}
+}
+
+// overRadio reports whether the receiver passes p on to the mouse.
+func (d *Device) overRadio(p wire.Packet) bool {
+	if p.Target() != wire.Mouse || !p.Valid() {
+		return false
+	}
+	return radioCmds[p.Cmd()] || p.Cmd() == wire.CmdRxVersion && d.behavior.RadioRxVersion
+}
+
+func (d *Device) delay(radio bool) time.Duration {
+	l := d.latency
+	base, curve := l.Receiver, l.ReceiverCurve
+	if radio {
+		base, curve = l.Mouse, l.MouseCurve
+	}
+	if len(curve) > 0 {
+		return curve.at(d.bus.rng.Float64())
+	}
+	return base + d.bus.jitter(l.Jitter)
 }
 
 // misstore arms Ignore and Corrupt for a cmd 7 the mouse takes: the returned
@@ -314,13 +344,15 @@ func (d *Device) misstore(p wire.Packet, act Action) func() {
 	return func() { _ = m.image.Set(e.Addr, keep) }
 }
 
-func (d *Device) send(iface int, p wire.Packet, delay time.Duration) {
+// send delivers a reply of the request numbered seq among the radio
+// requests (0 for one the receiver answers itself) after delay.
+func (d *Device) send(iface int, p wire.Packet, delay time.Duration, seq uint64) {
 	if delay <= 0 {
 		d.route(iface, p)
 		return
 	}
 	d.bus.after(delay, func() {
-		if !d.gone {
+		if !d.gone && !(d.behavior.OneAtATime && seq != 0 && seq != d.radioSeq) {
 			d.route(iface, p)
 		}
 	})
@@ -379,6 +411,27 @@ func (d *Device) doze() {
 		m.awake = false
 		d.pushOnline()
 	}
+}
+
+// keepAwake restarts the idle time after which an awake mouse sleeps: input,
+// or a packet over the radio.
+func (d *Device) keepAwake() {
+	if d.idle != nil {
+		d.idle.Stop()
+		d.idle = nil
+	}
+	m := d.mouse
+	if m == nil || !m.awake || m.sleepAfter <= 0 {
+		return
+	}
+	d.idleGen++
+	gen := d.idleGen
+	d.idle = d.bus.after(m.sleepAfter, func() {
+		if gen == d.idleGen {
+			d.idle = nil
+			d.doze()
+		}
+	})
 }
 
 func (d *Device) pushOnline() {

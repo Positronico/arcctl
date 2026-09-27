@@ -170,6 +170,9 @@ func (s *Session) closeChoices(keep *link) {
 }
 
 // attach makes l the session's device and asks the receiver for its version.
+// The EM11 Pro's receiver passes cmd 29 to the mouse, which leaves it
+// unanswered while it sleeps, so a sleeping mouse gets one try and the
+// question is asked again once it wakes.
 func (s *Session) attach(ctx context.Context, l *link) {
 	s.dev = l
 	s.scanBackoff, s.writeRun = 0, 0
@@ -180,13 +183,15 @@ func (s *Session) attach(ctx context.Context, l *link) {
 	if l.foreign > 0 {
 		s.foreignSeen(l)
 	}
-	t := s.transact(ctx, l, query(l.target, wire.CmdRxVersion), s.tm.Tries, s.tm.Try)
+	tries := s.tm.Tries
+	if !l.online {
+		tries = 1
+	}
+	t := s.askRxVersion(ctx, tries)
 	switch {
-	case t.err == nil:
-		s.versions.Receiver = version(t.rep)
-	case errors.Is(t.err, wire.ErrNAK):
-		s.versions.Receiver = "v1.0"
+	case t.err == nil, errors.Is(t.err, wire.ErrNAK):
 	case errors.Is(t.err, ErrNoReply):
+		s.rxAgain = !l.online
 	case transient(t.err):
 		if s.writeFailed(t.err); s.dev != l {
 			return
@@ -199,10 +204,30 @@ func (s *Session) attach(ctx context.Context, l *link) {
 	s.due.online = time.Now().Add(s.tm.Offline)
 }
 
+// askRxVersion sends cmd 29 and keeps the version; a NAK means v1.0.
+func (s *Session) askRxVersion(ctx context.Context, tries int) txn {
+	t := s.transact(ctx, s.dev, query(s.dev.target, wire.CmdRxVersion), tries, s.tm.Try)
+	switch {
+	case t.err == nil:
+		s.versions.Receiver = version(t.rep)
+	case errors.Is(t.err, wire.ErrNAK):
+		s.versions.Receiver = "v1.0"
+	}
+	return t
+}
+
 // handshake identifies the mouse that just came online and starts, or
-// resumes, its load.
+// resumes, its load. A cmd 29 the sleeping mouse left unanswered is asked
+// again first, once.
 func (s *Session) handshake(ctx context.Context) {
 	s.enter(Handshaking, nil)
+	if s.rxAgain {
+		s.rxAgain = false
+		if t := s.askRxVersion(ctx, s.tm.Tries); t.err != nil && !errors.Is(t.err, ErrNoReply) && !errors.Is(t.err, wire.ErrNAK) {
+			s.fail(t.err)
+			return
+		}
+	}
 	t := s.mouseCmd(ctx, handshake(s.dev.target))
 	switch {
 	case errors.Is(t.err, ErrOffline), ctx.Err() != nil:
@@ -482,7 +507,7 @@ func (s *Session) forgetMouse() {
 // until ClearConflict (keepConflict).
 func (s *Session) forget() {
 	s.forgetMouse()
-	s.versions = Versions{}
+	s.versions, s.rxAgain = Versions{}, false
 	s.online, s.addr = false, [3]byte{}
 	s.runs, s.clients, s.writeRun = runs{}, nil, 0
 	if s.conflict != Conflict {

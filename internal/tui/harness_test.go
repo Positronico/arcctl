@@ -19,6 +19,7 @@ import (
 	"github.com/positronico/arcctl/internal/catalog"
 	"github.com/positronico/arcctl/internal/flash"
 	"github.com/positronico/arcctl/internal/hidio"
+	"github.com/positronico/arcctl/internal/keys"
 	"github.com/positronico/arcctl/internal/mouse"
 	"github.com/positronico/arcctl/internal/plan"
 	"github.com/positronico/arcctl/internal/safety"
@@ -222,6 +223,7 @@ func newHarness(t *testing.T, sn *session.Snapshot, opts ...func(*Options)) *har
 		Session:  fake,
 		Mode:     ModeEdit,
 		Source:   "device",
+		OS:       keys.Mac,
 		Verified: catalog.Verifications{},
 		Now:      func() time.Time { return now },
 		Tabs:     stubTabs(),

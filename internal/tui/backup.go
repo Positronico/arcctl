@@ -47,6 +47,7 @@ type BackupTab struct {
 	listErr error
 	listed  time.Time
 	listing bool
+	stale   bool // the folder changed while listing read it
 	cursor  int
 	offset  int
 	busy    string
@@ -103,6 +104,10 @@ func (t *BackupTab) Update(c *Context, msg tea.Msg) tea.Cmd {
 	case backupListMsg:
 		if msg.tab == t {
 			t.took(msg)
+			if t.stale {
+				t.stale = false
+				return t.relist(c, true)
+			}
 		}
 	case backupFullMsg:
 		if msg.tab != t {
@@ -124,11 +129,16 @@ func (t *BackupTab) Update(c *Context, msg tea.Msg) tea.Cmd {
 }
 
 // relist reads the backup folder again when the mouse changed, when now
-// says so, or when the list is older than backupRelist.
+// says so, or when the list is older than backupRelist. With now, while a
+// read is under way, the folder is read again once that read is done: it may
+// have missed the change.
 func (t *BackupTab) relist(c *Context, now bool) tea.Cmd {
 	key := backupKey(c)
 	switch {
-	case t.lister == nil || t.listing:
+	case t.lister == nil:
+		return nil
+	case t.listing:
+		t.stale = t.stale || now
 		return nil
 	case key != t.id:
 		t.list, t.listErr, t.cursor, t.offset, t.id = nil, nil, 0, 0, key

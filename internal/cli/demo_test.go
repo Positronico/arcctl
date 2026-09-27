@@ -100,7 +100,7 @@ func TestTUINotesMissingBodies(t *testing.T) {
 			env.Terminal = true
 			var got cli.TUI
 			env.TUI = func(_ context.Context, t cli.TUI) error { got = t; return nil }
-			if code := cli.Run(context.Background(), []string{"--emulate", filepath.Join(h.root, "testdata", tc.file)}, env); code != cli.ExitOK {
+			if code := runCLI(context.Background(), []string{"--emulate", filepath.Join(h.root, "testdata", tc.file)}, env); code != cli.ExitOK {
 				t.Fatalf("exit %d: %s", code, errb.String())
 			}
 			errs := errb.String()

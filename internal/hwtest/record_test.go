@@ -107,7 +107,7 @@ func TestLogEntryHoldsNothingPrivate(t *testing.T) {
 		t.Errorf("the stop reason is not scrubbed:\n%s", e)
 	}
 	doc := "| Stage | Covers | Status |\n|---|---|---|\n| H1 | settings pairs | not run |\n| H10 | x | not run |"
-	got := setStatus(doc, res)
+	got := setStatus(doc, res.Stage, status(doc, res, nil))
 	if !strings.Contains(got, "| H1 | settings pairs | passed 2026-09-27 (v1.05) |") || !strings.Contains(got, "| H10 | x | not run |") {
 		t.Errorf("status:\n%s", got)
 	}

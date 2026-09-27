@@ -15,8 +15,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/positronico/arcctl/internal/backup"
 	"github.com/positronico/arcctl/internal/flash"
 	"github.com/positronico/arcctl/internal/hidio"
+	"github.com/positronico/arcctl/internal/keys"
+	"github.com/positronico/arcctl/internal/mouse"
 	"github.com/positronico/arcctl/internal/session"
 	"github.com/positronico/arcctl/internal/wire"
 )
@@ -44,17 +47,59 @@ type h0 struct {
 	r    *runner
 	main *conn
 	path string
-	addr [3]byte
 	full [2]*session.Capture
 
-	identical, dumpOK, dropsOK bool
+	identical, dumpOK bool
+	// measured is set once the latency or the load step measured reads, and
+	// lost counts those lost beyond the retries.
+	measured bool
+	lost     int
+}
+
+// h0Step is one step of H0; its name is what --steps takes.
+type h0Step struct {
+	stepInfo
+	run func(*h0, context.Context) (string, bool, []string, error)
+}
+
+// The titles stay as the first runs logged them: the log's status of H0
+// matches the steps of older entries by title.
+var h0Steps = []h0Step{
+	{stepInfo{name: "doctor", title: "doctor"}, (*h0).doctor},
+	{stepInfo{name: "trace", title: "trace: DPI button, sleep and wake, screen lock"}, (*h0).trace},
+	{stepInfo{name: "info", title: "info"}, (*h0).info},
+	{stepInfo{name: "latency", title: "latency of cmd-8 reads"}, (*h0).latency},
+	{stepInfo{name: "loads", title: "working loads while the mouse moves"}, (*h0).loads},
+	{stepInfo{name: "backups", title: "two full backups"}, (*h0).backups},
+	{stepInfo{name: "dump", title: "0..256 against flash-dump.bin", needs: "backups"}, (*h0).dump},
+	{stepInfo{name: "interfaces", title: "interfaces that answer"}, (*h0).interfaces},
+	{stepInfo{name: "cycles", title: "open and close cycles"}, (*h0).cycles},
+	{stepInfo{name: "sleep-wake", title: "address across sleep and wake"}, (*h0).sleepWake},
+	{stepInfo{name: "unplug", title: "unplug while idle, address across a replug"}, (*h0).unplug},
+	{stepInfo{name: "coexist", title: "coexistence with the web app"}, (*h0).coexist},
+	{stepInfo{name: "cable", title: "USB-C cable"}, (*h0).cable},
+	{stepInfo{name: "typed", title: "typed confirmation and Secure Input"}, (*h0).typed},
+	{stepInfo{name: "revoke", title: "Input Monitoring revoked"}, (*h0).revoke},
+}
+
+func h0Infos() []stepInfo {
+	out := make([]stepInfo, len(h0Steps))
+	for i, s := range h0Steps {
+		out[i] = s.stepInfo
+	}
+	return out
 }
 
 func runH0(ctx context.Context, r *runner) error {
 	h := &h0{r: r}
 	defer h.stop()
-	ok, err := r.ask("h0.run", "Stage H0 writes nothing. It asks you to press buttons, let the mouse sleep, unplug the receiver, "+
-		"open the web app and plug in the USB-C cable. Start?", true)
+	sel := r.res.Selected
+	steps := slices.DeleteFunc(slices.Clone(h0Steps), func(s h0Step) bool { return len(sel) > 0 && !slices.Contains(sel, s.name) })
+	what := "It asks you to press buttons, let the mouse sleep, unplug the receiver, open the web app and plug in the USB-C cable."
+	if len(sel) > 0 {
+		what = "This run takes only its steps " + strings.Join(sel, ", ") + "."
+	}
+	ok, err := r.ask("h0.run", "Stage H0 writes nothing. "+what+" Start?", true)
 	switch {
 	case err != nil:
 		return err
@@ -62,50 +107,53 @@ func runH0(ctx context.Context, r *runner) error {
 		return ErrDeclined
 	}
 	r.begun = true
-	steps := []struct {
-		title string
-		run   func(context.Context) (string, bool, []string, error)
-	}{
-		{"doctor", h.doctor},
-		{"trace: DPI button, sleep and wake, screen lock", h.trace},
-		{"info", h.info},
-		{"latency of cmd-8 reads", h.latency},
-		{"working loads while the mouse moves", h.loads},
-		{"two full backups", h.backups},
-		{"0..256 against flash-dump.bin", h.dump},
-		{"interfaces that answer", h.interfaces},
-		{"open and close cycles", h.cycles},
-		{"address across sleep and wake", h.sleepWake},
-		{"unplug while idle, address across a replug", h.unplug},
-		{"coexistence with the web app", h.coexist},
-		{"USB-C cable", h.cable},
-		{"typed confirmation and Secure Input", h.typed},
-		{"Input Monitoring revoked", h.revoke},
+	if len(sel) > 0 && !slices.Contains(sel, "info") {
+		if _, _, err := h.session(ctx); err != nil {
+			return err
+		}
+		h.stop()
 	}
 	for _, s := range steps {
 		r.say("\n" + s.title)
 		r.note("step: " + s.title)
-		finding, ok, detail, err := s.run(ctx)
-		if err != nil {
-			if errors.Is(err, ErrNoInput) || ctx.Err() != nil {
-				r.step(s.title, false, err.Error())
-				return err
-			}
+		finding, ok, detail, err := s.run(h, ctx)
+		stop := err != nil && (errors.Is(err, ErrNoInput) || ctx.Err() != nil)
+		switch {
+		case stop:
+			detail = []string{err.Error()}
+			ok = false
+		case err != nil:
 			detail = append(detail, err.Error())
 			ok = false
 		}
 		r.step(s.title, ok, detail...)
+		r.res.Steps[len(r.res.Steps)-1].Name = s.name
+		if stop {
+			return err
+		}
 		if finding != "" {
 			r.finding("%s", finding)
 		}
 	}
-	r.finding("exit criteria: two full backups identical: %s; 0..256 equals flash-dump.bin or explained: %s; no reply lost beyond the retries: %s",
-		yesNo(h.identical), yesNo(h.dumpOK), yesNo(h.dropsOK))
-	r.finding("to do by hand: update the conflict thresholds, the retry budget and the emulator's reply layouts from these findings")
+	ran := func(name string) bool { return len(sel) == 0 || slices.Contains(sel, name) }
+	crit := func(v bool, names ...string) string {
+		if !slices.ContainsFunc(names, ran) {
+			return "not run"
+		}
+		return yesNo(v)
+	}
+	if slices.ContainsFunc([]string{"backups", "latency", "loads"}, ran) {
+		r.finding("exit criteria: two full backups identical: %s; 0..256 equals flash-dump.bin or explained: %s; no reply lost beyond the retries: %s",
+			crit(h.identical, "backups"), crit(h.dumpOK, "dump"), crit(h.measured && h.lost == 0, "latency", "loads"))
+	}
+	if len(sel) == 0 {
+		r.finding("to do by hand: update the conflict thresholds, the retry budget and the emulator's reply layouts from these findings")
+	}
 	return nil
 }
 
-// session returns the main session, started when needed.
+// session returns the main session, started when needed. The first one
+// names the device the stage runs on, when no info step did.
 func (h *h0) session(ctx context.Context) (*conn, *session.Snapshot, error) {
 	if h.main != nil {
 		sn, err := h.r.ready(ctx, h.main)
@@ -116,6 +164,12 @@ func (h *h0) session(ctx context.Context) (*conn, *session.Snapshot, error) {
 		return nil, sn, err
 	}
 	h.main = c
+	if h.path == "" && sn.Device != nil {
+		h.path = sn.Device.Path
+	}
+	if h.r.res.Device.Key == "" {
+		h.r.describe(sn)
+	}
 	return c, sn, nil
 }
 
@@ -253,7 +307,41 @@ func summary(got []traced) string {
 	return strings.Join(parts, "; ")
 }
 
+// notTestable is the DPI line of a trace on a mouse whose buttons run no
+// DPI function: a press sends whatever the button runs, which says nothing
+// about pushes.
+const notTestable = "not testable: no button is bound to a DPI function"
+
+// dpiButton names a visible button that runs a DPI function (KeyFn type 2)
+// in the loaded configuration, and the function.
+func dpiButton(sn *session.Snapshot, os keys.OS) (label, action string, ok bool) {
+	if sn == nil || sn.Model == nil || sn.Image == nil {
+		return "", "", false
+	}
+	for _, x := range sn.Model.Buttons {
+		if !x.Visible {
+			continue
+		}
+		e, _ := mouse.KeyFnExtent(x.Slot)
+		if cur, known := sn.Image.Get(e); !known || mouse.KeyType(cur[0]) != mouse.TypeDPI {
+			continue
+		}
+		label = x.Label
+		if label == "" {
+			label = fmt.Sprintf("slot %d", x.Slot)
+		}
+		cfg := mouse.Decode(sn.Model, sn.Image)
+		return label, backup.Action(sn.Model, &cfg, x.Slot, os), true
+	}
+	return "", "", false
+}
+
 func (h *h0) trace(ctx context.Context) (string, bool, []string, error) {
+	_, sn, err := h.session(ctx)
+	if err != nil {
+		return "", false, nil, err
+	}
+	label, action, bound := dpiButton(sn, h.r.cfg.OS)
 	h.stop()
 	t, err := h.startTrace()
 	if err != nil {
@@ -261,13 +349,22 @@ func (h *h0) trace(ctx context.Context) (string, bool, []string, error) {
 	}
 	defer t.close()
 	t.cut()
-	actions := []struct{ id, what, text string }{
-		{"h0.trace-dpi", "DPI button", "Press the DPI button once, then press Enter."},
-		{"h0.trace-sleep", "sleep", "Leave the mouse untouched until it sleeps (a minute or two), then press Enter."},
-		{"h0.trace-wake", "wake", "Move the mouse to wake it, then press Enter."},
-		{"h0.trace-lock", "screen lock", "Lock the screen, wait a few seconds, unlock it, then press Enter."},
-	}
+	type act struct{ id, what, text string }
+	var actions []act
 	var detail, finding []string
+	if bound {
+		actions = append(actions, act{"h0.trace-dpi", fmt.Sprintf("DPI button (%s, %s)", label, action),
+			fmt.Sprintf("Press the %s button (%s) once, then press Enter.", label, action)})
+	} else {
+		h.r.say("No button runs a DPI function, so the trace skips the DPI press.")
+		detail = append(detail, "DPI button: "+notTestable)
+		finding = append(finding, "DPI button -> "+notTestable)
+	}
+	actions = append(actions,
+		act{"h0.trace-sleep", "sleep", "Leave the mouse untouched until it sleeps (a minute or two), then press Enter."},
+		act{"h0.trace-wake", "wake", "Move the mouse to wake it, then press Enter."},
+		act{"h0.trace-lock", "screen lock", "Lock the screen, wait a few seconds, unlock it, then press Enter."},
+	)
 	for _, a := range actions {
 		if err := h.r.wait(a.id, a.text); err != nil {
 			return "", false, detail, err
@@ -359,7 +456,7 @@ func (h *h0) latency(ctx context.Context) (string, bool, []string, error) {
 			lost++
 		}
 	}
-	h.dropsOK = lost == 0
+	h.measured, h.lost = true, h.lost+lost
 	if len(times) == 0 {
 		return "", false, nil, fmt.Errorf("%w: none of %d reads was answered", ErrNoReply, latencyRuns)
 	}
@@ -402,9 +499,7 @@ func (h *h0) loads(ctx context.Context) (string, bool, []string, error) {
 	s := fmt.Sprintf("%d loads: median %s, max %s; %d left bytes unread; tries unanswered %d, frames dropped %d, foreign %d",
 		loadRuns, times[len(times)/2].Round(time.Millisecond), times[len(times)-1].Round(time.Millisecond), unread,
 		after.FailedTries-before.FailedTries, after.Dropped-before.Dropped, after.Foreign-before.Foreign)
-	if unread > 0 {
-		h.dropsOK = false
-	}
+	h.measured, h.lost = true, h.lost+unread
 	return "loads while moving: " + s, unread == 0, []string{s}, nil
 }
 
@@ -680,7 +775,6 @@ func (h *h0) sleepWake(ctx context.Context) (string, bool, []string, error) {
 	if err != nil {
 		return "", false, nil, err
 	}
-	h.addr = a1
 	if err := h.r.wait("h0.sleep", "Leave the mouse untouched so that it falls asleep. Press Enter, then wait; arcctl says when it sleeps."); err != nil {
 		return "", false, nil, err
 	}
@@ -701,8 +795,93 @@ func (h *h0) sleepWake(ctx context.Context) (string, bool, []string, error) {
 	return s, true, []string{s}, nil
 }
 
+// address is the receiver's cmd-3 address, which it gives whether the
+// mouse is awake or not.
+func (h *h0) address(ctx context.Context, c *conn) ([3]byte, bool, error) {
+	rp, err := h.r.rawPath(c)
+	if err != nil {
+		return [3]byte{}, false, err
+	}
+	on, a, err := rp.online(ctx)
+	return a, on, err
+}
+
+// hint is said once when the receiver is back after a replug and the mouse
+// still sleeps.
+const hint = "The receiver is back; the mouse is asleep. Move it."
+
+// replug is what the session and the receiver showed after a replug.
+type replug struct {
+	known  bool // the receiver answered cmd 3
+	addr   [3]byte
+	back   time.Duration // until it answered
+	asleep bool          // the mouse slept when the receiver was back
+	ready  bool
+	after  time.Duration // until the session was Ready again
+	state  session.State
+}
+
+// attached reports whether the session has an interface open whose
+// receiver answered its probe.
+func attached(sn *session.Snapshot) bool {
+	switch sn.Link {
+	case session.Offline, session.Handshaking, session.Loading, session.Ready, session.Unknown:
+		return sn.Device != nil
+	}
+	return false
+}
+
+// awaitReplug follows the session after the receiver was plugged back in,
+// for up to Config.Wait: it asks the receiver for its cmd-3 address as soon
+// as the session has it open, whether the mouse is awake or not, says the
+// hint once while the mouse sleeps, and waits for Ready.
+func (h *h0) awaitReplug(ctx context.Context, c *conn) (replug, error) {
+	var out replug
+	t0 := time.Now()
+	deadline := t0.Add(h.r.cfg.Wait)
+	hinted := false
+	tick := time.NewTicker(20 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		sn := c.s.Snapshot()
+		if !out.known && attached(sn) {
+			if a, on, err := h.address(ctx, c); err == nil {
+				out.known, out.addr, out.back, out.asleep = true, a, time.Since(t0), !on
+			}
+			sn = c.s.Snapshot()
+		}
+		if !hinted && sn.Link == session.Offline && !sn.Online {
+			hinted, out.asleep = true, true
+			h.r.say(hint)
+			h.r.note("the receiver is back and the mouse asleep")
+		}
+		out.state = sn.State
+		if out.known && sn.State == session.Ready && sn.Progress.Job == "" {
+			out.ready, out.after = true, time.Since(t0)
+			return out, nil
+		}
+		if time.Now().After(deadline) {
+			out.after = time.Since(t0)
+			return out, nil
+		}
+		select {
+		case <-ctx.Done():
+			return out, ctx.Err()
+		case <-c.s.Changed():
+		case <-tick.C:
+		}
+	}
+}
+
+// unplug passes when the session saw the receiver go and come back, the
+// receiver gave its address after the replug, and the session was Ready
+// again once the user moved the mouse.
 func (h *h0) unplug(ctx context.Context) (string, bool, []string, error) {
 	c, _, err := h.session(ctx)
+	if err != nil {
+		return "", false, nil, err
+	}
+	before, _, err := h.address(ctx, c)
 	if err != nil {
 		return "", false, nil, err
 	}
@@ -712,27 +891,40 @@ func (h *h0) unplug(ctx context.Context) (string, bool, []string, error) {
 	wctx, cancel := context.WithTimeout(ctx, unplugWait)
 	sn, err := session.Await(wctx, c.s, func(sn *session.Snapshot) bool { return sn.State == session.NoReceiver })
 	cancel()
-	var detail []string
 	gone := err == nil
-	detail = append(detail, "the session saw the receiver go: "+yesNo(gone)+" (state "+sn.State.String()+")")
+	detail := []string{"the session saw the receiver go: " + yesNo(gone) + " (state " + sn.State.String() + ")"}
 	if err := h.r.wait("h0.plug", "Plug the receiver back in, then press Enter."); err != nil {
 		return "", false, detail, err
 	}
-	t0 := time.Now()
-	wctx, cancel = context.WithTimeout(ctx, h.r.cfg.Wait)
-	_, err = session.Await(wctx, c.s, func(sn *session.Snapshot) bool { return sn.State == session.Ready && sn.Progress.Job == "" })
-	cancel()
-	if err != nil {
-		return "", false, detail, fmt.Errorf("%w: the session did not come back after the replug", ErrNotReady)
-	}
-	detail = append(detail, fmt.Sprintf("back to Ready %s after the Enter", time.Since(t0).Round(time.Millisecond)))
-	a3, _, err := h.until(ctx, c, true, h.r.cfg.Wait)
+	h.r.say("Now move the mouse to wake it; arcctl waits until the session is ready again.")
+	rp, err := h.awaitReplug(ctx, c)
 	if err != nil {
 		return "", false, detail, err
 	}
-	same := a3 == h.addr
-	detail = append(detail, "cmd-3 address across the replug: "+map[bool]string{true: "unchanged", false: "changed"}[same])
-	return fmt.Sprintf("unplug while idle: seen %s; address across a replug %s", yesNo(gone), map[bool]string{true: "unchanged", false: "changed"}[same]), gone, detail, nil
+	parts := []string{"unplug while idle: seen " + yesNo(gone)}
+	addr := "unknown"
+	if rp.known {
+		addr = map[bool]string{true: "unchanged", false: "changed"}[rp.addr == before]
+		was := map[bool]string{true: "asleep", false: "awake"}[rp.asleep]
+		detail = append(detail, fmt.Sprintf("the receiver answered cmd 3 %s after the Enter, the mouse %s", rp.back.Round(time.Millisecond), was))
+		parts = append(parts, "address across a replug "+addr, "the mouse "+was+" after the replug")
+	} else {
+		detail = append(detail, fmt.Sprintf("the receiver did not answer cmd 3 within %s of the Enter", rp.after.Round(time.Second)))
+		parts = append(parts, "address across a replug unknown: the receiver did not answer")
+	}
+	if rp.asleep {
+		detail = append(detail, "the mouse slept after the replug; arcctl asked for it to be moved")
+	}
+	if rp.ready {
+		detail = append(detail, fmt.Sprintf("back to Ready %s after the Enter", rp.after.Round(time.Millisecond)))
+		parts = append(parts, "Ready again after "+rp.after.Round(time.Millisecond).String())
+	} else {
+		not := fmt.Sprintf("not Ready again: still %s after %s", rp.state, rp.after.Round(time.Second))
+		detail = append(detail, not)
+		parts = append(parts, not)
+	}
+	detail = append(detail, "cmd-3 address across the replug: "+addr)
+	return strings.Join(parts, "; "), gone && rp.known && rp.ready, detail, nil
 }
 
 func (h *h0) coexist(ctx context.Context) (string, bool, []string, error) {

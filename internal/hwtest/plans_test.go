@@ -165,9 +165,38 @@ func TestH3Plan(t *testing.T) {
 		{kind: stepAsk, id: "h3.scroll"},
 		{kind: stepRevert, ops: []string{"108+4 0b010049 -> 05000050 untested"}, of: 4},
 		{kind: stepAsk, id: "h3.restored"},
+		{kind: stepApply, ops: []string{"108+4 05000050 -> 02010052 untested"}},
+		{kind: stepCustom},
+		{kind: stepRevert, ops: []string{"108+4 02010052 -> 05000050 untested"}, of: 8},
+		{kind: stepCustom},
 	})
 	if b.steps[4].title != "slot 3 (Backward, now its shortcut) -> Scroll Up" {
 		t.Errorf("slot 3 step is titled %q", b.steps[4].title)
+	}
+	check, back := b.steps[9].custom, b.steps[11].custom
+	pair := pairExtent(mouse.AddrCurrentDPI)
+	if len(check.plans) != 0 || len(check.need) != 0 || !slices.Equal(check.touched, []flash.Extent{pair}) {
+		t.Errorf("the push check writes: plans %v, need %v, touched %v", check.plans, check.need, check.touched)
+	}
+	if len(back.plans) != 0 || !slices.Equal(back.need, []catalog.Tier{catalog.Untested}) || !slices.Equal(back.touched, []flash.Extent{pair}) {
+		t.Errorf("the stage put back: plans %v, need %v, touched %v", back.plans, back.need, back.touched)
+	}
+	if b.steps[11].title != "the current stage back to 4" {
+		t.Errorf("the put back is titled %q", b.steps[11].title)
+	}
+}
+
+// A slot 3 that already runs DPI Cycle is pressed as it is: no binding and
+// no revert.
+func TestH3PushCaseOnABoundSlot(t *testing.T) {
+	b := dumpBuilder(t, "H3", nil)
+	cycle, err := mouse.EncodeKeyFn(mouse.KeyFn{Type: mouse.TypeDPI, Param: mouse.ParamDPICycle})
+	must(t, err)
+	e3, _ := mouse.KeyFnExtent(3)
+	must(t, b.img.Set(e3.Addr, cycle))
+	must(t, b.pushCase())
+	if got := kinds(b); !slices.Equal(got, []stepKind{stepCustom, stepCustom}) {
+		t.Fatalf("steps %v", got)
 	}
 }
 

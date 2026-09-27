@@ -276,21 +276,37 @@ type script struct {
 	mu      sync.Mutex
 	answers map[string]any
 	actions map[string]func()
+	heard   map[string]func() // acted once on the first Say that holds the key
 	asked   []string
+	texts   map[string]string // the text of each request, by id
 	said    strings.Builder
 }
 
 func (s *script) Say(text string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.said.WriteString(text + "\n")
+	var acts []func()
+	for k, f := range s.heard {
+		if strings.Contains(text, k) {
+			acts = append(acts, f)
+			delete(s.heard, k)
+		}
+	}
+	s.mu.Unlock()
+	for _, f := range acts {
+		f()
+	}
 }
 
-func (s *script) take(id string) (any, bool) {
+func (s *script) take(id, text string) (any, bool) {
 	s.mu.Lock()
 	v, ok := s.answers[id]
 	act := s.actions[id]
 	s.asked = append(s.asked, id)
+	if s.texts == nil {
+		s.texts = map[string]string{}
+	}
+	s.texts[id] = text
 	s.mu.Unlock()
 	if act != nil {
 		act()
@@ -305,12 +321,12 @@ func (s *script) Wait(id, text string) error {
 	if s.eof && !scripted {
 		return ErrNoInput
 	}
-	s.take(id)
+	s.take(id, text)
 	return nil
 }
 
 func (s *script) Ask(id, text string) (bool, error) {
-	v, ok := s.take(id)
+	v, ok := s.take(id, text)
 	b, isBool := v.(bool)
 	if !ok || !isBool {
 		s.unscripted(id, text)
@@ -320,7 +336,7 @@ func (s *script) Ask(id, text string) (bool, error) {
 }
 
 func (s *script) Line(id, text string) (string, error) {
-	v, ok := s.take(id)
+	v, ok := s.take(id, text)
 	str, isStr := v.(string)
 	if !ok || !isStr {
 		s.unscripted(id, text)
@@ -350,6 +366,29 @@ func (s *script) yes(ids ...string) *script {
 func (s *script) on(id string, f func()) *script {
 	s.actions[id] = f
 	return s
+}
+
+// hear runs f once, on the first thing the stage says that holds key.
+func (s *script) hear(key string, f func()) *script {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.heard == nil {
+		s.heard = map[string]func(){}
+	}
+	s.heard[key] = f
+	return s
+}
+
+func (s *script) text(id string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.texts[id]
+}
+
+func (s *script) saidText() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.said.String()
 }
 
 // session starts a session on the rig's device and folders, as another

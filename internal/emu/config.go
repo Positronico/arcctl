@@ -40,6 +40,9 @@ type Mouse struct {
 	// LongRange is the extended-range flag of cmds 22 and 23; nil: both get a NAK.
 	LongRange *bool
 	Asleep    bool
+	// SleepAfter puts the mouse to sleep that long after its last input or
+	// the last packet that reached it over the radio; 0: only Sleep does.
+	SleepAfter time.Duration
 }
 
 // Version is a firmware version, printed as "v%d.%02x".
@@ -47,8 +50,8 @@ type Version struct{ Major, Minor byte }
 
 func (v Version) String() string { return fmt.Sprintf("v%d.%02x", v.Major, v.Minor) }
 
-// Battery is what cmd 4 reports. With Direct set, reply byte 9 is 1 and the
-// level is repeated in byte 10.
+// Battery is what cmd 4 reports: level, charging and millivolts in 4 bytes.
+// With Direct set, the reply has 6: byte 9 is 1 and byte 10 repeats the level.
 type Battery struct {
 	Level      byte
 	Charging   bool
@@ -56,9 +59,9 @@ type Battery struct {
 	Direct     bool
 }
 
-// Behavior settles what the hardware tests have not: how the device answers
-// writes, unknown commands and bad checksums, and how it shares replies
-// between clients.
+// Behavior is how the device answers beyond its flash: writes, unknown
+// commands and bad checksums (open until H1), pushes, the radio, and how it
+// shares replies between clients. EM11Pro sets what H0 measured.
 type Behavior struct {
 	Echo        Echo
 	DoubleWrite bool   // every cmd 7 is answered twice
@@ -66,8 +69,18 @@ type Behavior struct {
 	BadChecksum Answer
 	ClearSilent bool // cmd 9 resets the flash but sends no reply
 	PushOnline  bool // sleep and wake push an unsolicited cmd-3 report
+	SilentDPI   bool // the DPI button changes the stage without a StatusChanged push
 	ShortNAK    bool // a NAK echoes the command and address but not the length
-	Sharing     Sharing
+	// RadioRxVersion sends cmd 29 over the radio, so the mouse answers it
+	// (a NAK when RxVersion is nil) and nothing does while it sleeps.
+	RadioRxVersion bool
+	// OneAtATime drops the pending reply of a radio request when another
+	// radio request reaches the receiver before that reply went out.
+	OneAtATime bool
+	// Loss is the share of radio replies that never arrive, drawn from the
+	// bus seed. The request still reaches the mouse.
+	Loss    float64
+	Sharing Sharing
 }
 
 // Echo is the reply to cmd 7.
@@ -98,10 +111,41 @@ const (
 
 // Latency delays replies: Receiver for those the receiver makes itself (cmds 3
 // and 29 and NAKs), Mouse for those that cross the radio. Jitter adds up to
-// that much more, drawn from the bus seed. Zero delivers a reply before the
+// that much more, drawn from the bus seed. A curve, when set, replaces the
+// fixed delay and the jitter of its side. Zero delivers a reply before the
 // write that caused it returns.
 type Latency struct {
-	Receiver time.Duration
-	Mouse    time.Duration
-	Jitter   time.Duration
+	Receiver      time.Duration
+	Mouse         time.Duration
+	Jitter        time.Duration
+	ReceiverCurve Curve
+	MouseCurve    Curve
+}
+
+// Curve is a delay distribution given by points of its cumulative
+// distribution, P rising from 0 to 1: a draw picks a uniform P and
+// interpolates the delay between the points around it.
+type Curve []Quantile
+
+type Quantile struct {
+	P float64
+	D time.Duration
+}
+
+func (c Curve) at(u float64) time.Duration {
+	if len(c) == 0 {
+		return 0
+	}
+	for i := 1; i < len(c); i++ {
+		lo, hi := c[i-1], c[i]
+		if u > hi.P {
+			continue
+		}
+		if hi.P <= lo.P {
+			return hi.D
+		}
+		f := (u - lo.P) / (hi.P - lo.P)
+		return lo.D + time.Duration(f*float64(hi.D-lo.D))
+	}
+	return c[len(c)-1].D
 }

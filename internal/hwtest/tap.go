@@ -345,6 +345,22 @@ func (t *tap) exchange(ctx context.Context, p wire.Packet, o exchangeOpts) (x ex
 	return x, nil
 }
 
+// follow collects the frames match accepts, leaving them to the session,
+// until the function it returns is called; that returns them.
+func (t *tap) follow(match func(wire.Packet) bool) func() []reply {
+	c := &claim{match: match, watch: true, signal: make(chan struct{}, 1)}
+	t.mu.Lock()
+	t.claims = append(t.claims, c)
+	t.mu.Unlock()
+	return func() []reply {
+		t.mu.Lock()
+		defer t.mu.Unlock()
+		c.watch = false
+		c.expires = time.Now()
+		return c.got
+	}
+}
+
 // keep adds a claim that swallows the frames of l until it expires, and
 // counts them as late replies.
 func (t *tap) keep(l lateClaim) {

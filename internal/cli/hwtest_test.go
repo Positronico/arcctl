@@ -57,6 +57,30 @@ func TestHWTestH0HasNoDryRun(t *testing.T) {
 	}
 }
 
+// A --steps the stage cannot take is a usage error before any device is
+// opened.
+func TestHWTestStepsUsage(t *testing.T) {
+	h := newHarness(t)
+	d := h.add(receiver(em11Mouse(t, dumpImage(t, h.root))))
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--stage", "H1", "--steps", "trace"}, "stage H1 runs whole; --steps is for H0"},
+		{[]string{"--stage", "H0", "--steps", "trace,replug"}, `stage H0 has no step "replug" (have doctor, trace,`},
+		{[]string{"--stage", "H0", "--steps", "dump"}, "step dump needs step backups in the same run"},
+	} {
+		_, errs, code := h.run(append([]string{"hwtest"}, c.args...)...)
+		expect(t, code, cli.ExitUsage, errs)
+		if !strings.Contains(strings.Join(strings.Fields(errs), " "), c.want) {
+			t.Errorf("%v: stderr:\n%s", c.args, errs)
+		}
+	}
+	if n := len(d.Writes()); n != 0 {
+		t.Errorf("%d packets reached the device", n)
+	}
+}
+
 func TestHWTestHelp(t *testing.T) {
 	h := newHarness(t)
 	for _, args := range [][]string{{"help", "hwtest"}, {"hwtest", "-h"}} {

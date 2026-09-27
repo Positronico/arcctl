@@ -9,12 +9,15 @@ import (
 	"github.com/positronico/arcctl/internal/hidio"
 )
 
-// Thresholds of the conflict signals, to be tuned by the hardware tests. The
-// receiver answers cmd 3 itself within milliseconds, so two unanswered tries
-// in a row point at another client taking the replies.
+// Thresholds of the conflict signals, set from H0. The receiver answers cmd 3
+// itself within 10 ms and never left one unanswered, so two unanswered tries
+// in a row point at another client taking the replies. A mouse command must
+// go unanswered 4 times before its fifth try answers: at a 2.5% loss per try
+// that happens once in 2.6 million transactions, while a client that steals
+// half the replies trips it once in 16.
 const (
 	suspectCmd3  = 2 // consecutive unanswered cmd-3 tries
-	suspectMouse = 3 // unanswered tries of one mouse command while the mouse is online
+	suspectMouse = 4 // unanswered tries of one mouse command while the mouse is online
 	cleanToClear = 3 // consecutive clean transactions before SuspectedConflict can clear
 )
 

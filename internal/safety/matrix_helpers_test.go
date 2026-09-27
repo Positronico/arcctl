@@ -292,6 +292,7 @@ type srig struct {
 	model  *catalog.Model
 	writes session.Writes
 	start  *flash.Image
+	hang   hangWatch
 
 	s    *session.Session
 	stop func()
@@ -354,7 +355,7 @@ func sessionTiming() session.Timing {
 func (r *srig) run() (*session.Session, context.CancelFunc) {
 	r.t.Helper()
 	w := r.writes
-	s := session.New(session.Options{Devices: r.bus, Clients: r.clients, Timing: sessionTiming(), Writes: &w})
+	s := session.New(session.Options{Devices: watchedBus{r.bus, &r.hang}, Clients: r.clients, Timing: sessionTiming(), Writes: &w})
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- s.Run(ctx) }()
@@ -370,6 +371,66 @@ func (r *srig) run() (*session.Session, context.CancelFunc) {
 	r.t.Cleanup(stop)
 	r.s, r.stop = s, stop
 	return s, cancel
+}
+
+// hangWatch is the write watchdog of a stall case: limit on the write the
+// case makes hang, and hidio's default, as on a real device, on every other
+// write, so that a write a busy machine slows down never counts as a second
+// stall.
+type hangWatch struct {
+	mu    sync.Mutex
+	match func(wire.Packet) bool
+	limit time.Duration
+}
+
+// arm puts limit on the write match picks; match sees every write of the
+// transports w watches, in order.
+func (w *hangWatch) arm(match func(wire.Packet) bool, limit time.Duration) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.match, w.limit = match, limit
+}
+
+func (w *hangWatch) watch(tr hidio.Transport) hidio.Transport { return &watched{Transport: tr, w: w} }
+
+// watched sends the write the watch picks, and every later one, through a
+// pipe with the watch's limit, so that hidio's own write path times it and
+// stays stalled after it.
+type watched struct {
+	hidio.Transport
+	w    *hangWatch
+	pipe *hidio.Pipe
+}
+
+func (t *watched) Write(p wire.Packet) error {
+	if pipe := t.w.pipeFor(t, p); pipe != nil {
+		return pipe.WriteRawOnce(p)
+	}
+	return t.Transport.Write(p)
+}
+
+func (w *hangWatch) pipeFor(t *watched, p wire.Packet) *hidio.Pipe {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if t.pipe == nil && w.match != nil && w.match(p) {
+		t.pipe = hidio.NewPipe(t.Transport.Write)
+		t.pipe.SetWatchdog(w.limit)
+	}
+	return t.pipe
+}
+
+// watchedBus opens the bus's devices under a hangWatch.
+type watchedBus struct {
+	*emu.Bus
+	hang *hangWatch
+}
+
+func (b watchedBus) Open(c hidio.Candidate, g *hidio.Guard, rec *hidio.Recorder) (hidio.Transport, error) {
+	tr, err := b.Bus.Open(c, g, rec)
+	if err != nil {
+		return nil, err
+	}
+	return b.hang.watch(tr), nil
 }
 
 func (r *srig) clients(c hidio.Candidate) ([]session.Client, error) {

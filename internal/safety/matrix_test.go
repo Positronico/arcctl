@@ -55,7 +55,6 @@ func is(target error) func(error) bool {
 type faultCase struct {
 	name     string
 	behavior emu.Behavior
-	watchdog time.Duration
 	inject   func(t testing.TB, f *fixture, p plan.Plan, k int) (mend func())
 	outcome  func(p plan.Plan, k int) outcome
 	cause    func(err error) bool
@@ -248,10 +247,12 @@ var faultCases = []faultCase{
 		pauses:  true,
 	},
 	{
-		name:     "stall",
-		watchdog: 100 * time.Millisecond,
+		name: "stall",
 		inject: func(t testing.TB, f *fixture, p plan.Plan, k int) func() {
 			faultAt(emu.Fault{Times: 1, Action: emu.Hang})(t, f, p, k)
+			var w hangWatch
+			w.arm(emu.Nth(wire.CmdWrite, k), 100*time.Millisecond)
+			f.link.tr = w.watch(f.link.tr)
 			return func() { f.link.tr.Close(); f.dev.Release(); f.reconnect() }
 		},
 		outcome: always(stops),
@@ -492,7 +493,7 @@ func newMatrixFixture(t testing.TB, kind opKind, fc faultCase, seed uint64) *fix
 	if kind.seed != nil {
 		kind.seed(t, im)
 	}
-	b := emu.New(emu.Options{Seed: seed, Watchdog: fc.watchdog})
+	b := emu.New(emu.Options{Seed: seed})
 	t.Cleanup(b.Close)
 	d, err := b.Add(em11(m, im, fc.behavior))
 	if err != nil {
@@ -628,7 +629,6 @@ func runFault(t *testing.T, kind opKind, fc faultCase, k int, seed uint64) {
 type sessionCase struct {
 	name     string
 	behavior emu.Behavior
-	watchdog time.Duration
 	inject   func(r *srig, p plan.Plan, k int, kill context.CancelFunc) (hook func(safety.OpEvent), mend func())
 	outcome  func(p plan.Plan, k int) outcome
 	cause    func(err error) bool
@@ -774,11 +774,13 @@ var sessionCases = []sessionCase{
 		pauses:  true,
 	},
 	{
-		name:     "stall",
-		watchdog: 300 * time.Millisecond,
-		inject:   deviceFault(emu.Fault{Times: 1, Action: emu.Hang}),
-		outcome:  always(stops),
-		cause:    classIs(hidio.ClassStalled),
+		name: "stall",
+		inject: func(r *srig, p plan.Plan, k int, c context.CancelFunc) (func(safety.OpEvent), func()) {
+			r.hang.arm(emu.Nth(wire.CmdWrite, k), 300*time.Millisecond)
+			return deviceFault(emu.Fault{Times: 1, Action: emu.Hang})(r, p, k, c)
+		},
+		outcome: always(stops),
+		cause:   classIs(hidio.ClassStalled),
 	},
 	{
 		name: "kill",
@@ -997,7 +999,7 @@ func TestSessionFaultMatrix(t *testing.T) {
 }
 
 func runSessionFault(t *testing.T, kind opKind, fc sessionCase, k int, seed uint64, restart bool) {
-	r := newSRig(t, kind.seed, emu.Options{Seed: seed, Watchdog: fc.watchdog}, fc.behavior)
+	r := newSRig(t, kind.seed, emu.Options{Seed: seed}, fc.behavior)
 	_, kill := r.run()
 	sn := r.await("ready", func(sn *session.Snapshot) bool {
 		return sn.State == session.Ready && sn.Progress.Job == "" && sn.Journal != nil

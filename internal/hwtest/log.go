@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/positronico/arcctl/internal/backup"
@@ -30,38 +32,142 @@ func (r *runner) log() error {
 	if strings.HasSuffix(doc, noRuns) {
 		doc = strings.TrimRight(strings.TrimSuffix(doc, noRuns), "\n")
 	}
-	doc = setStatus(doc, r.res) + "\n\n" + entry(r.res) + "\n"
+	r.res.Status = status(doc, r.res, r.def.steps)
+	doc = setStatus(doc, r.res.Stage, r.res.Status) + "\n\n" + entry(r.res) + "\n"
 	return writeRepoFile(path, []byte(doc), true)
 }
 
-func status(res *Result) string {
-	s := "failed"
-	if res.Passed {
-		s = "passed"
-	}
-	s += " " + res.Started.UTC().Format("2006-01-02")
+// status is the stage's cell in the table of stages. A stage that names its
+// steps passes once each of them passed in a recorded run on the model and
+// mouse firmware of this one, this run included; rehearsals count only
+// rehearsals.
+func status(doc string, res *Result, steps []stepInfo) string {
+	head := res.Started.UTC().Format("2006-01-02")
 	if res.Device.Mouse != "" {
-		s += " (" + res.Device.Mouse + ")"
+		head += " (" + res.Device.Mouse + ")"
 	}
+	rehearsal := ""
 	if res.Rehearsal {
-		s += ", rehearsal"
+		rehearsal = ", rehearsal"
 	}
-	return s
+	verdict := map[bool]string{true: "passed ", false: "failed "}
+	if len(steps) == 0 {
+		return verdict[res.Passed] + head + rehearsal
+	}
+	runs := []loggedRun{{key: res.Device.Key, firmware: res.Device.Mouse, rehearsal: res.Rehearsal}}
+	for _, s := range res.Steps {
+		if s.OK && s.Name != "" {
+			runs[0].passed = append(runs[0].passed, s.Name)
+		}
+	}
+	if res.Device.Mouse != "" {
+		past := loggedRuns(doc, res.Stage, steps)
+		for i := len(past) - 1; i >= 0; i-- {
+			if p := past[i]; p.key == res.Device.Key && p.firmware == res.Device.Mouse && p.rehearsal == res.Rehearsal {
+				runs = append(runs, p)
+			}
+		}
+	}
+	done := map[string]bool{}
+	used := 0
+	for _, run := range runs {
+		if len(done) == len(steps) {
+			break
+		}
+		added := false
+		for _, n := range run.passed {
+			if !done[n] {
+				done[n], added = true, true
+			}
+		}
+		if added {
+			used++
+		}
+	}
+	var missing []string
+	for _, s := range steps {
+		if !done[s.name] {
+			missing = append(missing, s.name)
+		}
+	}
+	tail := ""
+	switch {
+	case len(missing) == 0 && used > 1:
+		tail = fmt.Sprintf(", its steps over %d runs", used)
+	case len(missing) > 3:
+		tail = fmt.Sprintf("; %d of %d steps not passed yet", len(missing), len(steps))
+	case len(missing) > 0:
+		tail = "; not passed yet: " + strings.Join(missing, ", ")
+	}
+	return verdict[len(missing) == 0] + head + rehearsal + tail
+}
+
+// loggedRun is what an entry of the log says about a run of a stage: the
+// model and mouse firmware, and the named steps that passed.
+type loggedRun struct {
+	key, firmware string
+	rehearsal     bool
+	passed        []string
+}
+
+var (
+	entryHead  = regexp.MustCompile(`^### \d{4}-\d{2}-\d{2} (\S+) \(`)
+	deviceLine = regexp.MustCompile(`^- Device: .* \(([^,()]+), mid \d+\); mouse firmware ([^,]+),`)
+	stepLine   = regexp.MustCompile("^  \\d+\\. (.+?)(?: \\(`([a-z0-9-]+)`\\))?: (ok|failed)$")
+)
+
+// loggedRuns reads the entries of stage from the log, oldest first. A step
+// is known by the name its line gives or, in entries written before steps
+// had names, by its title.
+func loggedRuns(doc, stage string, steps []stepInfo) []loggedRun {
+	var out []loggedRun
+	cur := -1
+	for _, l := range strings.Split(doc, "\n") {
+		if m := entryHead.FindStringSubmatch(l); m != nil {
+			cur = -1
+			if m[1] == stage {
+				out = append(out, loggedRun{})
+				cur = len(out) - 1
+			}
+			continue
+		}
+		if strings.HasPrefix(l, "#") {
+			cur = -1
+		}
+		if cur < 0 {
+			continue
+		}
+		run := &out[cur]
+		switch m := stepLine.FindStringSubmatch(l); {
+		case m != nil:
+			i := slices.IndexFunc(steps, func(s stepInfo) bool { return m[2] == s.name || m[2] == "" && m[1] == s.title })
+			if i >= 0 && m[3] == "ok" {
+				run.passed = append(run.passed, steps[i].name)
+			}
+		case strings.HasPrefix(l, "- Run: "):
+			run.rehearsal = strings.Contains(l, "a rehearsal")
+		default:
+			if d := deviceLine.FindStringSubmatch(l); d != nil {
+				run.key, run.firmware = d[1], d[2]
+			}
+		}
+	}
+	return out
 }
 
 // setStatus rewrites the last cell of the stage's row in the table of
 // stages; a log without the row is left as it is.
-func setStatus(doc string, res *Result) string {
+func setStatus(doc, stage, cell string) string {
 	lines := strings.Split(doc, "\n")
 	for i, l := range lines {
-		if !strings.HasPrefix(l, "| "+res.Stage+" |") {
+		if !strings.HasPrefix(l, "| "+stage+" |") {
 			continue
 		}
 		cells := strings.Split(strings.TrimSuffix(l, "|"), "|")
 		if len(cells) < 3 {
 			break
 		}
-		cells[len(cells)-1] = " " + status(res) + " "
+		cells[len(cells)-1] = " " + cell + " "
 		lines[i] = strings.Join(cells, "|") + "|"
 		break
 	}
@@ -72,7 +178,11 @@ func setStatus(doc string, res *Result) string {
 // bytes, no local path.
 func entry(res *Result) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "### %s %s (%s): %s\n\n", res.Started.UTC().Format("2006-01-02"), res.Stage, res.Title, map[bool]string{true: "passed", false: "failed"}[res.Passed])
+	what := res.Title
+	if len(res.Selected) > 0 {
+		what = "steps: " + strings.Join(res.Selected, ", ")
+	}
+	fmt.Fprintf(&b, "### %s %s (%s): %s\n\n", res.Started.UTC().Format("2006-01-02"), res.Stage, what, map[bool]string{true: "passed", false: "failed"}[res.Passed])
 	d := res.Device
 	if d.Key != "" {
 		fmt.Fprintf(&b, "- Device: %s (%s, mid %d); mouse firmware %s, receiver %s; %s; profile %s\n", d.Model, d.Key, d.MID, orNone(d.Mouse), orNone(d.Receiver), orNone(d.Conn), d.Profile)
@@ -92,7 +202,11 @@ func entry(res *Result) string {
 	if len(res.Steps) > 0 {
 		b.WriteString("- Steps:\n")
 		for i, s := range res.Steps {
-			fmt.Fprintf(&b, "  %d. %s: %s\n", i+1, oneLine(s.Title), map[bool]string{true: "ok", false: "failed"}[s.OK])
+			title := oneLine(s.Title)
+			if s.Name != "" && s.Name != title {
+				title += " (`" + s.Name + "`)"
+			}
+			fmt.Fprintf(&b, "  %d. %s: %s\n", i+1, title, map[bool]string{true: "ok", false: "failed"}[s.OK])
 			for _, d := range s.Detail {
 				fmt.Fprintf(&b, "     - %s\n", oneLine(d))
 			}

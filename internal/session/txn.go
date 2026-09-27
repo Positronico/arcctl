@@ -164,19 +164,44 @@ func (s *Session) await(ctx context.Context, l *link, req wire.Packet, per time.
 				continue
 			}
 			if answers(req, p) {
-				if !p.Valid() {
-					s.stats.BadChecksums++
-					s.log.Warn("reply checksum", "reply", p)
-				}
-				return p, true, nil
+				return s.reply(p), true, nil
 			}
 			s.dispatch(l, p)
 		case <-l.tr.Wake():
 			s.wakeHint = true
 		case <-expire.C:
+			return s.queued(l, req)
+		}
+	}
+}
+
+// queued looks, once a try has expired, through the reports that arrived in
+// time but were not read yet, so a busy host does not lose a reply.
+func (s *Session) queued(l *link, req wire.Packet) (wire.Packet, bool, error) {
+	for {
+		select {
+		case r, ok := <-l.tr.Reports():
+			if !ok {
+				return wire.Packet{}, false, l.goneErr()
+			}
+			if p, ok := r.Packet(); ok {
+				if answers(req, p) {
+					return s.reply(p), true, nil
+				}
+				s.dispatch(l, p)
+			}
+		default:
 			return wire.Packet{}, false, nil
 		}
 	}
+}
+
+func (s *Session) reply(p wire.Packet) wire.Packet {
+	if !p.Valid() {
+		s.stats.BadChecksums++
+		s.log.Warn("reply checksum", "reply", p)
+	}
+	return p
 }
 
 // drain dispatches every report that arrived before a request is sent.

@@ -4,9 +4,12 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 FUZZTIME ?= 50000x
 PLATFORMS := darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64
 
-.PHONY: check vendorguard fmt tidy vet staticcheck test test-hwtest fuzz cross usbhid-patches notices release-check mirror-only drift oracle generate build clean
+.PHONY: check full vendorguard fmt tidy vet staticcheck quick test test-hwtest fuzz cross usbhid-patches notices release-check mirror-only drift oracle generate build install clean
 
-check: vendorguard fmt tidy vet staticcheck test test-hwtest fuzz cross usbhid-patches notices release-check mirror-only
+# Everyday check: a minute or two. The long fault matrix and the rest run in 'make full'.
+check: vendorguard fmt vet quick
+
+full: vendorguard fmt tidy vet staticcheck test test-hwtest fuzz cross usbhid-patches notices release-check mirror-only
 
 vendorguard:
 	@bash scripts/vendorguard.sh
@@ -24,6 +27,9 @@ vet:
 
 staticcheck:
 	$(GO) tool staticcheck ./...
+
+quick:
+	$(GO) test -short ./...
 
 test:
 	$(GO) test -race -timeout 30m ./...
@@ -78,6 +84,9 @@ build:
 	else \
 		CGO_ENABLED=0 $(GO) build ./... && echo "build: no cmd/arcctl yet, packages compiled, no binary written"; \
 	fi
+
+install:
+	CGO_ENABLED=0 $(GO) install -trimpath -ldflags "-s -w -X main.version=$(VERSION)" ./cmd/arcctl
 
 clean:
 	rm -rf $(BINARY) dist coverage.out

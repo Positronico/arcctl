@@ -17,6 +17,7 @@ Facts here carry a tag for the research area they came from. The research itself
 | KP | keyboard protocol |
 | KU | keyboard user interface |
 | dump | a settings dump read from the maintainer's own mouse |
+| H0 | the read-only hardware stage on the maintainer's EM11 Pro, mouse firmware v1.26 (`docs/hardware-tests.md`) |
 
 ## Framing
 
@@ -33,7 +34,7 @@ Commands travel as 16-byte output reports with report ID 8, and replies come bac
 | 5–14 | data, zero padded | data |
 | 15 | checksum | checksum |
 
-- **Checksum.** 8 (the report ID) plus the sum of all 16 bytes must be 0x55 modulo 256, so byte 15 is `(0x55 − 8 − Σ bytes 0..14) & 0xFF` [WE]. H0 checks that replies follow the rule too; the one captured reply does [TS].
+- **Checksum.** 8 (the report ID) plus the sum of all 16 bytes must be 0x55 modulo 256, so byte 15 is `(0x55 − 8 − Σ bytes 0..14) & 0xFF` [WE]. Replies follow the rule too: all 3,222 frames the unit sent during H0 did [TS] [H0].
 - **Target.** A keyboard session sets 0x80 in byte 4 of every packet; replies are read with `& 0x0F` for the length [KP](v). `Policy.Check` refuses a packet whose flag does not match the session's target.
 - **Reads.** A cmd-8 request carries the length it wants (1–10) and no data bytes; the reply carries the bytes.
 - **Writes.** A cmd-7 request carries up to 10 bytes. Longer records go out in consecutive 10-byte chunks, each its own write [WE] [UI](v).
@@ -56,7 +57,7 @@ Code: `internal/wire/cmd.go`, `internal/wire/policy.go`.
 | 18 | firmware version | no data | shown as `v%d.%02x` | [TS](v) |
 | 22 | set long range | 10 bytes: `[0 or 1, 0 × 9]` | long-range radio mode; Experimental only | [TS] [MC](v) |
 | 23 | get long range | no data | probe | [TS] |
-| 29 | receiver version | no data | shown as `v%d.%02x`; a NAK means v1.0 | [TS](v) |
+| 29 | receiver version | no data | shown as `v%d.%02x`; a NAK means v1.0. The EM11 Pro's receiver passes it to the mouse: the awake mouse NAKs it, and nothing answers while it sleeps | [TS](v) [H0] |
 
 The reply layouts are in [Replies](#replies) below.
 
@@ -77,27 +78,28 @@ The M2 build enables only ReadOnly: `hidio.Guard.Set` refuses every other policy
 
 Code: `internal/session` (`connect.go`, `job.go`, `poll.go`, `txn.go`).
 
-Byte positions count from 0 over the 16-byte frame, as in the framing table. Layouts marked "until H0" are what arcctl reads today; the read-only hardware stage H0 checks them on the maintainer's unit.
+Byte positions count from 0 over the 16-byte frame, as in the framing table. H0 checked the layouts on the maintainer's EM11 Pro; what it found is tagged [H0].
 
 | Cmd | Reply | Tag |
 |---|---|---|
-| 1 | byte 9 cid, 10 mid, 11 connection type (6 is the charging base); cid or mid 0 means no usable mouse | [TS] [GO] |
-| 3 | byte 5 is 1 when the mouse is online; bytes 6–8 hold the paired address in reverse order (`33 22 11` is address 11 22 33). Answered by the receiver itself, also while the mouse sleeps | [TS] [GO](v) |
-| 4 | byte 5 level in %, 6 charging (1), 7–8 millivolts big-endian; when byte 9 is 1, byte 10 is the level to show (until H0). The raw level is shown; the web app's smoothing is not ported | [TS](v) [GM] |
-| 14 | status 0 means onboard profiles are present, and byte 5 is the active profile; a NAK means none (until H0) | [GM] [UI](v) |
-| 18, 29 | bytes 5 and 6, shown as `v%d.%02x`; a NAK on 29 means receiver v1.0 | [TS](v) |
-| 23 | byte 5 is the long-range flag; a NAK means unsupported (until H0) | [TS] |
-| NAK | status 1 with the request's command (and address, for cmds 7 and 8); the length it echoes is not checked until H1 | [TS] [WE] |
+| 1 | byte 9 cid, 10 mid, 11 connection type (6 is the charging base); cid or mid 0 means no usable mouse. The EM11 Pro sends 8 data bytes: the 4 random bytes back, then cid 0x7B, mid 4, type 0 (wireless 1 kHz) and a zero | [TS] [GO] [H0] |
+| 3 | byte 5 is 1 when the mouse is online; bytes 6–8 hold the paired address in reverse order (`33 22 11` is address 11 22 33). Answered by the receiver itself in 2–6 ms, also while the mouse sleeps. On the EM11 Pro the address stayed the same across sleep, wake and a receiver replug | [TS] [GO](v) [H0] |
+| 4 | byte 5 level in %, 6 charging (1), 7–8 millivolts big-endian; when byte 9 is 1, byte 10 is the level to show. The EM11 Pro sends only the first 4 bytes, so byte 9 is 0 there. The raw level is shown; the web app's smoothing is not ported | [TS](v) [GM] [H0] |
+| 10 | a push, never a reply: 10 data bytes, the two flag bytes first and the rest zero | [TS] [H0] |
+| 14 | status 0 means onboard profiles are present, and byte 5 is the active profile; a NAK means none. The EM11 Pro NAKs it | [GM] [UI](v) [H0] |
+| 18, 29 | bytes 5 and 6, shown as `v%d.%02x`; a NAK on 29 means receiver v1.0. The EM11 Pro reports mouse v1.26 and NAKs cmd 29 | [TS](v) [H0] |
+| 23 | byte 5 is the long-range flag; a NAK means unsupported. The EM11 Pro NAKs it | [TS] [H0] |
+| NAK | status 1 with the request's command (and address, for cmds 7 and 8), no data. The NAKs H0 saw (cmds 14, 23 and 29) had length 0, except cmd 14's, which had 1; the length is not checked. NAKs to writes wait for H1 | [TS] [WE] [H0] |
 
 ## Transport
 
 Code: `internal/hidio`, `internal/third_party/usbhid`.
 
-- **Interfaces.** A receiver shows up as two HID interfaces with the same VID, PID and report descriptors (0, the boot keyboard, and 1, the boot mouse). Only interface 1 answered cmd 3 in every library tried; interface 0 stays silent [TS] [GO](v). arcctl finds the right one by probing, never by position.
+- **Interfaces.** A receiver shows up as two HID interfaces with the same VID, PID and report descriptors (0, the boot keyboard, and 1, the boot mouse). Only interface 1 answered cmd 3 in every library tried; interface 0 stays silent [TS] [GO](v). H0 found the same, also with the mouse on its USB-C cable, which adds no interface that answers [H0]. arcctl finds the right one by probing, never by position.
 - **Vendor channel.** Before anything is sent, the interface's report descriptor must declare output report 8, 16 bytes, in an application collection on usage page 0xFF02. VID 0x062A is shared with other vendors, so a VID and PID match alone is not enough. Windows gives no descriptor and splits each top-level collection into its own device, so there enumeration keeps only usage page 0xFF02 instead.
 - **Shared access.** Interfaces are opened shared, never seized, so other clients (Karabiner's observer, the web app in a browser) can hold the same interface. A second client can see or take replies meant for arcctl; the session watches for that (below).
 - **Input.** Replies and pushes arrive as report-8 input frames of 16 bytes. Every other input report (mouse movement, keyboard and consumer reports from the same receiver) only says that the mouse is awake; arcctl keeps no content from them.
-- **Write errors.** IOKit errors come back as `IOReturn` codes inside the backends' error text; `hidio.IOReturn` extracts them and `hidio.Classify` groups them. 0xE00002BC (general error) is retried up to 3 times; 0xE00002D6 is a write timeout; 0xE00002E2 means the screen is locked or Secure Input is on; 0xE00002C1 is a missing permission; 0xE00002C5 means another process seized the device; 0xE00002C0 and similar codes mean the device is gone. A write that has not completed after 2 s marks the handle stalled.
+- **Write errors.** IOKit errors come back as `IOReturn` codes inside the backends' error text; `hidio.IOReturn` extracts them and `hidio.Classify` groups them. 0xE00002BC (general error) is retried up to 3 times; 0xE00002D6 is a write timeout; 0xE00002E2 means the screen is locked or Secure Input is on, and it is also what opening the receiver returns once the Input Monitoring grant is revoked, so the permission check comes before any open [H0]; 0xE00002C1 is a missing permission; 0xE00002C5 means another process seized the device; 0xE00002C0 and similar codes mean the device is gone. A write that has not completed after 2 s marks the handle stalled.
 
 ## Session and transactions
 
@@ -107,14 +109,16 @@ Code: `internal/session`.
 1. On macOS, check Input Monitoring for the app that runs arcctl; a denial means NeedsPermission.
 2. Enumerate every catalog VID and PID pair.
 3. Probe every candidate with cmd 3 (3 tries of 150 ms). Silent interfaces and NAKs are closed. A keyboard PID is probed with the 0x80 flag first and again without it when that gets no reply [KP](v). Several answering devices (a second receiver, or a mouse on a cable) need a choice.
-4. Ask the receiver for its version (cmd 29), then poll cmd 3 until the mouse is online. The receiver answers both itself while the mouse sleeps [TS](v).
+4. Ask the receiver for its version (cmd 29), then poll cmd 3 until the mouse is online. The receiver answers cmd 3 itself while the mouse sleeps [TS](v) [H0]. The EM11 Pro's receiver passes cmd 29 to the mouse, which leaves it unanswered while it sleeps [H0], so a sleeping mouse gets one try, and the question is asked once more when it wakes, before the handshake.
 5. Handshake (cmd 1: 4 random bytes and 4 zero bytes). The (cid, mid) pair picks the model; an unknown pair or the charging base is shown but not read.
 6. Load (see Reads in the flash layout above), then cmds 14, 18 and 4, plus 23 when the connection is wireless.
 7. On every wake, handshake again: a different paired mouse starts a fresh load.
 
 cmd 2, cmds 21, 25 and 45 and report 13, which the web app sends while connecting, are skipped [TS].
 
-**Transactions.** One request at a time. Reports that arrived before the request are handled first (drain before send). Each request gets 5 tries of 200 ms; reports that do not answer it are handled on the side and do not use up a try. A reply answers when its command matches, and for cmds 7 and 8 its address and length as well; status 1 ends the transaction as a NAK [TS](v) [WE](v). Inbound checksums are counted but not enforced until H0.
+**Transactions.** One request at a time. Reports that arrived before the request are handled first (drain before send). Each request gets 5 tries of 200 ms; reports that do not answer it are handled on the side and do not use up a try, and reports already queued when a try runs out are still read before the try counts as unanswered. A reply answers when its command matches, and for cmds 7 and 8 its address and length as well; status 1 ends the transaction as a NAK [TS](v) [WE](v). Inbound checksums are counted but not enforced; every frame of the H0 run was valid [H0].
+
+**Latency and loss.** Replies that cross the radio took about 12 ms on the EM11 Pro (2,810 reads: p50 12.1 ms, p99 43.7 ms, max 56 ms), and the receiver's own cmd-3 replies 2–6 ms (max 10 ms); a full backup took 9.9 s [H0]. The receiver serves one radio request at a time: each of the 6 times a second request reached it before the reply to the first, the first reply never came and the second did. With one client talking, none of 2,565 tries went unanswered [H0].
 
 **Other frames.**
 
@@ -123,7 +127,7 @@ cmd 2, cmds 21, 25 and 45 and report 13, which the web app sends while connectin
 | cmd 10 (StatusChanged) | a push: re-read what it names |
 | matches a request answered in the last 2 s | a duplicate; logged |
 | matches a request that timed out in the last 2 s | a late reply; logged |
-| cmd 3 that nobody asked for | logged; an online flag counts as a wake hint (until H0 settles push behaviour) |
+| cmd 3 that nobody asked for | logged; an online flag counts as a wake hint. The EM11 Pro never sent one: no frame marked sleep, wake, a screen lock or a replug [H0] |
 | anything else | foreign: another client is talking to the receiver, and the session enters Conflict |
 
 **Pushes.** A StatusChanged push carries two flag bytes (5 and 6). For a mouse, each flag names a range to read again [TS] [GM]:
@@ -144,15 +148,17 @@ cmd 2, cmds 21, 25 and 45 and report 13, which the web app sends while connectin
 
 Keyboard flags mean other things [KP] and are not acted on yet.
 
+What the EM11 Pro pushed in H0 [H0]: 19 pushes, all 0x40 (battery), about one a second during two steps in which the host was reading and the mouse was probably being moved; none on sleep, wake or a screen lock. Whether a DPI press pushes 0x01 is not known: the unit's DPI button (slot 5) is bound to Cmd+C, so pressing it sent keyboard reports only. Without a push, a DPI press shows up only when the device is read again: a reload, or the re-read of the records a write changes, which the preflight does and which refuses a plan made on the old bytes.
+
 **Offline during reads.** A mouse command that runs out of tries is followed by cmd 3. If the mouse is offline, the read pauses and resumes from the failed chunk once it wakes; if it is online, the chunk gets one more attempt and is then left unknown.
 
-**Polling.** cmd 3 every 1.5 s while offline and every 5 s while ready; cmd 4 every 30 s while ready. A rescan with no receiver starts at 1 s and backs off to 5 s; a locked, seized or unpermitted device is retried from 2 s up to 10 s.
+**Polling.** cmd 3 every 1.5 s while offline and every 5 s while ready; cmd 4 every 30 s while ready. A rescan with no receiver starts at 1 s and backs off to 5 s; a locked, seized or unpermitted device is retried from 2 s up to 10 s. The EM11 Pro sleeps about 13 s after its last input; reads keep it awake, cmd 3 does not, since it never reaches the mouse [H0].
 
 **Conflict signals.** Two ways to notice another client [TS](v):
 - *Broadcast*: every client sees every reply, so arcctl sees replies to requests it never sent. Such a foreign reply enters Conflict, which the user clears after 10 s without one.
-- *Steal*: each reply reaches one client, so arcctl's replies go missing. The receiver answers cmd 3 within milliseconds, so 2 unanswered cmd-3 tries in a row, or a mouse command that needs 3 or more tries while cmd 3 says online, enter SuspectedConflict. It clears after 3 clean transactions and a client scan that shows nobody else.
+- *Steal*: each reply reaches one client, so arcctl's replies go missing. The receiver answers cmd 3 within milliseconds, so 2 unanswered cmd-3 tries in a row, or a mouse command that goes unanswered 4 times while cmd 3 says online, enter SuspectedConflict. It clears after 3 clean transactions and a client scan that shows nobody else.
 
-Which of the two the receiver does is settled at H0; both disable writes.
+The EM11 Pro's receiver broadcasts: with the web app connected, a listener that sent nothing saw 8 replies meant for the browser, the client scan named Google Chrome, and a session next to it entered Conflict [H0]. Two clients that talk at once also lose replies to each other (Latency and loss, above). Both signals disable writes, and the steal thresholds stay for receivers not yet tested. They are set so that a 2.5% loss per try, far above what H0 saw, raises no suspicion: 4 unanswered tries of one command happen once in 2.6 million transactions at that rate, and once in 16 when another client takes half the replies.
 
 ## Flash layout
 

@@ -22,10 +22,17 @@ func (d *Device) respond(p wire.Packet) []reply {
 	case wire.CmdOnline:
 		return []reply{{d.online(), false}}
 	case wire.CmdRxVersion:
-		if d.rxVersion == nil {
-			return []reply{{nak(p, d.behavior.ShortNAK), false}}
+		radio := d.behavior.RadioRxVersion
+		if radio {
+			if m := d.mouse; m == nil || !m.awake {
+				return nil
+			}
+			d.keepAwake()
 		}
-		return []reply{{frame(wire.CmdRxVersion, 0, []byte{d.rxVersion.Major, d.rxVersion.Minor}), false}}
+		if d.rxVersion == nil {
+			return []reply{{nak(p, d.behavior.ShortNAK), radio}}
+		}
+		return []reply{{frame(wire.CmdRxVersion, 0, []byte{d.rxVersion.Major, d.rxVersion.Minor}), radio}}
 	}
 	if !radioCmds[p.Cmd()] {
 		if d.behavior.Unknown == AnswerNAK {
@@ -37,6 +44,7 @@ func (d *Device) respond(p wire.Packet) []reply {
 	if m == nil || !m.awake {
 		return nil
 	}
+	d.keepAwake()
 	var out []reply
 	for _, r := range m.respond(p, d.behavior) {
 		out = append(out, reply{r, true})
@@ -63,14 +71,11 @@ func (m *mouseState) respond(p wire.Packet, bh Behavior) []wire.Packet {
 		return one(frame(c, 0, []byte{p[5], p[6], p[7], p[8], m.cid, m.mid, m.conn, 0}))
 	case wire.CmdBattery:
 		b := m.battery
-		var charging, direct byte
-		if b.Charging {
-			charging = 1
-		}
+		data := []byte{b.Level, flag(b.Charging), byte(b.MilliVolts >> 8), byte(b.MilliVolts)}
 		if b.Direct {
-			direct = 1
+			data = append(data, 1, b.Level)
 		}
-		return one(frame(c, 0, []byte{b.Level, charging, byte(b.MilliVolts >> 8), byte(b.MilliVolts), direct, b.Level}))
+		return one(frame(c, 0, data))
 	case wire.CmdRead:
 		e, ok := extent(p)
 		if !ok {
@@ -166,6 +171,8 @@ func nak(p wire.Packet, short bool) wire.Packet {
 	return q
 }
 
+// statusChanged is a push as the EM11 Pro sends it: 10 data bytes, the two
+// flag bytes first.
 func statusChanged(f1, f2 byte) wire.Packet {
-	return frame(wire.CmdStatusChanged, 0, []byte{f1, f2})
+	return frame(wire.CmdStatusChanged, 0, []byte{f1, f2, 0, 0, 0, 0, 0, 0, 0, 0})
 }

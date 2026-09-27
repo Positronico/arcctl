@@ -183,8 +183,8 @@ func (b *Bus) Close() {
 	}
 }
 
-func (b *Bus) after(d time.Duration, f func()) {
-	b.clock.AfterFunc(d, func() {
+func (b *Bus) after(d time.Duration, f func()) Timer {
+	return b.clock.AfterFunc(d, func() {
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		if !b.closed {

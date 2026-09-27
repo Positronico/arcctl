@@ -347,7 +347,7 @@ func TestTraceSendsNothing(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Listening on 2 interface(s) for 500ms; nothing is sent.",
-		"if1  id 8   0a 00 00 00 02 01 00",
+		"if1  id 8   0a 00 00 00 0a 01 00",
 		"status-changed",
 		"if1  id 7 ",
 		"if0: 0 report(s)",

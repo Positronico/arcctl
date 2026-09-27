@@ -56,7 +56,7 @@ func TestTUIGetsTheSession(t *testing.T) {
 				_, err := session.Await(ctx, tui.Session, func(sn *session.Snapshot) bool { return sn.State == session.Ready })
 				return err
 			}
-			if code := cli.Run(context.Background(), args, env); code != cli.ExitOK {
+			if code := runCLI(context.Background(), args, env); code != cli.ExitOK {
 				t.Fatalf("exit %d: %s", code, errb.String())
 			}
 			if got.Session == nil {
