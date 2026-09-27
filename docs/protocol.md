@@ -58,7 +58,7 @@ Code: `internal/wire/cmd.go`, `internal/wire/policy.go`.
 | 23 | get long range | no data | probe | [TS] |
 | 29 | receiver version | no data | shown as `v%d.%02x`; a NAK means v1.0 | [TS](v) |
 
-The reply layouts of cmds 1, 3, 4, 14, 18, 23 and 29 are used from M2 on.
+The reply layouts are in [Replies](#replies) below.
 
 **Never sent.** Cmds 2, 20, 21, 24, 25, 44, 45, 46–50 and 176–183, report 13 and any feature report [TS](v) [GO](v) [GM]. Cmd 10 only arrives as a push. Pairing (cmds 5 and 6, D6) and cmd 15 (set profile) are not sent in v1. No policy allows any of them.
 
@@ -70,6 +70,89 @@ The reply layouts of cmds 1, 3, 4, 14, 18, 23 and 29 are used from M2 on.
 | Edit | the reads plus 7 | the reads only (D7) |
 | Reset | the reads plus 9 | the reads only |
 | Experimental | the reads plus 7 and 22 | the reads only |
+
+The M2 build enables only ReadOnly: `hidio.Guard.Set` refuses every other policy.
+
+## Replies
+
+Code: `internal/session` (`connect.go`, `job.go`, `poll.go`, `txn.go`).
+
+Byte positions count from 0 over the 16-byte frame, as in the framing table. Layouts marked "until H0" are what arcctl reads today; the read-only hardware stage H0 checks them on the maintainer's unit.
+
+| Cmd | Reply | Tag |
+|---|---|---|
+| 1 | byte 9 cid, 10 mid, 11 connection type (6 is the charging base); cid or mid 0 means no usable mouse | [TS] [GO] |
+| 3 | byte 5 is 1 when the mouse is online; bytes 6–8 hold the paired address in reverse order (`33 22 11` is address 11 22 33). Answered by the receiver itself, also while the mouse sleeps | [TS] [GO](v) |
+| 4 | byte 5 level in %, 6 charging (1), 7–8 millivolts big-endian; when byte 9 is 1, byte 10 is the level to show (until H0). The raw level is shown; the web app's smoothing is not ported | [TS](v) [GM] |
+| 14 | status 0 means onboard profiles are present, and byte 5 is the active profile; a NAK means none (until H0) | [GM] [UI](v) |
+| 18, 29 | bytes 5 and 6, shown as `v%d.%02x`; a NAK on 29 means receiver v1.0 | [TS](v) |
+| 23 | byte 5 is the long-range flag; a NAK means unsupported (until H0) | [TS] |
+| NAK | status 1 with the request's command (and address, for cmds 7 and 8); the length it echoes is not checked until H1 | [TS] [WE] |
+
+## Transport
+
+Code: `internal/hidio`, `internal/third_party/usbhid`.
+
+- **Interfaces.** A receiver shows up as two HID interfaces with the same VID, PID and report descriptors (0, the boot keyboard, and 1, the boot mouse). Only interface 1 answered cmd 3 in every library tried; interface 0 stays silent [TS] [GO](v). arcctl finds the right one by probing, never by position.
+- **Vendor channel.** Before anything is sent, the interface's report descriptor must declare output report 8, 16 bytes, in an application collection on usage page 0xFF02. VID 0x062A is shared with other vendors, so a VID and PID match alone is not enough. Windows gives no descriptor and splits each top-level collection into its own device, so there enumeration keeps only usage page 0xFF02 instead.
+- **Shared access.** Interfaces are opened shared, never seized, so other clients (Karabiner's observer, the web app in a browser) can hold the same interface. A second client can see or take replies meant for arcctl; the session watches for that (below).
+- **Input.** Replies and pushes arrive as report-8 input frames of 16 bytes. Every other input report (mouse movement, keyboard and consumer reports from the same receiver) only says that the mouse is awake; arcctl keeps no content from them.
+- **Write errors.** IOKit errors come back as `IOReturn` codes inside the backends' error text; `hidio.IOReturn` extracts them and `hidio.Classify` groups them. 0xE00002BC (general error) is retried up to 3 times; 0xE00002D6 is a write timeout; 0xE00002E2 means the screen is locked or Secure Input is on; 0xE00002C1 is a missing permission; 0xE00002C5 means another process seized the device; 0xE00002C0 and similar codes mean the device is gone. A write that has not completed after 2 s marks the handle stalled.
+
+## Session and transactions
+
+Code: `internal/session`.
+
+**Connect sequence.**
+1. On macOS, check Input Monitoring for the app that runs arcctl; a denial means NeedsPermission.
+2. Enumerate every catalog VID and PID pair.
+3. Probe every candidate with cmd 3 (3 tries of 150 ms). Silent interfaces and NAKs are closed. A keyboard PID is probed with the 0x80 flag first and again without it when that gets no reply [KP](v). Several answering devices (a second receiver, or a mouse on a cable) need a choice.
+4. Ask the receiver for its version (cmd 29), then poll cmd 3 until the mouse is online. The receiver answers both itself while the mouse sleeps [TS](v).
+5. Handshake (cmd 1: 4 random bytes and 4 zero bytes). The (cid, mid) pair picks the model; an unknown pair or the charging base is shown but not read.
+6. Load (see Reads in the flash layout above), then cmds 14, 18 and 4, plus 23 when the connection is wireless.
+7. On every wake, handshake again: a different paired mouse starts a fresh load.
+
+cmd 2, cmds 21, 25 and 45 and report 13, which the web app sends while connecting, are skipped [TS].
+
+**Transactions.** One request at a time. Reports that arrived before the request are handled first (drain before send). Each request gets 5 tries of 200 ms; reports that do not answer it are handled on the side and do not use up a try. A reply answers when its command matches, and for cmds 7 and 8 its address and length as well; status 1 ends the transaction as a NAK [TS](v) [WE](v). Inbound checksums are counted but not enforced until H0.
+
+**Other frames.**
+
+| Frame | Treatment |
+|---|---|
+| cmd 10 (StatusChanged) | a push: re-read what it names |
+| matches a request answered in the last 2 s | a duplicate; logged |
+| matches a request that timed out in the last 2 s | a late reply; logged |
+| cmd 3 that nobody asked for | logged; an online flag counts as a wake hint (until H0 settles push behaviour) |
+| anything else | foreign: another client is talking to the receiver, and the session enters Conflict |
+
+**Pushes.** A StatusChanged push carries two flag bytes (5 and 6). For a mouse, each flag names a range to read again [TS] [GM]:
+
+| Byte | Flag | Re-read |
+|---|---|---|
+| 5 | 0x01 | 4+2 (current stage) |
+| 5 | 0x02 | 0+2 (report rate) |
+| 5 | 0x04 | the onboard profile changed: cmd 14 and a full reload |
+| 5 | 0x08 | 76+8 (DPI light) |
+| 5 | 0x20 | 160+7 (light effect) |
+| 5 | 0x40 | battery (cmd 4) |
+| 6 | 0x01 | 10+2 |
+| 6 | 0x02 | 169+2 |
+| 6 | 0x04 | 171+2 |
+| 6 | 0x08 | 233+6 |
+| 6 | 0x10 | 225+2 |
+
+Keyboard flags mean other things [KP] and are not acted on yet.
+
+**Offline during reads.** A mouse command that runs out of tries is followed by cmd 3. If the mouse is offline, the read pauses and resumes from the failed chunk once it wakes; if it is online, the chunk gets one more attempt and is then left unknown.
+
+**Polling.** cmd 3 every 1.5 s while offline and every 5 s while ready; cmd 4 every 30 s while ready. A rescan with no receiver starts at 1 s and backs off to 5 s; a locked, seized or unpermitted device is retried from 2 s up to 10 s.
+
+**Conflict signals.** Two ways to notice another client [TS](v):
+- *Broadcast*: every client sees every reply, so arcctl sees replies to requests it never sent. Such a foreign reply enters Conflict, which the user clears after 10 s without one.
+- *Steal*: each reply reaches one client, so arcctl's replies go missing. The receiver answers cmd 3 within milliseconds, so 2 unanswered cmd-3 tries in a row, or a mouse command that needs 3 or more tries while cmd 3 says online, enter SuspectedConflict. It clears after 3 clean transactions and a client scan that shows nobody else.
+
+Which of the two the receiver does is settled at H0; both disable writes.
 
 ## Flash layout
 

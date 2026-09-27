@@ -1,0 +1,3 @@
+arcctl: backup: with --emulate or --replay, pass -o so the backup stays out of
+  the backups folder
+  Run 'arcctl help' for the commands and their flags.

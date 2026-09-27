@@ -1,0 +1,2 @@
+arcctl: flag provided but not defined: -frob
+  Run 'arcctl help' for the commands and their flags.

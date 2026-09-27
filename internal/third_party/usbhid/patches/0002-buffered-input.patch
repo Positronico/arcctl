@@ -1,0 +1,99 @@
+diff -ruN b/device.go c/device.go
+--- b/device.go
++++ c/device.go
+@@ -11,6 +11,7 @@
+ import (
+ 	"errors"
+ 	"fmt"
++	"sync/atomic"
+ )
+ 
+ // Errors returned from usbhid package may be tested against these errors
+@@ -49,6 +50,8 @@
+ 	reportFeatureLength uint16
+ 	reportWithId        bool
+ 
++	inputDropped atomic.Uint64
++
+ 	extra deviceExtra
+ }
+ 
+@@ -225,6 +228,12 @@
+ 		return fmt.Errorf("%w [rid=%d; %s]: %w", ErrSetFeatureReportFailed, reportId, d, err)
+ 	}
+ 	return nil
++}
++
++// DroppedInputReports returns how many input reports were discarded because
++// the queue in front of GetInputReport was full.
++func (d *Device) DroppedInputReports() uint64 {
++	return d.inputDropped.Load()
+ }
+ 
+ // GetInputReportLength returns the data size of an input report in bytes.
+diff -ruN b/device_darwin.go c/device_darwin.go
+--- b/device_darwin.go
++++ c/device_darwin.go
+@@ -26,6 +26,10 @@
+ // handed to IOKit before abandoning it.
+ var setReportGrace = 2 * time.Second
+ 
++// inputQueueLen is how many input reports wait for GetInputReport before the
++// callback starts dropping them.
++const inputQueueLen = 64
++
+ type (
+ 	_io_name_t           []byte
+ 	_io_object_t         = _mach_port_t
+@@ -465,6 +469,7 @@
+ 	select {
+ 	case d.extra.inputCh <- ctx:
+ 	default:
++		d.inputDropped.Add(1)
+ 	}
+ }
+ 
+@@ -654,7 +659,7 @@
+ 		return errors.New("failed to create run loop source")
+ 	}
+ 
+-	inputCh := make(chan inputCtx)
++	inputCh := make(chan inputCtx, inputQueueLen)
+ 	done := make(chan struct{})
+ 	runloopDone := make(chan struct{})
+ 	ioCh := make(chan func(), 1)
+diff -ruN b/device_queue_darwin_test.go c/device_queue_darwin_test.go
+--- b/device_queue_darwin_test.go
++++ c/device_queue_darwin_test.go
+@@ -0,0 +1,31 @@
++// Local patch for arcctl: see NOTICE and patches/0002-buffered-input.patch.
++
++package usbhid
++
++import (
++	"testing"
++	"unsafe"
++)
++
++func TestDarwinInputCallbackQueuesAndCountsDrops(t *testing.T) {
++	d := &Device{}
++	d.extra.state = deviceOpen
++	d.extra.inputBufferLen = 2
++	d.extra.inputCh = make(chan inputCtx, inputQueueLen)
++	handle := registerCallbackDevice(d)
++	defer unregisterCallbackDevice(handle)
++
++	for i := 0; i < inputQueueLen+3; i++ {
++		report := []byte{8, byte(i)}
++		inputCallback(handle, kIOReturnSuccess, 0, 0, 8, unsafe.Pointer(&report[0]), _CFIndex(len(report)))
++	}
++	if got := len(d.extra.inputCh); got != inputQueueLen {
++		t.Fatalf("queued %d reports, want %d", got, inputQueueLen)
++	}
++	if got := d.DroppedInputReports(); got != 3 {
++		t.Fatalf("dropped %d reports, want 3", got)
++	}
++	if first := <-d.extra.inputCh; first.buf[1] != 0 {
++		t.Fatalf("first queued report is %v, want the oldest", first.buf)
++	}
++}

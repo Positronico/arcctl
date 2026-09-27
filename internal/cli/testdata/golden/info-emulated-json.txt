@@ -1,0 +1,243 @@
+{
+  "state": "ready",
+  "device": {
+    "path": "emu:1/IOUSBHostInterface@1",
+    "vid": "260d",
+    "pid": "1282",
+    "interface": 1,
+    "product": "Emulated receiver (ProtoArc EM11 Pro)"
+  },
+  "receiver_firmware": "v1.0",
+  "online": true,
+  "address": "11:22:33",
+  "handshake": {
+    "cid": "7b",
+    "mid": 4,
+    "conn": 0,
+    "type": "wireless 1 kHz"
+  },
+  "model": {
+    "key": "7B04",
+    "name": "ProtoArc EM11 Pro",
+    "sensor": "3104"
+  },
+  "mouse_firmware": "v1.00",
+  "battery": {
+    "level": 100,
+    "charging": false,
+    "millivolts": 4100
+  },
+  "profile": {
+    "supported": false,
+    "value": null
+  },
+  "long_range": {
+    "supported": true,
+    "value": 1
+  },
+  "identity": "260d-1282-7b04",
+  "unread_chunks": 0,
+  "writes": false,
+  "tiers": [
+    {
+      "feature": "dpi.stages",
+      "tier": "untested"
+    },
+    {
+      "feature": "dpi.current",
+      "tier": "untested"
+    },
+    {
+      "feature": "dpi.value",
+      "tier": "untested"
+    },
+    {
+      "feature": "button.system",
+      "tier": "untested"
+    },
+    {
+      "feature": "button.media",
+      "tier": "untested"
+    },
+    {
+      "feature": "button.media.custom",
+      "tier": "experimental"
+    },
+    {
+      "feature": "button.shortcut",
+      "tier": "untested"
+    },
+    {
+      "feature": "button.shortcut.right-modifier",
+      "tier": "untested"
+    },
+    {
+      "feature": "button.shortcut.menu",
+      "tier": "untested"
+    },
+    {
+      "feature": "button.shortcut.custom",
+      "tier": "experimental"
+    },
+    {
+      "feature": "button.macro",
+      "tier": "untested"
+    },
+    {
+      "feature": "button.macro.foreign",
+      "tier": "experimental"
+    },
+    {
+      "feature": "button.rate-switch",
+      "tier": "experimental"
+    },
+    {
+      "feature": "button.drag-scroll",
+      "tier": "experimental"
+    },
+    {
+      "feature": "button.fire-key",
+      "tier": "experimental"
+    },
+    {
+      "feature": "button.profile-switch",
+      "tier": "experimental"
+    },
+    {
+      "feature": "button.dpi-lock",
+      "tier": "experimental"
+    },
+    {
+      "feature": "button.hidden-slot",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.key-operation",
+      "tier": "read-only"
+    },
+    {
+      "feature": "setting.lod",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.dpi-light-mode",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.dpi-light-brightness",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.dpi-light-speed",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.dpi-light-state",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.light",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.debounce",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.motion-sync",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.sleep",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.angle",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.ripple",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.moving-off-light",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.performance-state",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.performance",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.sensor-mode",
+      "tier": "experimental"
+    },
+    {
+      "feature": "setting.angle-tune",
+      "tier": "off"
+    },
+    {
+      "feature": "setting.angle-tune-state",
+      "tier": "off"
+    },
+    {
+      "feature": "setting.sensor-fps20k",
+      "tier": "off"
+    },
+    {
+      "feature": "setting.wheel-debounce",
+      "tier": "off"
+    },
+    {
+      "feature": "setting.debounce-release",
+      "tier": "off"
+    },
+    {
+      "feature": "setting.flywheel-state",
+      "tier": "off"
+    },
+    {
+      "feature": "setting.flywheel",
+      "tier": "off"
+    },
+    {
+      "feature": "setting.left-trigger",
+      "tier": "off"
+    },
+    {
+      "feature": "setting.left-fast-trigger",
+      "tier": "off"
+    },
+    {
+      "feature": "setting.left-tactile-feedback",
+      "tier": "off"
+    },
+    {
+      "feature": "setting.right-trigger",
+      "tier": "off"
+    },
+    {
+      "feature": "setting.right-fast-trigger",
+      "tier": "off"
+    },
+    {
+      "feature": "setting.right-tactile-feedback",
+      "tier": "off"
+    },
+    {
+      "feature": "setting.dynamic-sensitivity",
+      "tier": "off"
+    },
+    {
+      "feature": "setting.dynamic-sensitivity-mode",
+      "tier": "off"
+    },
+    {
+      "feature": "setting.virtual-center",
+      "tier": "off"
+    }
+  ]
+}

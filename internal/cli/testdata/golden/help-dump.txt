@@ -1,0 +1,16 @@
+Usage: arcctl dump [--range a:b] [--bin|--json] [-o file]
+
+Read flash and print it as hex, raw bytes or decoded.
+
+Flags:
+  -bin
+      write raw bytes, unread ones as 0xFF (default range 0:256)
+  -json
+      print the decoded configuration as JSON
+  -o file
+      write to file instead of standard output
+  -range a:b
+      read a:b (end exclusive) or a+n, decimal or 0x hex; default: what the load
+      read
+
+Global flags: see 'arcctl help'.

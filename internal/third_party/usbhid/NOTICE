@@ -1,0 +1,41 @@
+This directory is a vendored copy of rafaelmartins.com/p/usbhid, built into
+arcctl as the package github.com/positronico/arcctl/internal/third_party/usbhid.
+
+Origin:   https://git.rafaelmartins.com/rafaelmartins/usbhid.git
+Version:  v0.0.0-20260903160318-2edd824d3b06
+Commit:   2edd824d3b069090d68c9ee55a56170cd01df09e
+Sum:      h1:3ZExkkFFPDk5U0oh678sOgB5mAepL9r1uJzUivdsam8=
+License:  BSD 3-Clause, see LICENSE (unchanged). Copyright Rafael G. Martins.
+
+The upstream mirror is archived and has no tags, so the module is vendored
+rather than fetched. The copy is a package of arcctl's module, not a module
+of its own: `go install` refuses a go.mod with replace directives, and this
+way arcctl's vet, staticcheck and tests cover the patched code. Everything
+here is upstream code except the local patches in patches/, applied in
+order, and two mechanical steps: the import path in example_test.go is
+rewritten to this package's, and go.mod and go.sum are removed.
+
+  0001-setreport-timeout.patch  darwin: pass a 1 s timeout to
+      IOHIDDeviceSetReportWithCallback so IOKit completes a report the device
+      never accepts with kIOReturnTimeout. The argument is a CFTimeInterval,
+      but IOKit reads it as milliseconds, so the value passed is 1000. Also
+      stop waiting for the completion once the device is closing, so Close
+      cannot hang behind a stuck write. A report still in flight after a
+      grace period is abandoned and its buffer leaked rather than freed while
+      IOKit may use it.
+  0002-buffered-input.patch     darwin: queue up to 64 input reports in front
+      of GetInputReport instead of dropping every report that arrives while
+      the reader is busy, and count the reports dropped when the queue is
+      full (Device.DroppedInputReports).
+  0003-report-descriptor.patch  darwin and Linux: keep the report descriptor
+      read at enumeration and return it from Device.ReportDescriptor, so
+      arcctl can check that an interface declares the vendor channel before
+      it sends anything to it.
+  0004-lint.patch               make the package pass arcctl's vet and
+      staticcheck: a test formatted uint16 values with %q, and the padding
+      fields of a C struct mirror become blank fields (same layout).
+
+Patches 1 to 3 add tests that run against stubbed IOKit calls or plain values.
+To check the copy, or to re-vendor after changing a patch, run
+patches/verify.sh (see its header). arcctl's docs/decisions.md records why
+the patches exist.

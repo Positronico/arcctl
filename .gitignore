@@ -6,6 +6,11 @@ coverage.out
 /coverage/
 .DS_Store
 
+# Transcripts from --record are unredacted; only copies made with
+# 'arcctl redact' belong in the repo, under testdata/transcripts.
+*.jsonl
+!testdata/transcripts/*.jsonl
+
 # Vendor-file guard patterns; scripts/vendorguard.sh enforces the same list.
 *.js
 *.css

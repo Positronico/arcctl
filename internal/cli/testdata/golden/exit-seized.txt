@@ -1,0 +1,2 @@
+arcctl: the device is held exclusively by Other (pid 7)
+  Quit Other, then retry.

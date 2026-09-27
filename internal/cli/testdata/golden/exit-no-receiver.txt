@@ -1,0 +1,3 @@
+arcctl: no ProtoArc receiver or mouse found
+  Plug in the receiver, or the mouse with its USB cable. 'arcctl doctor' checks
+  the setup.

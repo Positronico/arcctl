@@ -1,0 +1,26 @@
+arcctl test
+Go        $GO $PLATFORM
+Backends  usbhid (default)
+usbhid    rafaelmartins.com/p/usbhid v0.0.0-20260903160318-2edd824d3b06
+          vendored in internal/third_party/usbhid
+Patches   0001-setreport-timeout, 0002-buffered-input, 0003-report-descriptor,
+          0004-lint
+Catalog   facts schema 1, web app cfg 1.0.4, bundle index-B-NBYECN.js
+Tool      tools/catalog version 1
+Tool      tools/research/extract_bundle.py sha256 518a8f402e960aa2
+Inputs (sha256)
+  site/assets/index-B-NBYECN.js          aec7b5360cd8bf5b
+  site/cfg.json                          2d59a796ead2617c
+  site/img/devices/keyboard/0301.png     1ad78e320bb84afb
+  site/img/devices/keyboard/0303.png     1ad78e320bb84afb
+  site/img/devices/keyboard/0304.png     dfefe32e8789a1b5
+  site/lang/en.json                      ae4d23ae54b17135
+  site/sensor.json                       7ae8b0e13ea09c16
+  tools/research/extracts/br.json        04a37b55885e1d43
+  tools/research/extracts/hr.json        d17491cd069f1fe4
+  tools/research/extracts/manifest.json  a545ece749437fa2
+  tools/research/extracts/p0.json        75d6ac4e21018923
+  tools/research/extracts/w_.json        febdbc6734b0e7e2
+  tools/research/extracts/wr.json        3e9fc2afc722e0c4
+  tools/research/extracts/ye.json        b37058e4db2119e3
+Verified  no hardware stage recorded yet

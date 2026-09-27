@@ -1,0 +1,9 @@
+State       unknown device
+Device      260d:1282 interface 1, Emulated receiver
+Path        emu:1/IOUSBHostInterface@1
+Receiver    firmware v1.02
+Mouse       online, address 11:22:33
+Handshake   cid 0x7b, mid 9, wireless 1 kHz
+Model       unknown model: cid 0x7b, mid 9; nothing is read from it
+Identity    260d-1282-7b09 (without the address until it is confirmed stable)
+Writes      off: this build only reads

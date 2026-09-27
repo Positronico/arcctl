@@ -1,0 +1,11 @@
+a: $TMP/a.bin (dump)
+b: $TMP/b.bin (dump)
+
+  Report rate    250 Hz             ->  1000 Hz
+  DPI stage 2    1200               ->  1600
+  Button slot 3  Cmd+Shift+T        ->  Backward
+  Shortcut 2     Cmd+C (Copy)       ->  Cmd+V (Paste)
+  Macro 3        "hello", 4 events  ->  "bye", 2 events
+  Bytes 6920+2   ff ff              ->  12 34
+
+6 differ, 101 equal, 0 not compared (read on one side only)

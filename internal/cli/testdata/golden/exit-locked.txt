@@ -1,0 +1,2 @@
+arcctl: Secure Input is on, held by loginwindow (pid 200)
+  Close the password field, then retry.

@@ -1,0 +1,4 @@
+Wrote $TMP/x.bin: 16448 bytes for the web app (ProtoArc EM11 Pro, sensor 3104)
+  Importing it, the web app writes the settings page, the 4 bytes at 6984 and
+  every bound shortcut and macro slot that differs from what it read from the
+  mouse.

@@ -4,7 +4,17 @@ arcctl speaks the same protocol as the vendor's web app but does not copy its be
 
 ## Transport and matching
 
-TODO (M2): strict reply matching, NAK handling, draining before a send, duplicate and foreign replies, when the handshake is sent.
+- **Which interface.** The receiver has two HID interfaces with identical descriptors, and only one answers. The web app opens and handshakes every interface with a report-8 collection and keeps the last one it opened. arcctl sends cmd 3 to each and keeps the one that answers; when several devices answer (a second receiver, or a mouse on a cable), it asks which one to use [TS](v) [GO](v).
+- **One transaction at a time.** The web app lets its 5 s poll, the reads a push triggers and the user's changes run at the same time, sharing one "waiting for a reply" flag and one timer, so they can take each other's replies. arcctl runs every request from one owner, one at a time; push re-reads wait their turn [TS](v).
+- **Strict matching.** The web app accepts a write reply that matches only the command and the high byte of the address. arcctl requires the command, and for reads and writes the full address and the length [TS](v).
+- **Status 1 is a failure.** The web app ends its transaction on any status-1 frame, even one for another command, and treats it as success, so a rejected write still updates its copy of the settings. arcctl treats a status-1 frame with the same command (and address) as a NAK, and ignores one for another command [TS](v).
+- **Unrelated reports.** In the web app, any report-8 frame that is not the reply uses up one of the five tries and causes an immediate resend. arcctl handles such frames on the side without using up a try, and handles frames that arrived earlier before it sends [TS](v).
+- **No stale online flag.** The web app reads the online flag from the last frame it received even when its cmd-3 request timed out. arcctl uses only a matching reply [TS](v).
+- **Duplicate, late and foreign replies.** arcctl remembers the requests of the last 2 s. A second reply to one of them, or a late reply to one that timed out, is logged. Any other reply means another program is talking to the receiver: arcctl stops trusting the link (Conflict) and never puts such bytes in its copy of the flash. The web app has no such check [TS].
+- **Handshake.** The web app handshakes twice when it connects, before it knows whether the mouse is online, and a reconnect from a remembered device card uses the model stored in the browser. arcctl handshakes once the mouse is online and again on every wake, and always takes the model from that live reply, so a different paired mouse is noticed [TS](v).
+- **Skipped traffic.** While connecting, the web app also sends cmds 21, 25 and 45 (receiver lighting) and cmd 29 twice; arcctl sends cmd 29 once and skips the others [TS](v).
+- **Waking up.** The web app notices a woken mouse at its next 1.5 s cmd-3 poll and then reads everything again. arcctl also takes any other input report from the receiver (the mouse moving) as a hint and checks at once; a load that the mouse interrupted by falling asleep resumes from the chunk that failed [TS].
+- **Polling.** The web app sends cmds 3 and 4 every 5 s while connected. arcctl sends cmd 3 every 5 s and cmd 4 every 30 s, and shows the raw battery level without the web app's smoothing [TS](v).
 
 ## Writes
 

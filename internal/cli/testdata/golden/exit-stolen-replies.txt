@@ -1,0 +1,4 @@
+arcctl: replies are going missing; another program may be reading them: Google
+  Chrome Helper (pid 4000)
+  Close the ProtoArc web app (its tab in Chrome) and any other tool that talks
+  to the mouse, wait a few seconds, then retry.

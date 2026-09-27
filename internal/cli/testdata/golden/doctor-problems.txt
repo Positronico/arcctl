@@ -1,0 +1,25 @@
+System        $PLATFORM, arcctl test
+Backend       usbhid (built in: usbhid)
+Permission    Input Monitoring granted to Ghostty (found by responsibility)
+Console       screen unlocked, Secure Input on, held by loginwindow (pid 200)
+Lock          free ($TMP/arcctl.lock)
+
+Interfaces (not probed until the problems below are fixed)
+  260d:1282 if0  Emulated receiver (ProtoArc EM11 Pro)
+    emu:1/IOUSBHostInterface@0
+  260d:1282 if1  Emulated receiver (ProtoArc EM11 Pro)
+    emu:1/IOUSBHostInterface@1
+
+HID clients
+  260d:1282 if0  none
+  260d:1282 if1  Google Chrome Helper (pid 4000, foreign)
+
+Problems
+  - Secure Input is on, held by loginwindow (pid 200)
+    Close the password field, or turn off Secure Keyboard Entry in the
+    terminal's menu.
+  - another program holds 260d:1282 interface 1
+    Close the ProtoArc web app (its tab in Chrome) and any other tool that talks
+    to the mouse, wait a few seconds, then retry.
+--- stderr
+arcctl: 2 problem(s) found

@@ -1,0 +1,4 @@
+arcctl: 2 devices answer
+  Pass --device with one of:
+    emu:1/IOUSBHostInterface@1 (260d:1282, ProtoArc EM11 Pro)
+    emu:2/IOUSBHostInterface@1 (260d:1282, ProtoArc EM11 Pro)

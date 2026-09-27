@@ -1,0 +1,72 @@
+diff -ruN c/device.go d/device.go
+--- c/device.go
++++ d/device.go
+@@ -49,6 +49,7 @@
+ 	reportOutputLength  uint16
+ 	reportFeatureLength uint16
+ 	reportWithId        bool
++	reportDescriptor    []byte
+ 
+ 	inputDropped atomic.Uint64
+ 
+@@ -234,6 +235,15 @@
+ // the queue in front of GetInputReport was full.
+ func (d *Device) DroppedInputReports() uint64 {
+ 	return d.inputDropped.Load()
++}
++
++// ReportDescriptor returns a copy of the HID report descriptor read at
++// enumeration, or nil where the platform does not expose it (Windows).
++func (d *Device) ReportDescriptor() []byte {
++	if d.reportDescriptor == nil {
++		return nil
++	}
++	return append([]byte{}, d.reportDescriptor...)
+ }
+ 
+ // GetInputReportLength returns the data size of an input report in bytes.
+diff -ruN c/device_darwin.go d/device_darwin.go
+--- c/device_darwin.go
++++ d/device_darwin.go
+@@ -430,6 +430,7 @@
+ 		}
+ 
+ 		dev.usagePage, dev.usage, dev.reportInputLength, dev.reportOutputLength, dev.reportFeatureLength, dev.reportWithId = hidParseReportDescriptor(descriptor)
++		dev.reportDescriptor = descriptor
+ 
+ 		rv = append(rv, dev)
+ 	}
+diff -ruN c/device_descriptor_test.go d/device_descriptor_test.go
+--- c/device_descriptor_test.go
++++ d/device_descriptor_test.go
+@@ -0,0 +1,19 @@
++package usbhid
++
++import (
++	"bytes"
++	"testing"
++)
++
++func TestReportDescriptorReturnsACopy(t *testing.T) {
++	want := []byte{0x06, 0x02, 0xff}
++	d := &Device{reportDescriptor: append([]byte{}, want...)}
++	got := d.ReportDescriptor()
++	got[0] = 0
++	if !bytes.Equal(d.ReportDescriptor(), want) {
++		t.Fatalf("ReportDescriptor = % x after changing the returned slice, want % x", d.ReportDescriptor(), want)
++	}
++	if (&Device{}).ReportDescriptor() != nil {
++		t.Fatal("ReportDescriptor of a device without one is not nil")
++	}
++}
+diff -ruN c/device_linux.go d/device_linux.go
+--- c/device_linux.go
++++ d/device_linux.go
+@@ -185,6 +185,7 @@
+ 				serialNumber: serialNumber,
+ 			}
+ 			d.usagePage, d.usage, d.reportInputLength, d.reportOutputLength, d.reportFeatureLength, d.reportWithId = hidParseReportDescriptor(descriptor)
++			d.reportDescriptor = descriptor
+ 
+ 			rv = append(rv, d)
+ 		}

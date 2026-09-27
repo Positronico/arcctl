@@ -1,0 +1,2 @@
+arcctl: export-bin: -o is required
+  Run 'arcctl help' for the commands and their flags.

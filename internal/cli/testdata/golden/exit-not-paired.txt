@@ -1,0 +1,4 @@
+arcctl: the mouse does not answer; waiting 100ms for it to wake (move it)
+arcctl: the receiver answers, but the mouse does not
+  The mouse is asleep, out of range, on its Bluetooth channel or not paired.
+  Move it or click a button, then retry.

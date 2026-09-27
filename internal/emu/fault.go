@@ -1,0 +1,65 @@
+package emu
+
+import (
+	"time"
+
+	"github.com/positronico/arcctl/internal/wire"
+)
+
+// Action is what a Fault does to a packet.
+type Action uint8
+
+const (
+	Drop      Action = iota + 1 // the device takes the packet and never answers
+	NAK                         // the device answers with status 1
+	Duplicate                   // every reply is sent twice
+	Late                        // every reply comes after Fault.Delay
+	Asleep                      // the mouse falls asleep just before the packet reaches it
+	Hang                        // the write blocks until Release; then the packet goes through
+	Fail                        // the write fails with Fault.Err and the packet is lost
+	Unplug                      // the device goes away; the write fails with ErrGone
+)
+
+var actionNames = [...]string{"none", "drop", "nak", "duplicate", "late", "asleep", "hang", "fail", "unplug"}
+
+func (a Action) String() string {
+	if int(a) < len(actionNames) {
+		return actionNames[a]
+	}
+	return "action?"
+}
+
+// Fault applies an Action to some of the packets arcctl's handles write; the
+// competitor's traffic is never affected. Each fault counts the packets that
+// match it, a write hidio retries once per try: it lets Skip of them through
+// and then applies to the next Times (every later one when Times is 0). When
+// several faults apply to a packet, the one injected first wins.
+type Fault struct {
+	Cmd    wire.Cmd               // 0: any command
+	Match  func(wire.Packet) bool // nil: every packet of Cmd
+	Skip   int
+	Times  int
+	Action Action
+	Err    error         // Fail; nil means ErrGeneral
+	Delay  time.Duration // Late
+}
+
+type fault struct {
+	Fault
+	seen int
+}
+
+func (f *fault) count(p wire.Packet) bool {
+	if f.Cmd != 0 && p.Cmd() != f.Cmd || f.Match != nil && !f.Match(p) {
+		return false
+	}
+	f.seen++
+	return f.seen > f.Skip && (f.Times == 0 || f.seen <= f.Skip+f.Times)
+}
+
+func (f *fault) err() error {
+	if f.Err == nil {
+		return ErrGeneral
+	}
+	return f.Err
+}

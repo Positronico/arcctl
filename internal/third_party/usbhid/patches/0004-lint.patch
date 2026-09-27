@@ -1,0 +1,46 @@
+diff -ruN d/device_darwin.go e/device_darwin.go
+--- d/device_darwin.go
++++ e/device_darwin.go
+@@ -61,16 +61,16 @@
+ )
+ 
+ type _CFRunLoopSourceContext struct {
+-	version         _CFIndex
+-	info            uintptr
+-	retain          uintptr
+-	release         uintptr
+-	copyDescription uintptr
+-	equal           uintptr
+-	hash            uintptr
+-	schedule        uintptr
+-	cancel          uintptr
+-	perform         uintptr
++	version _CFIndex
++	info    uintptr
++	_       uintptr // retain
++	_       uintptr // release
++	_       uintptr // copyDescription
++	_       uintptr // equal
++	_       uintptr // hash
++	_       uintptr // schedule
++	_       uintptr // cancel
++	perform uintptr
+ }
+ 
+ type (
+diff -ruN d/hid_parser_test.go e/hid_parser_test.go
+--- d/hid_parser_test.go
++++ e/hid_parser_test.go
+@@ -135,10 +135,10 @@
+ 		rusagePage, rusage, sinput, soutput, sfeature, withId := hidParseReportDescriptor(tt.descr)
+ 
+ 		if rusagePage != tt.rusagePage {
+-			t.Errorf("%d: bad usage page: got %q, want %q", i, rusagePage, tt.rusagePage)
++			t.Errorf("%d: bad usage page: got %#04x, want %#04x", i, rusagePage, tt.rusagePage)
+ 		}
+ 		if rusage != tt.rusage {
+-			t.Errorf("%d: bad usage: got %q, want %q", i, rusage, tt.rusage)
++			t.Errorf("%d: bad usage: got %#04x, want %#04x", i, rusage, tt.rusage)
+ 		}
+ 		if sinput != tt.sinput {
+ 			t.Errorf("%d: bad size input: got %d, want %d", i, sinput, tt.sinput)

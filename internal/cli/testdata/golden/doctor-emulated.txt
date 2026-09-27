@@ -1,0 +1,19 @@
+System        $PLATFORM, arcctl test
+Backend       emulator ($ROOT/testdata/flash-dump.bin)
+Permission    none needed
+Console       screen unlocked, Secure Input off
+Lock          free ($TMP/arcctl.lock)
+
+Interfaces
+  260d:1282 if0  Emulated receiver (ProtoArc EM11 Pro)
+    emu:1/IOUSBHostInterface@0
+    silent
+  260d:1282 if1  Emulated receiver (ProtoArc EM11 Pro)
+    emu:1/IOUSBHostInterface@1
+    answers: mouse online, ProtoArc EM11 Pro
+
+HID clients
+  260d:1282 if0  none
+  260d:1282 if1  none
+
+No problems found.

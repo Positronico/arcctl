@@ -54,11 +54,14 @@ Reason: vendor material cannot be redistributed, and this repo must build and pa
 Choice: run every planned hardware drill (bad-checksum probe, interrupted write, factory reset, robustness), each only after a verified full backup.
 Reason: the drills are the only way to know recovery works on this unit, and the backup makes each one recoverable.
 
+### D10: hardware-test writes (2026-09-26)
+
+Choice: the hardware test stages build their own write plans and send them through a raw path in `internal/hwtest`, which exists only in builds made with `-tags hwtest`. The release planner keeps refusing identity writes, inactive DPI stages and untested Experimental features.
+Reason: test-only switches inside the core packages would put bypasses into code the release binary also runs.
+
 ## Technical choices
 
-Made during M1 (2026-09-26) unless dated otherwise. Each entry gives the choice and, where it is not obvious, the reason.
-
-TODO (M2+): HID backend and its local patches, the guarded transport as the single write path, interface probing, conflict signals, and the write watchdog.
+T1 to T40 were made during M1 and T41 on during M2 (both 2026-09-26) unless dated otherwise. Each entry gives the choice and, where it is not obvious, the reason. Values marked "until H0" or "until H1" are guesses the hardware tests will settle.
 
 ### Layering and tooling
 
@@ -155,3 +158,105 @@ TODO (M2+): HID backend and its local patches, the guarded transport as the sing
 ### Test vectors
 
 **T40: oracle harness.** The private harness cuts the web app's own encoder and decoder functions out of the bundle at run time and runs them with minimal stubs. It feeds them seeded inputs from the valid domain and writes only inputs and bytes. Each area has its own random stream and starts with a fixed coverage set. The two macro areas hold 64 cases each to keep the repo small. Inputs stay inside what the web app handles correctly, so its bugs do not become expectations.
+
+### hidio and the vendored usbhid (M2)
+
+**T41: usbhid is vendored as a package.** `rafaelmartins.com/p/usbhid` at `v0.0.0-20260903160318-2edd824d3b06` lives in `internal/third_party/usbhid` as a plain package of this module, with its BSD 3-Clause `LICENSE` and a `NOTICE`. There is no `go.mod` replace. Reason: the upstream mirror is archived and has no tags, `go install` refuses a module with replace directives, and as a package the patched code is covered by our vet, staticcheck and tests. `patches/verify.sh` rebuilds the copy from the sum-checked upstream module, the patches in order, an import-path rewrite and the removal of `go.mod`/`go.sum`, then diffs it; `make usbhid-patches` runs it.
+
+**T42: patch 1, setReport timeout.** `IOHIDDeviceSetReportWithCallback` gets a timeout of 1000, which is one second: the argument is typed `CFTimeInterval`, but IOKit reads it as milliseconds. A report the device never accepts then completes with `kIOReturnTimeout`. The wait for the completion also ends when the device starts closing, after a 2 s grace for a report already in flight; an abandoned report's buffer is leaked if IOKit may still own it, so a normal `Close` still never tears down during I/O.
+
+**T43: patch 2, buffered input.** The darwin input callback queues up to 64 reports in front of `GetInputReport` instead of dropping every report that arrives while the reader is busy, and counts drops (`Device.DroppedInputReports`). When the queue is full it still drops the newest report.
+
+**T44: patches 3 and 4.** Patch 3 keeps the report descriptor read at enumeration and returns it from `Device.ReportDescriptor` (darwin and Linux). Patch 4 only makes the upstream code pass vet and staticcheck.
+
+**T45: only `Guarded` makes a Transport.** `Transport` has an unexported marker method, so only `hidio.Guarded` produces one. Device `Raw`s are unexported hidio types, `hidio.Open` re-checks the VID and PID against the catalog, and the emulator's `Bus.Open` also returns only guarded transports. `internal/guard_wiring_test.go` (go/types) fails on a `Guard.Set` call outside `session`, an exported function outside hidio that returns a `Raw`, or a type that embeds a Transport and defines its own `Write`.
+
+**T46: the M2 build is read-only.** `Guard.Set` returns an error and enables only the policies listed in `enabled` in `guard.go`, which in M2 is ReadOnly alone; every other policy is refused and logged. `Guard.SetTarget` switches between the mouse and the keyboard target (the keyboard probe retried without the 0x80 flag) and is logged too. Refusals wrap `hidio.ErrForbidden` with the `wire` error that explains them. M3 adds policies to `enabled`.
+
+**T47: vendor channel check.** Before any packet, an interface's report descriptor must declare output report 8 of 16 bytes in an application collection on usage page 0xFF02 (`ErrNotVendor` otherwise). Reason: VID 0x062A is shared with other vendors, and the udev rules still grant access to every catalog VID and PID. The usbhid backend checks at enumeration and open, the hidapi backend at open. Windows exposes no descriptor, so the usage-page 0xFF02 filter at enumeration stands in for it there.
+
+**T48: input split.** Each Raw splits input in its reader: report-8 frames go to one queue and all other reports to `Others()`, so a burst of mouse movement cannot evict a reply. `Guarded` passes only 16-byte report-8 frames to `Reports` and turns everything else into one coalesced `Wake` signal. Each queue holds 256 reports and drops the oldest, with a counter (`Transport.Dropped`). `Transport` gained `Err` and `Dropped` over the PLAN sketch.
+
+**T49: one write path for devices.** Every device Raw writes through the same helper: up to 3 tries on `kIOReturnError` (0xE00002BC) with 20 and 40 ms backoff, a 2 s watchdog on each try, and a sticky Stalled state once the watchdog fires (`ErrStalled`). A stalled usbhid handle is closed in a detached goroutine; a stalled hidapi handle is left open. The emulator's `Pipe` uses the same helper.
+
+**T50: hidapi backend.** `github.com/sstallion/go-hid` v0.15.0 behind the `hidapi` build tag (cgo). `Init` runs once, then `SetOpenExclusive(false)` on darwin. Every call runs on a locked OS thread with SIGURG blocked through `pthread_sigmask`, with one writer thread per device; reads use a 250 ms timeout. Close order: stop, join the reader, then `hid_close`. On Linux go-hid uses hidraw, so the hidraw udev rules cover it.
+
+**T51: enumeration.** Every catalog VID and PID pair, compared as numbers; a usage-page filter only on Windows (0xFF02). Candidates are deduplicated by path and sorted, carry the interface number read from the path (`IOUSBHostInterface@N`, `mi_XX` or the sysfs parent; -1 when unknown) and no serial number. hidio never picks a candidate; the session probes them.
+
+**T52: error classes come from the IOReturn text.** `hidio.IOReturn` parses the last `(0xE00002xx)` in an error's text, because that is the only place usbhid (`ioReturnError`, wrapped by `SetOutputReport` and the input callback) and hidapi expose it. `hidio.Classify` is the single table (Retry, Timeout, Locked, Permission, Seized, Gone, Stalled, Refused, Other); `platform.Diagnose` adds what the OS knows on top of it.
+
+**T53: transcripts.** JSONL: a header line, then one entry per packet with `dir` set to out, in, out-error, in-error or note, bytes as hex with `xx` for masked bytes. `Redact` masks the cmd-3 address, the data of cmd-7 packets and cmd-8 replies inside 256..6911 (the shortcut and macro slots) except the event count at +31 of each macro header, all data of keyboard-flagged packets and of input reports other than report-8 frames, and the checksum of every redacted packet; times become UTC. Replay ignores masked bytes, handshake bytes 5 to 8 and byte 15, fills masked bytes with 0xFF (the address with the 11 22 33 placeholder) and recomputes the checksum. Only copies made by `arcctl redact` go under `testdata/transcripts`, and `.gitignore` keeps every other `*.jsonl` out.
+
+### Emulator (M2)
+
+**T54: the emulator hands out only guarded transports.** `emu.Bus` mirrors `hidio.Enumerate` and `hidio.Open` and satisfies `session.Devices`; `hidio.Open` refuses its backend name. A go/types test checks that nothing exported by `emu` is, returns or holds a `hidio.Raw`.
+
+**T55: determinism.** One lock per bus, a seeded PCG for latency jitter and reply stealing, and a manual clock. With zero latency a reply is delivered before `Write` returns.
+
+**T56: receiver and mouse.** The receiver answers cmds 3 and 29 and makes NAKs itself, even while the mouse sleeps; cmds 1, 4, 7, 8, 9, 14, 18, 22 and 23 need an awake mouse. Interface 0 is silent. A "Chrome" competitor polls cmds 3 and 4 in Broadcast mode (every client sees every reply) or Steal mode (each reply goes to one client).
+
+**T57: reply layouts are guesses until H0 and H1.** Handshake len 8 echoing the nonce then cid, mid and connection type; cmd 4 len 6; cmd 3 len 4 (online flag, then the address reversed); cmds 14 and 23 len 1; cmds 18 and 29 len 2; a NAK is the request's header with status 1 (optionally without the length, `Behavior.ShortNAK`); StatusChanged len 2. Whether unknown commands and bad checksums get a NAK or silence, and whether pushes happen on sleep and wake, are switches.
+
+**T58: flash in the emulator.** Unwritten flash reads 0xFF, reads past 16 KiB get a NAK, and cmd 9 restores the factory image. `emu.Defaults` builds a model's factory image from the catalog defaults with the M1 encoders; `WithBodies` fills the shortcut and macro slots a binding points at but a dump lacks with placeholder bodies, so a settings-page dump can be served whole.
+
+### Session (M2)
+
+**T59: one owner goroutine.** `session.Run` owns the Transport, the image and the guard. Each loop turn handles pending API requests, reports and wake signals, then timers that are due, then one unit of work, and only then blocks. A transaction runs inline and dispatches unrelated reports while it waits. Readers publish immutable snapshots through a coalescing `Changed()` channel.
+
+**T60: the guard in the session.** One guard per session, set to ReadOnly when `Run` starts; `Apply` returns `ErrReadOnly` in M2. The target switches per interface and each switch is logged.
+
+**T61: probing.** Every candidate is opened shared and sent cmd 3 up to 3 times with a 150 ms wait. Interfaces that fail the vendor-channel check, stay silent or NAK are closed. One answer attaches; several go to Choosing, each handshaken once online, unless `--device` names one. When nothing answers, the failure picks the state in this order: Locked, NeedsPermission, Seized, Stalled, then NoReceiver with `ErrNoAnswer`.
+
+**T62: transactions.** Drain before send, then 5 tries of 200 ms; reports that do not answer the request do not use up a try. A reply answers when `wire.Match` accepts it with status 0, or when it has status 1 and the same command (and address, for cmds 7 and 8) whatever length it echoes, because the NAK layout is unknown until H1. Inbound checksums are counted (`Stats.BadChecksums`), not enforced, until H0.
+
+**T63: classifying other report-8 frames.** In order: cmd 10 is a push; a frame matching the current request with an unknown status is logged; a match for a request completed in the last 2 s is a duplicate and one that timed out in that window is a late reply (both logged only); an unrequested cmd 3 is logged and, when it says online, taken as a wake hint; a stray status-1 frame is logged; anything else is foreign and puts the session in Conflict. Foreign replies never reach the image.
+
+**T64: jobs.** Loads, push re-reads, backups and explicit reads are queues of single transactions (reads of at most 10 bytes, or queries) with a cursor, one transaction per loop turn, in the priority re-read, load, then backup or read. Every successful read goes into the working image and into every job's image; the published image changes only when a job finishes.
+
+**T65: the working load.** 0..256 and 6912..6987; then each bound shortcut slot whole, and for each bound macro the 32-byte header of both the button's own slot and the slot its binding names, then the events after the count byte (5 × count + 2 bytes when the count is 1 to 70); then cmds 14, 18 and 4, plus 23 when the handshake says wireless. A full backup reads [0, 6987) and [9504, 9760) minus bytes already known, 725 reads from scratch.
+
+**T66: offline during a job (I7).** When a mouse command runs out of tries, cmd 3 decides: offline pauses the job on the failed op, online gives the op one more transaction and then leaves its bytes Unknown (listed as unread or missing). A job with no successful read for 30 s while the mouse seems online gives up its remaining reads.
+
+**T67: wake and identity.** Every Offline-to-online transition re-handshakes. The same cid and mid (and address, once trusted) resume a paused load; a different device fails running jobs with `ErrDeviceChanged` and starts a fresh load; a wake from Ready always reloads. `TrustAddress` stays off until H0 shows the cmd-3 address is stable.
+
+**T68: pushes.** StatusChanged flags re-read the ranges of PLAN §5; 0x04 in the first flag byte (profile switch) fails a running backup or read with `ErrProfileChanged` and reloads, and 0x40 polls the battery.
+
+**T69: SuspectedConflict.** Entered after 2 unanswered cmd-3 tries in a row, or when a mouse command needs 3 or more tries or goes unanswered while cmd 3 says online. It clears after 3 transactions in a row answered on the first try plus a clean client scan, checked every 5 s; without a scanner the scan counts as clean. The thresholds are tuned at H0.
+
+**T70: Conflict.** A foreign reply enters it. It ends only through `ClearConflict` after 10 s with no foreign reply, or when a different device (path, VID and PID, or cid and mid) is attached; a reattach of the same device keeps it.
+
+**T71: write errors are not missing replies.** A write the OS refused or that timed out counts in `Stats.WriteErrors`, not as an unanswered try, and never feeds the conflict signals. The device is dropped only when it no longer enumerates, when its reader ends or the error is ClassGone, or after 3 transactions in a row that failed to write (`ErrWrites`); the session then rescans.
+
+**T72: blocked and stalled states.** Locked, Seized and NeedsPermission remember the state before them and retry (cmd 3, or a fresh probe when nothing is attached) with a backoff from 2 s to 10 s; jobs keep their place. A stall closes the handle in a detached goroutine and rescans; `Snapshot.Stalls` counts stalls for the "replug the receiver" banner.
+
+**T73: unsupported devices.** An unknown (cid, mid) or a charging base goes to Unknown with no flash reads. A keyboard reaches Ready with no load until M8.
+
+### Platform (M2)
+
+**T74: macOS calls through purego.** No cgo. Symbols bind lazily once; CoreGraphics and `responsibility_get_pid_responsible_for_pid` are optional, the rest required.
+
+**T75: the responsible app.** The responsibility API first, then the nearest ancestor inside an `.app` bundle (the outermost `.app` wins, so helpers are charged to their app), then `TERM_PROGRAM` unless it is `tmux`. When `TMUX` is set the hint adds that the grant belongs to the app that started the tmux server.
+
+**T76: console state.** Screen lock and the Secure Input holder come from `CGSessionCopyCurrentDictionary`, falling back to the registry root's `IOConsoleUsers` (over SSH). A locked screen is reported as such rather than naming loginwindow as the Secure Input holder.
+
+**T77: IORegistry client scan.** IOHIDLibUserClient children of the IOHIDDevice services whose VID and PID the catalog knows, with `bInterfaceNumber` from the parent entry, seized from `ClientSeized` or the seize bit of `ClientOptions`, and full process names from `proc_pidpath` (the registry cuts them at 16 characters). A seized client or a browser is never benign; `karabiner_observer` is benign by default.
+
+**T78: single-instance lock.** `flock(LOCK_EX|LOCK_NB)` on darwin and Linux, an exclusive share mode on Windows. The holder writes its pid into the file, which is never removed, so the refusal can name the holder.
+
+**T79: Linux permission.** `access(R_OK|W_OK)` on the `/dev/hidrawN` nodes found through the sysfs uevent `HID_ID` and `HID_PHYS` lines; the node is never opened. The udev hint renders the rules from the catalog into a `sudo tee` command plus the `udevadm` reload, and a test keeps it equal to `packaging/linux/70-arcctl.rules`.
+
+### Backups and the CLI (M2)
+
+**T80: backup file.** `arcctl-backup/1` JSON: identity from `plan.Identity` (the key plus its fields, checked on read), the known bytes as runs of "ok" ranges with their hex and failed reads as "missing" ranges, a `sha256` over every ok range's address, length and bytes, UTC times, a null `profile` when cmd 14 was never asked, and a `source` (device, emulator or replay) so emulated backups cannot pass as real ones.
+
+**T81: backup store.** `<Backups>/<model slug>-<key>/<UTC time>[-label].json`, written to a temp file, synced, then hard-linked into place, so a save never overwrites (a clash gets `-2`, `-3`). Files are 0600 and folders 0700.
+
+**T82: web `.bin` export.** `Image.Bytes()` (unread bytes as 0xFF) plus the 64-byte trailer. It refuses an image that lacks any byte the web app's import writes back (0..255, 6912..6987 and each bound key's own shortcut or macro record) and any backup made by the emulator or a replay; `--allow-partial` exports anyway and lists the gaps. Reason: the web import would write the 0xFF fill over the mouse.
+
+**T83: where devices come from.** The real HID backend, the emulator (`--emulate` with a backup, `.bin` or dump; EM11 Pro unless `--model`) or a replay (`--replay`). Only the real device takes the single-instance lock and runs the Input Monitoring preflight.
+
+**T84: waiting and exit codes.** "No receiver" is decided after the first scan. A sleeping mouse or a paused job ends the command after `--wait` (10 s). Conflict ends it at once; SuspectedConflict once the load finishes or after `--wait`. Exit codes follow PLAN §8, plus 1 for general errors (bad file, replay divergence, unsupported device).
+
+**T85: recording and trace.** `--record FILE` writes an unredacted transcript and never overwrites; a bare name goes to the logs folder. `trace` opens every candidate through `hidio.Open` with a read-only guard, never writes, and prints only the ID and length of non-report-8 reports unless `--raw` is given. `arcctl redact` makes the copies that may be committed.
+
+**T86: release checks.** `THIRD_PARTY_NOTICES` (Go runtime, usbhid, purego) is generated by `scripts/notices.sh` and checked by `make check`. `scripts/release-check.sh` (macOS only) checks that the darwin release binaries link only libSystem and libresolv, that `go tool nm` finds no hwtest symbol, and that the hidapi and hwtest builds compile.

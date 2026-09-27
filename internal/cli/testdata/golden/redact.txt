@@ -1,0 +1,4 @@
+Wrote $TMP/redacted.jsonl: a redacted copy of $TMP/info.jsonl
+  Masked: the receiver's address, the shortcut and macro bytes, the data of
+  every keyboard, consumer and mouse report, and the time zone. Free-text notes
+  are kept as written.

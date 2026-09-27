@@ -1,0 +1,2 @@
+arcctl: --emulate and --replay cannot be used together
+  Run 'arcctl help' for the commands and their flags.

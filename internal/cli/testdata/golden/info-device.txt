@@ -1,0 +1,35 @@
+State       ready
+Device      260d:1282 interface 1, Emulated receiver (ProtoArc EM11 Pro)
+Path        emu:1/IOUSBHostInterface@1
+Receiver    firmware v1.02
+Mouse       online, address 11:22:33
+Handshake   cid 0x7b, mid 4, wireless 1 kHz
+Model       ProtoArc EM11 Pro (7B04), sensor 3104, 6 stages, up to 7200 DPI
+Firmware    v1.05
+Battery     80%, 3900 mV
+Profile     onboard profile 0
+Long range  on
+Identity    260d-1282-7b04 (without the address until it is confirmed stable)
+Loaded      544 bytes
+Writes      off: this build only reads
+
+Feature tiers
+  untested     dpi.stages dpi.current dpi.value button.system button.media
+               button.shortcut button.shortcut.right-modifier
+               button.shortcut.menu button.macro
+  experimental button.media.custom button.shortcut.custom button.macro.foreign
+               button.rate-switch button.drag-scroll button.fire-key
+               button.profile-switch button.dpi-lock button.hidden-slot
+               setting.lod setting.dpi-light-mode setting.dpi-light-brightness
+               setting.dpi-light-speed setting.dpi-light-state setting.light
+               setting.debounce setting.motion-sync setting.sleep setting.angle
+               setting.ripple setting.moving-off-light setting.performance-state
+               setting.performance setting.sensor-mode
+  read-only    setting.key-operation
+  off          setting.angle-tune setting.angle-tune-state setting.sensor-fps20k
+               setting.wheel-debounce setting.debounce-release
+               setting.flywheel-state setting.flywheel setting.left-trigger
+               setting.left-fast-trigger setting.left-tactile-feedback
+               setting.right-trigger setting.right-fast-trigger
+               setting.right-tactile-feedback setting.dynamic-sensitivity
+               setting.dynamic-sensitivity-mode setting.virtual-center

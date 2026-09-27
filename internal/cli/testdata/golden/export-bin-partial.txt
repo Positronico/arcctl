@@ -1,0 +1,5 @@
+arcctl: $ROOT/testdata/flash-dump.bin lacks bytes the
+  web app's import writes back to the mouse: 320+32, 352+32, 384+32, 416+32,
+  6912+75
+  The import would overwrite them with 0xFF. Export a full backup (arcctl backup
+  --full) instead, or pass --allow-partial to write the file anyway.

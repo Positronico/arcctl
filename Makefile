@@ -4,9 +4,9 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 FUZZTIME ?= 5s
 PLATFORMS := darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64
 
-.PHONY: check vendorguard fmt vet staticcheck test fuzz cross mirror-only drift oracle generate build clean
+.PHONY: check vendorguard fmt tidy vet staticcheck test fuzz cross usbhid-patches notices release-check mirror-only drift oracle generate build clean
 
-check: vendorguard fmt vet staticcheck test fuzz cross mirror-only
+check: vendorguard fmt tidy vet staticcheck test fuzz cross usbhid-patches notices release-check mirror-only
 
 vendorguard:
 	@bash scripts/vendorguard.sh
@@ -15,6 +15,9 @@ fmt:
 	@out="$$(gofmt -l .)"; \
 	if [ -n "$$out" ]; then echo "gofmt: these files need formatting:"; echo "$$out"; exit 1; fi; \
 	echo "gofmt: ok"
+
+tidy:
+	$(GO) mod tidy -diff
 
 vet:
 	$(GO) vet ./...
@@ -41,6 +44,19 @@ cross:
 		echo "cross: $$p"; \
 		CGO_ENABLED=0 GOOS=$${p%/*} GOARCH=$${p#*/} $(GO) build ./...; \
 	done
+
+# The vendored usbhid must equal the pinned upstream module plus patches/; this
+# downloads the module unless it is in the module cache.
+usbhid-patches:
+	@GO="$(GO)" bash internal/third_party/usbhid/patches/verify.sh
+
+notices:
+	@GO="$(GO)" bash scripts/notices.sh
+
+# macOS only: what the release binaries link, no hwtest code in them, and the
+# hidapi and hwtest builds compile.
+release-check:
+	@GO="$(GO)" bash scripts/release-check.sh
 
 mirror-only: drift oracle
 

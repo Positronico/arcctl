@@ -1,0 +1,11 @@
+State       offline
+Device      260d:1282 interface 1, Emulated receiver (ProtoArc EM11 Pro)
+Path        emu:1/IOUSBHostInterface@1
+Receiver    firmware v1.02
+Mouse       offline
+Writes      off: this build only reads
+--- stderr
+arcctl: the mouse does not answer; waiting 200ms for it to wake (move it)
+arcctl: the receiver answers, but the mouse does not
+  The mouse is asleep, out of range, on its Bluetooth channel or not paired.
+  Move it or click a button, then retry.

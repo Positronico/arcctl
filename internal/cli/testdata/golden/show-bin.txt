@@ -1,0 +1,76 @@
+File       $TMP/x.bin
+Kind       web .bin, type mouse, sensor 3104
+Model      ProtoArc EM11 Pro (7B04), sensor 3104
+Captured   440 bytes: the regions the web app reads
+
+Settings
+  Report rate  250 Hz
+  DPI stages   6, current 4
+  Key names    mac
+
+DPI
+  Stage  DPI          Colour
+    1    800          #ff0000
+    2    1200         #0000ff
+    3    1600         #00ff00
+    4    2400         #ffff00  current
+    5    3200         #ff8000
+    6    4800 x 2400  #ff00ff
+    7    4000         #ff7d7d  inactive
+    8    4000         #7d7dff  inactive
+
+Buttons
+  Slot  Button       Action
+     0  Left Click   Left Click
+     1  Right Click  Right Click
+     2  Wheel Click  Copy (Cmd+C)
+     3  Backward     Cmd+Shift+T
+     4  Forward      Ctrl+Tab
+     5  DPI Cycle    Media: Play/Pause
+     6  -            Profile switch
+     7  -            DPI Cycle
+     8  -            Macro 3 "hello", while held
+     9  -            Scroll Right
+    10  -            DPI+
+    11  -            DPI-
+    12  -            Do nothing
+    13  -            Do nothing
+    14  -            Do nothing
+    15  -            Do nothing
+
+Shortcut bodies
+  Slot  Keys
+     2  Cmd+C (Copy)
+     3  Cmd+Shift+T
+     4  Ctrl+Tab
+     5  Media: Play/Pause
+
+Macros
+  Slot 3 "hello", 4 events, used by slot 8
+    press H 40ms, release H 20ms, press E 40ms, release E 20ms
+
+Other fields
+  Name                 Addr  Raw                                  Value
+  unmapped                6  00 55                                0
+  KeyOperation            8  00 55                                0
+  LOD                    10  00 55                                0
+  DPIEffectMode          76  00 55                                0
+  DPIEffectBrightness    78  80 d5                                128
+  DPIEffectSpeed         80  03 52                                3
+  DPIEffectState         82  00 55                                0
+  unmapped               84  ff 00 ff 57 00 55 80 d5 03 52 00 55
+  Light                 160  01 ff 00 00 07 02 4c
+  unmapped              167  01 54                                1
+  DebounceTime          169  02 53                                2
+  MotionSync            171  00 55                                0
+  SleepTime             173  01 54                                1
+  Angle                 175  00 55                                0
+  Ripple                177  00 55                                0
+  MovingOffLight        179  00 55                                0
+  PerformanceState      181  04 51                                4
+  Performance           183  06 4f                                6
+  unmapped              187  00 55                                0
+
+Invalid
+  SensorMode @185+2: 03 53
+    invalid: pair 03 53 does not sum to 0x55

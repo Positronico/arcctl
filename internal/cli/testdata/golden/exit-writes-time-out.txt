@@ -1,0 +1,4 @@
+arcctl: found the receiver, but none of its interfaces answered: the device did
+  not take the report in time
+  Unplug the receiver and plug it back in. If the ProtoArc web app is open in
+  Chrome, close that tab.

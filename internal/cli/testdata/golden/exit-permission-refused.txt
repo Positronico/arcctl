@@ -1,0 +1,2 @@
+arcctl: Input Monitoring is not granted to Ghostty
+  Allow it in System Settings, then reopen Ghostty.

@@ -1,0 +1,2 @@
+arcctl: unknown command "frobnicate"
+  Run 'arcctl help' for the commands and their flags.

@@ -1,0 +1,2 @@
+arcctl: another arcctl (pid $PID) is using the receiver
+  Close the other arcctl (the TUI or a running command), then retry.

@@ -1,0 +1,13 @@
+arcctl: the TUI arrives in M4. Commands available now:
+  doctor      check permissions, the receiver, other HID clients and the lock
+  info        show the device: online state, versions, battery, model, tiers
+  trace       print every input report of every interface; sends nothing
+  dump        read flash and print it as hex, raw bytes or decoded
+  backup      save a backup of the mouse configuration
+  backups     list the saved backups
+  show        decode a backup, web .bin or dump; no device needed
+  diff        compare two backups, or a backup with the device, per record
+  export-bin  write a web app compatible .bin (16448 bytes)
+  redact      copy a --record transcript with private bytes masked, for sharing
+  version     show the version, catalog inputs, verified stages, usbhid patches
+  help        show help

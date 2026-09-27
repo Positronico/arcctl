@@ -1,0 +1,3 @@
+arcctl: dump: bad range "300:200": want start:end or start+length, such as 0:256
+  or 0x60+10
+  Run 'arcctl help' for the commands and their flags.
