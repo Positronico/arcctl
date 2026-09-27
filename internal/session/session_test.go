@@ -64,7 +64,7 @@ func TestConnectLoadsTheWorkingSet(t *testing.T) {
 	if len(probed) != 2 {
 		t.Errorf("probed interfaces %v, want both", probed)
 	}
-	if got, want := reads(ws), workingSet(); !slices.Equal(got, want) {
+	if got, want := logical(ws), workingSet(); !slices.Equal(got, want) {
 		t.Errorf("reads\n got %v\nwant %v", got, want)
 	}
 	for c, n := range map[wire.Cmd]int{wire.CmdHandshake: 1, wire.CmdRxVersion: 1, wire.CmdGetProfile: 1, wire.CmdFWVersion: 1, wire.CmdBattery: 1, wire.CmdGetLongRange: 1} {
@@ -409,11 +409,11 @@ func TestReloadAndApply(t *testing.T) {
 	d := add(t, b, receiver(em11(t)))
 	s := start(t, b, session.Options{})
 	await(t, s, "ready", idle)
-	before := len(reads(d.Writes()))
+	before := len(d.Writes())
 	if err := s.Reload(ctxT(t)); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(reads(d.Writes())) - before; got != len(workingSet()) {
+	if got := len(logical(d.Writes()[before:])); got != len(workingSet()) {
 		t.Errorf("reload read %d chunks, want %d", got, len(workingSet()))
 	}
 	n := len(d.Writes())
@@ -465,8 +465,8 @@ func TestBackupAndRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := chunks(flash.Extent{Addr: 10000, Len: 25}); !slices.Equal(reads(d.Writes()[before:]), want) {
-		t.Errorf("Read sent %v, want %v", reads(d.Writes()[before:]), want)
+	if want := chunks(flash.Extent{Addr: 10000, Len: 25}); !slices.Equal(logical(d.Writes()[before:]), want) {
+		t.Errorf("Read sent %v, want %v", logical(d.Writes()[before:]), want)
 	}
 	sameBytes(t, c.Image, d.Image(), flash.Extent{Addr: 10000, Len: 25})
 	if _, err := s.Read(ctxT(t), flash.Extent{Addr: flash.Size - 1, Len: 2}); !errors.Is(err, flash.ErrRange) {

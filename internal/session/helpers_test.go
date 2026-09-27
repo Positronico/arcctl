@@ -249,6 +249,10 @@ func reads(ws []emu.Write) []flash.Extent {
 	return out
 }
 
+func logical(ws []emu.Write) []flash.Extent {
+	return slices.Compact(reads(ws))
+}
+
 func count(ws []emu.Write, c wire.Cmd) int {
 	n := 0
 	for _, w := range ws {

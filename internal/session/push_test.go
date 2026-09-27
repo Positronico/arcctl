@@ -38,7 +38,7 @@ func TestPushRereads(t *testing.T) {
 		before := len(d.Writes())
 		d.Push(tt.f1, tt.f2)
 		await(t, s, "the re-reads", func(sn *session.Snapshot) bool { return sn.Stats.Pushes == i+1 && idle(sn) })
-		if got := reads(d.Writes()[before:]); !slices.Equal(got, tt.want) {
+		if got := logical(d.Writes()[before:]); !slices.Equal(got, tt.want) {
 			t.Errorf("push %02x %02x read %v, want %v", tt.f1, tt.f2, got, tt.want)
 		}
 	}
@@ -94,7 +94,7 @@ func TestProfileSwitchReloads(t *testing.T) {
 	if n := count(after, wire.CmdGetProfile); n != 1 {
 		t.Errorf("cmd 14 sent %d times after the switch", n)
 	}
-	if got := reads(after); !slices.Equal(got[len(got)-len(workingSet()):], workingSet()) {
+	if got := logical(after); !slices.Equal(got[len(got)-len(workingSet()):], workingSet()) {
 		t.Errorf("the reload did not read the working set: %v", got)
 	}
 	sameBytes(t, sn.Image, d.Image(), workingSet()...)
