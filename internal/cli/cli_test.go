@@ -361,6 +361,7 @@ func TestTraceSendsNothing(t *testing.T) {
 
 func TestRecordAndReplay(t *testing.T) {
 	h := newHarness(t)
+	h.forReplay()
 	rec := filepath.Join(h.tmp, "info.jsonl")
 	live, errs, code := h.run("--emulate", h.dump(), "--device", "emu:1/IOUSBHostInterface@1", "--record", rec, "info")
 	expect(t, code, cli.ExitOK, errs)
@@ -378,6 +379,7 @@ func TestRecordAndReplay(t *testing.T) {
 // A transcript for the repo goes through redact, and the copy still replays.
 func TestRedact(t *testing.T) {
 	h := newHarness(t)
+	h.forReplay()
 	rec := filepath.Join(h.tmp, "info.jsonl")
 	live, errs, code := h.run("--emulate", h.dump(), "--device", "emu:1/IOUSBHostInterface@1", "--record", rec, "info")
 	expect(t, code, cli.ExitOK, errs)

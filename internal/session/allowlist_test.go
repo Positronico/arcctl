@@ -105,8 +105,10 @@ func chaos(t *testing.T, seed uint64) {
 				comp = nil
 			}
 		case 15:
-			call(func(ctx context.Context) {
-				if _, err := s.Apply(ctx, plan.Plan{Ops: []plan.Op{{New: []byte{1}}}}, safety.Gates{}, nil); !errors.Is(err, session.ErrReadOnly) {
+			// Its answer is checked, so Apply waits for the busy session as
+			// long as an await does.
+			calls.Go(func() {
+				if _, err := s.Apply(ctxT(t), plan.Plan{Ops: []plan.Op{{New: []byte{1}}}}, safety.Gates{}, nil); !errors.Is(err, session.ErrReadOnly) {
 					t.Errorf("Apply = %v", err)
 				}
 			})

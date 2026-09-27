@@ -223,7 +223,7 @@ func TestOpenRunSurvivesTrustingTheAddress(t *testing.T) {
 	s, stop := r.run(nil)
 	sn := await(t, s, "ready", idle)
 	p := mixed(t, sn)
-	r.dev.Inject(emu.Fault{Cmd: wire.CmdWrite, Skip: 3, Times: 1, Action: emu.NAK})
+	r.dev.Inject(emu.Fault{Match: emu.Nth(wire.CmdWrite, 4), Times: 1, Action: emu.NAK})
 	if _, err := s.Apply(ctxT(t), p, allow(p), nil); !errors.Is(err, wire.ErrNAK) {
 		t.Fatalf("err = %v, want the NAK", err)
 	}

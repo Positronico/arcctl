@@ -12,7 +12,7 @@ import (
 func TestSleepMidLoadResumesFromTheFailedChunk(t *testing.T) {
 	b := newBus(t, emu.Options{})
 	d := add(t, b, receiver(em11(t)))
-	d.Inject(emu.Fault{Cmd: wire.CmdRead, Skip: 10, Times: 1, Action: emu.Asleep})
+	d.Inject(emu.Fault{Match: emu.Nth(wire.CmdRead, 11), Times: 1, Action: emu.Asleep})
 	s := start(t, b, session.Options{})
 	sn := await(t, s, "the pause", func(sn *session.Snapshot) bool { return sn.State == session.Offline && sn.Progress.Job == "load" })
 	if !sn.Progress.Paused || sn.Progress.Done != 10 {
@@ -22,7 +22,7 @@ func TestSleepMidLoadResumesFromTheFailedChunk(t *testing.T) {
 	sn = await(t, s, "ready", idle)
 
 	want := workingSet()
-	got := reads(d.Writes())
+	got := logical(d.Writes())
 	failed := want[10]
 	for i, e := range want {
 		n := 0
@@ -41,7 +41,7 @@ func TestSleepMidLoadResumesFromTheFailedChunk(t *testing.T) {
 	if last := lastIndex(got, failed); last < 0 || got[last+1] != want[11] {
 		t.Errorf("the load did not resume at %v: %v", failed, got)
 	}
-	if n := count(d.Writes(), wire.CmdHandshake); n != 2 {
+	if n := count(emu.Logical(d.Writes()), wire.CmdHandshake); n != 2 {
 		t.Errorf("%d handshakes, want one per wake", n)
 	}
 	if len(sn.Unread) != 0 {

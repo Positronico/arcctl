@@ -49,7 +49,7 @@ func TestApplyWritesVerifiesAndReloads(t *testing.T) {
 	if got := s.Snapshot().Policy; got != wire.ReadOnly {
 		t.Fatalf("policy after the apply is %v", got)
 	}
-	if got := r.cmd7(); !slices.Equal(got, chunksOf(p)) {
+	if got := r.logicalCmd7(); !slices.Equal(got, chunksOf(p)) {
 		t.Fatalf("cmd 7 sent\n got %v\nwant %v", got, chunksOf(p))
 	}
 	holds(t, "device", r.dev.Image(), want, p)
@@ -270,7 +270,7 @@ func TestPartialFullBackupNeedsAcceptance(t *testing.T) {
 	if len(out.Backups) != 1 || partial.Path != out.Backups[0] || len(r.cmd7()) != 0 {
 		t.Fatalf("backups %v, error names %s, %d writes", out.Backups, partial.Path, len(r.cmd7()))
 	}
-	before := len(reads(r.dev.Writes()))
+	before := len(r.dev.Writes())
 	g := allow(p)
 	g.AcceptPartial = true
 	out, err = s.Apply(ctxT(t), p, g, nil)
@@ -280,7 +280,7 @@ func TestPartialFullBackupNeedsAcceptance(t *testing.T) {
 	if len(out.Backups) != 0 {
 		t.Errorf("the accepted apply saved %v again", out.Backups)
 	}
-	if n := len(reads(r.dev.Writes())) - before; n > 2*len(p.Ops)+2 {
+	if n := len(logical(r.dev.Writes()[before:])); n > 2*len(p.Ops)+2 {
 		t.Errorf("%d reads for the accepted apply; the full backup ran again", n)
 	}
 	list := backupsOf(t, r, sn)
@@ -295,7 +295,7 @@ func TestFailedApplyLeavesRecovery(t *testing.T) {
 	r := newRig(t)
 	s, sn := r.ready(nil)
 	p := mixed(t, sn)
-	r.dev.Inject(emu.Fault{Cmd: wire.CmdWrite, Skip: 3, Times: 1, Action: emu.NAK})
+	r.dev.Inject(emu.Fault{Match: emu.Nth(wire.CmdWrite, 4), Times: 1, Action: emu.NAK})
 	_, err := s.Apply(ctxT(t), p, allow(p), nil)
 	var st *safety.StopError
 	if !errors.As(err, &st) || !errors.Is(err, wire.ErrNAK) {
@@ -370,7 +370,7 @@ func TestAbortStopsAfterTheCurrentOp(t *testing.T) {
 	if !errors.As(err, &st) || !errors.Is(err, safety.ErrAborted) || st.Op.Seq != 2 || st.Written {
 		t.Fatalf("err = %v, want an abort before op 2", err)
 	}
-	if got := len(r.cmd7()); got != len(chunksOf(plan.Plan{Ops: p.Ops[:1]})) {
+	if got := len(r.logicalCmd7()); got != len(chunksOf(plan.Plan{Ops: p.Ops[:1]})) {
 		t.Fatalf("%d cmd 7 sent, want only op 1's", got)
 	}
 }

@@ -46,6 +46,27 @@ type Fault struct {
 	Delay  time.Duration // Late
 }
 
+// Nth is a Fault.Match for the n-th packet (from 1) of command c, counted as
+// Logical counts writes: a packet equal to the one right before it is a
+// resend, and matches when that one did. Skip counts every try instead, so a
+// resend of an earlier packet would move it. The fault leaves Cmd unset, for
+// Nth must see every packet to tell a resend.
+func Nth(c wire.Cmd, n int) func(wire.Packet) bool {
+	var last wire.Packet
+	seen := 0
+	return func(p wire.Packet) bool {
+		resend := p == last
+		last = p
+		if p.Cmd() != c {
+			return false
+		}
+		if !resend {
+			seen++
+		}
+		return seen == n
+	}
+}
+
 type fault struct {
 	Fault
 	seen int

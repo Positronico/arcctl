@@ -87,7 +87,7 @@ func TestApplyPacketSequence(t *testing.T) {
 		t.Fatal(err)
 	}
 	var got []string
-	for _, w := range f.dev.Writes() {
+	for _, w := range emu.Logical(f.dev.Writes()) {
 		switch w.Packet.Cmd() {
 		case wire.CmdOnline:
 			got = append(got, "online")
@@ -230,7 +230,7 @@ func TestProfileSwitchStopsBeforeNextPacket(t *testing.T) {
 		t.Fatalf("stop %+v", st)
 	}
 	writes := 0
-	for _, w := range f.dev.Writes() {
+	for _, w := range emu.Logical(f.dev.Writes()) {
 		if w.Packet.Cmd() == wire.CmdWrite {
 			writes++
 		}
@@ -326,7 +326,7 @@ func TestUnrelatedPushIsIgnored(t *testing.T) {
 func TestSleepPausesAndRestartsTheRecord(t *testing.T) {
 	f := newFixture(t, setup{})
 	p := f.plan(shortcutChange(t))
-	f.dev.Inject(emu.Fault{Cmd: wire.CmdWrite, Skip: 2, Times: 1, Action: emu.Asleep})
+	f.dev.Inject(emu.Fault{Match: emu.Nth(wire.CmdWrite, 3), Times: 1, Action: emu.Asleep})
 	f.link.onCheck = func(_ int, err error) {
 		if errors.Is(err, safety.ErrOffline) && f.link.offline == 3 {
 			f.dev.Wake()
@@ -487,7 +487,7 @@ func TestApplyRefusesMismatchedPlans(t *testing.T) {
 func TestTransientWriteErrorsAreResent(t *testing.T) {
 	f := newFixture(t, setup{})
 	p := f.plan(shortcutChange(t))
-	f.dev.Inject(emu.Fault{Cmd: wire.CmdWrite, Skip: 1, Times: 6, Action: emu.Fail})
+	f.dev.Inject(emu.Fault{Match: emu.Nth(wire.CmdWrite, 2), Times: 6, Action: emu.Fail})
 	if _, err := f.apply(p, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -537,7 +537,7 @@ func TestPauseRunsTheLinkChecksAgain(t *testing.T) {
 func TestPauseInARecordRunsTheLinkChecksAgain(t *testing.T) {
 	f := newFixture(t, setup{})
 	p := f.plan(shortcutChange(t))
-	f.dev.Inject(emu.Fault{Cmd: wire.CmdWrite, Skip: 2, Times: 1, Action: emu.Asleep})
+	f.dev.Inject(emu.Fault{Match: emu.Nth(wire.CmdWrite, 3), Times: 1, Action: emu.Asleep})
 	f.link.onCheck = func(_ int, err error) {
 		if errors.Is(err, safety.ErrOffline) && f.link.offline == 1 {
 			f.link.recheck = func() error { return fmt.Errorf("%w: test", safety.ErrSecureInput) }

@@ -87,7 +87,7 @@ func TestH1RunsAndPromotes(t *testing.T) {
 	r.unchanged()
 	r.checkWrites(1)
 
-	got := strs(r.cmd7())
+	got := strs(r.logicalCmd7())
 	wantSeq := []string{
 		"07 00 00 04 02 03 52 00 00 00 00 00 00 00 00 eb",
 		"07 00 00 04 02 03 52 00 00 00 00 00 00 00 00 ea",
@@ -384,6 +384,10 @@ func TestH0RunsReadOnly(t *testing.T) {
 // device it was recorded from.
 func TestH0InfoTranscriptReplays(t *testing.T) {
 	r := newRig(t, nil)
+	// A replay follows the recorded packets one by one, so a resend on either
+	// side diverges; both sessions wait for replies as long as on hardware.
+	hw := session.DefaultTiming()
+	r.cfg.Session.Timing.Try, r.cfg.Session.Timing.ProbeTry = hw.Try, hw.ProbeTry
 	r.script.eof = true
 	r.script.yes("h0.run")
 	for _, id := range []string{"h0.trace-dpi", "h0.trace-sleep", "h0.trace-wake", "h0.trace-lock"} {
@@ -397,7 +401,7 @@ func TestH0InfoTranscriptReplays(t *testing.T) {
 	c := r.dev.Candidates()[1]
 	c.Backend = "replay"
 	devs := &replayDevices{c: c, data: data}
-	s := session.New(session.Options{Devices: devs, Device: c.Path, Timing: fast()})
+	s := session.New(session.Options{Devices: devs, Device: c.Path, Timing: r.cfg.Session.Timing})
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() { defer close(done); _ = s.Run(ctx) }()

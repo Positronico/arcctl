@@ -37,7 +37,7 @@ func fast() session.Timing {
 	return session.Timing{
 		Try:           25 * time.Millisecond,
 		ProbeTry:      25 * time.Millisecond,
-		Window:        150 * time.Millisecond,
+		Window:        time.Second,
 		Debounce:      5 * time.Millisecond,
 		Rescan:        20 * time.Millisecond,
 		RescanMax:     50 * time.Millisecond,
@@ -55,12 +55,13 @@ func fast() session.Timing {
 // harness runs arcctl in a temporary data folder against an emulator bus that
 // stands in for the real HID backend.
 type harness struct {
-	t     *testing.T
-	root  string
-	tmp   string
-	bus   *emu.Bus
-	host  *fakeHost
-	paths platform.Paths
+	t      *testing.T
+	root   string
+	tmp    string
+	bus    *emu.Bus
+	host   *fakeHost
+	paths  platform.Paths
+	timing session.Timing
 }
 
 func newHarness(t *testing.T) *harness {
@@ -70,7 +71,7 @@ func newHarness(t *testing.T) *harness {
 	tmp := t.TempDir()
 	bus := emu.New(emu.Options{})
 	t.Cleanup(bus.Close)
-	h := &harness{t: t, root: root, tmp: tmp, bus: bus}
+	h := &harness{t: t, root: root, tmp: tmp, bus: bus, timing: fast()}
 	h.host = &fakeHost{bus: bus, perm: platform.Permission{Access: platform.AccessGranted,
 		App: platform.App{Name: "Ghostty", Via: platform.ViaResponsibility}}}
 	h.paths = platform.Paths{
@@ -90,9 +91,17 @@ func (h *harness) env(stdout, stderr *bytes.Buffer) cli.Env {
 		Paths:    func() (platform.Paths, error) { return h.paths, nil },
 		Host:     h.host,
 		HID:      func(string) (session.Devices, error) { return h.bus, nil },
-		Timing:   fast(),
+		Timing:   h.timing,
 		Executor: execOptions(),
 	}
+}
+
+// forReplay has arcctl wait for each reply as long as on hardware: a replay
+// follows the recorded packets one by one, so a resend on either side
+// diverges.
+func (h *harness) forReplay() {
+	hw := session.DefaultTiming()
+	h.timing.Try, h.timing.ProbeTry = hw.Try, hw.ProbeTry
 }
 
 // execOptions keeps the write executor's waits short.

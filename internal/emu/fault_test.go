@@ -2,6 +2,7 @@ package emu_test
 
 import (
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -52,6 +53,33 @@ func TestReplyFaults(t *testing.T) {
 			}
 			none(t, tr)
 		})
+	}
+}
+
+// A resend, the same packet right after itself, counts as the packet it
+// repeats; the same read after another packet is a read of its own. Nth
+// faults the second read and Logical leaves the resends out.
+func TestResendsAreOnePacket(t *testing.T) {
+	b := newBus(t, emu.Options{})
+	d := add(t, b, receiver(em11(t)))
+	d.Inject(emu.Fault{Match: emu.Nth(wire.CmdRead, 2), Times: 1, Action: emu.Drop})
+	tr := open(t, b, d, 1)
+	rd, online := read(t, 0, 10), req(wire.CmdOnline)
+	transact(t, tr, rd)
+	transact(t, tr, rd)
+	transact(t, tr, online)
+	write(t, tr, rd)
+	none(t, tr)
+	transact(t, tr, rd)
+	var got []wire.Packet
+	for _, w := range emu.Logical(d.Writes()) {
+		got = append(got, w.Packet)
+	}
+	if want := []wire.Packet{rd, online, rd}; !slices.Equal(got, want) {
+		t.Fatalf("logical writes %v, want %v", got, want)
+	}
+	if n := len(d.Writes()); n != 5 {
+		t.Fatalf("%d writes, want 5", n)
 	}
 }
 
@@ -153,13 +181,27 @@ func TestLockedSeizedDenied(t *testing.T) {
 func TestHang(t *testing.T) {
 	b := newBus(t, emu.Options{Watchdog: 20 * time.Millisecond})
 	d := add(t, b, receiver(em11(t)))
-	d.Inject(emu.Fault{Cmd: wire.CmdOnline, Times: 1, Action: emu.Hang})
+	// The watchdog can fire before the write reaches the device, and Release
+	// frees only the writes already hung.
+	hung := make(chan struct{}, 1)
+	d.Inject(emu.Fault{Cmd: wire.CmdOnline, Times: 1, Action: emu.Hang, Match: func(wire.Packet) bool {
+		select {
+		case hung <- struct{}{}:
+		default:
+		}
+		return true
+	}})
 	tr := open(t, b, d, 1)
 	if err := tr.Write(req(wire.CmdOnline)); hidio.Classify(err) != hidio.ClassStalled {
 		t.Fatalf("hung Write = %v, want stalled", err)
 	}
 	if err := tr.Write(req(wire.CmdBattery)); !errors.Is(err, hidio.ErrStalled) {
 		t.Fatalf("Write after a stall = %v, want ErrStalled", err)
+	}
+	select {
+	case <-hung:
+	case <-time.After(waitFor):
+		t.Fatal("the hung write never reached the device")
 	}
 	d.Release()
 	if rep := next(t, tr); rep.Cmd() != wire.CmdOnline {

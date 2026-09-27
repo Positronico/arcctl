@@ -249,8 +249,9 @@ func reads(ws []emu.Write) []flash.Extent {
 	return out
 }
 
+// logical lists the reads that reached the device, each resend left out.
 func logical(ws []emu.Write) []flash.Extent {
-	return slices.Compact(reads(ws))
+	return reads(emu.Logical(ws))
 }
 
 func count(ws []emu.Write, c wire.Cmd) int {

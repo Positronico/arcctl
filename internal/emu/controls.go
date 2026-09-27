@@ -261,3 +261,9 @@ func (d *Device) Writes() []Write {
 	defer d.bus.mu.Unlock()
 	return slices.Clone(d.writes)
 }
+
+// Logical is ws with every resend left out: a write equal to the one right
+// before it is the same packet sent again after a try went unanswered.
+func Logical(ws []Write) []Write {
+	return slices.Compact(slices.Clone(ws))
+}

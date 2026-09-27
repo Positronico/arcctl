@@ -38,6 +38,10 @@ func (r *replayed) replay() *hidio.Replay {
 }
 
 func TestRecordedSessionReplays(t *testing.T) {
+	// A replay follows the recorded packets one by one, so a resend on either
+	// side diverges; both sessions wait for replies as long as on hardware.
+	tm, hw := fast(), session.DefaultTiming()
+	tm.Try, tm.ProbeTry = hw.Try, hw.ProbeTry
 	for _, redact := range []bool{false, true} {
 		t.Run(map[bool]string{false: "raw", true: "redacted"}[redact], func(t *testing.T) {
 			var buf bytes.Buffer
@@ -48,7 +52,7 @@ func TestRecordedSessionReplays(t *testing.T) {
 			m.Image = dumpImage(t)
 			d := add(t, b, receiver(m))
 			c := d.Candidates()[1]
-			s := session.New(session.Options{Devices: b, Device: c.Path, Recorder: rec, Timing: fast()})
+			s := session.New(session.Options{Devices: b, Device: c.Path, Recorder: rec, Timing: tm})
 			ctx, cancel := context.WithCancel(context.Background())
 			done := make(chan struct{})
 			go func() { defer close(done); s.Run(ctx) }()
@@ -59,7 +63,7 @@ func TestRecordedSessionReplays(t *testing.T) {
 
 			r := &replayed{c: c, transcript: buf.Bytes()}
 			r.c.Backend = "replay"
-			rs := start(t, nil, session.Options{Devices: r, Device: c.Path})
+			rs := start(t, nil, session.Options{Devices: r, Device: c.Path, Timing: tm})
 			got := await(t, rs, "ready from the replay", idle)
 			if err := r.replay().Diverged(); err != nil {
 				t.Fatal(err)

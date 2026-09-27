@@ -91,7 +91,7 @@ func TestProfileSwitchReloads(t *testing.T) {
 	}
 	sn := await(t, s, "the reload", func(sn *session.Snapshot) bool { return idle(sn) && sn.Profile.Value == 1 })
 	after := d.Writes()[before:]
-	if n := count(after, wire.CmdGetProfile); n != 1 {
+	if n := count(emu.Logical(after), wire.CmdGetProfile); n != 1 {
 		t.Errorf("cmd 14 sent %d times after the switch", n)
 	}
 	if got := logical(after); !slices.Equal(got[len(got)-len(workingSet()):], workingSet()) {

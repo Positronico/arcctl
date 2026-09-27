@@ -92,9 +92,14 @@ func (r *rig) ready(tweak func(*session.Options)) (*session.Session, *session.Sn
 }
 
 // cmd7 lists the cmd-7 packets that reached the device.
-func (r *rig) cmd7() []wire.Packet {
+func (r *rig) cmd7() []wire.Packet { return cmd7Of(r.dev.Writes()) }
+
+// logicalCmd7 is cmd7 with each resend left out.
+func (r *rig) logicalCmd7() []wire.Packet { return cmd7Of(emu.Logical(r.dev.Writes())) }
+
+func cmd7Of(ws []emu.Write) []wire.Packet {
 	var out []wire.Packet
-	for _, w := range r.dev.Writes() {
+	for _, w := range ws {
 		if w.Packet.Cmd() == wire.CmdWrite {
 			out = append(out, w.Packet)
 		}

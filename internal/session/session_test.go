@@ -68,7 +68,7 @@ func TestConnectLoadsTheWorkingSet(t *testing.T) {
 		t.Errorf("reads\n got %v\nwant %v", got, want)
 	}
 	for c, n := range map[wire.Cmd]int{wire.CmdHandshake: 1, wire.CmdRxVersion: 1, wire.CmdGetProfile: 1, wire.CmdFWVersion: 1, wire.CmdBattery: 1, wire.CmdGetLongRange: 1} {
-		if got := count(ws, c); got != n {
+		if got := count(emu.Logical(ws), c); got != n {
 			t.Errorf("%v sent %d times, want %d", c, got, n)
 		}
 	}

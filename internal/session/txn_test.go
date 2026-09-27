@@ -35,8 +35,10 @@ func TestDuplicateReplyIsOnlyLogged(t *testing.T) {
 	d.Inject(emu.Fault{Cmd: wire.CmdRead, Match: at(0), Times: 1, Action: emu.Duplicate})
 	s := start(t, b, session.Options{})
 	sn := await(t, s, "ready", idle)
-	if sn.Stats.Duplicates != 1 || sn.Stats.Foreign != 0 || sn.State != session.Ready {
-		t.Errorf("stats %+v, state %v", sn.Stats, sn.State)
+	ws := slices.DeleteFunc(d.Writes(), func(w emu.Write) bool { return w.Interface != sn.Device.Interface })
+	resent := len(ws) - len(emu.Logical(ws))
+	if n := sn.Stats.Duplicates; n < 1 || n > 1+resent || sn.Stats.Foreign != 0 || sn.State != session.Ready {
+		t.Errorf("stats %+v with %d resends, state %v", sn.Stats, resent, sn.State)
 	}
 	sameBytes(t, sn.Image, d.Image(), workingSet()...)
 }
@@ -93,10 +95,11 @@ func TestNAKIsAnError(t *testing.T) {
 	if sn.Image.Known(flash.Extent{Addr: 6912, Len: 1}) {
 		t.Error("the rejected chunk is marked known")
 	}
-	if n := count(d.Writes(), wire.CmdGetProfile); n != 1 {
+	if n := count(emu.Logical(d.Writes()), wire.CmdGetProfile); n != 1 {
 		t.Errorf("cmd 14 sent %d times", n)
 	}
-	if n := slices.Index(reads(d.Writes())[1:], flash.Extent{Addr: 6912, Len: 10}); n >= 0 && slices.Contains(reads(d.Writes())[n+2:], flash.Extent{Addr: 6912, Len: 10}) {
+	rejected := flash.Extent{Addr: 6912, Len: 10}
+	if got := logical(d.Writes()); slices.Contains(got[slices.Index(got, rejected)+1:], rejected) {
 		t.Error("the rejected read was sent again")
 	}
 	if sn.Stats.NAKs != 2 || sn.State != session.Ready {
@@ -177,6 +180,7 @@ func TestUnrelatedReportsDoNotUseUpTries(t *testing.T) {
 	})
 	tm := fast()
 	tm.Tries = 1
+	tm.Try = 200 * time.Millisecond
 	s := session.New(session.Options{Devices: sc, Timing: tm})
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})

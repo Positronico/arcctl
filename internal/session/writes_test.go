@@ -20,6 +20,9 @@ func TestWriteTimeoutsAreNotConflictSignals(t *testing.T) {
 	d := add(t, b, receiver(em11(t)))
 	tm := fast()
 	tm.Online = 20 * time.Millisecond
+	// Any try that goes unanswered fails the test, and a loaded runner can
+	// outlast the short wait; the write timeouts under test do not wait.
+	tm.Try = session.DefaultTiming().Try
 	s := start(t, b, session.Options{Timing: tm})
 	base := await(t, s, "ready", idle).Stats
 	d.Inject(emu.Fault{Cmd: wire.CmdOnline, Times: 2, Action: emu.Fail, Err: ioReturnTimeout})

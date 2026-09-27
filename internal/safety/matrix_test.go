@@ -74,7 +74,7 @@ type faultCase struct {
 func faultAt(flt emu.Fault) func(testing.TB, *fixture, plan.Plan, int) func() {
 	return func(_ testing.TB, f *fixture, _ plan.Plan, k int) func() {
 		g := flt
-		g.Cmd, g.Skip = wire.CmdWrite, k-1
+		g.Match = emu.Nth(wire.CmdWrite, k)
 		f.dev.Inject(g)
 		return nil
 	}
@@ -85,7 +85,7 @@ func faultAt(flt emu.Fault) func(testing.TB, *fixture, plan.Plan, int) func() {
 func readBackAt(flt emu.Fault) func(testing.TB, *fixture, plan.Plan, int) func() {
 	return func(_ testing.TB, f *fixture, _ plan.Plan, k int) func() {
 		g := flt
-		g.Cmd, g.Skip = wire.CmdRead, k-1
+		g.Match = emu.Nth(wire.CmdRead, k)
 		f.dev.Inject(g)
 		return nil
 	}
@@ -399,7 +399,7 @@ var faultCases = []faultCase{
 	},
 	{
 		name:   "ignored write",
-		inject: faultAt(emu.Fault{Times: 1, Action: emu.Ignore}),
+		inject: faultAt(emu.Fault{Action: emu.Ignore}),
 		outcome: func(p plan.Plan, k int) outcome {
 			if unchanged(p, k) {
 				return completes
@@ -412,7 +412,7 @@ var faultCases = []faultCase{
 	},
 	{
 		name:    "corrupted write",
-		inject:  faultAt(emu.Fault{Times: 1, Action: emu.Corrupt}),
+		inject:  faultAt(emu.Fault{Action: emu.Corrupt}),
 		outcome: always(stops),
 		cause:   is(safety.ErrMismatch),
 		reads:   true,
@@ -644,7 +644,7 @@ type sessionCase struct {
 func deviceFault(flt emu.Fault) func(*srig, plan.Plan, int, context.CancelFunc) (func(safety.OpEvent), func()) {
 	return func(r *srig, _ plan.Plan, k int, _ context.CancelFunc) (func(safety.OpEvent), func()) {
 		g := flt
-		g.Cmd, g.Skip = wire.CmdWrite, k-1
+		g.Match = emu.Nth(wire.CmdWrite, k)
 		r.dev.Inject(g)
 		return nil, nil
 	}
@@ -664,7 +664,7 @@ func readBack(flt emu.Fault, then func(*srig) func(safety.OpEvent)) func(*srig, 
 			if !armed && e.Kind == safety.EventStart {
 				armed = true
 				g := flt
-				g.Cmd, g.Skip = wire.CmdRead, k-1
+				g.Match = emu.Nth(wire.CmdRead, k)
 				r.dev.Inject(g)
 			}
 			if next != nil {
@@ -860,7 +860,7 @@ var sessionCases = []sessionCase{
 	},
 	{
 		name:   "ignored write",
-		inject: deviceFault(emu.Fault{Times: 1, Action: emu.Ignore}),
+		inject: deviceFault(emu.Fault{Action: emu.Ignore}),
 		outcome: func(p plan.Plan, k int) outcome {
 			if unchanged(p, k) {
 				return completes
@@ -873,7 +873,7 @@ var sessionCases = []sessionCase{
 	},
 	{
 		name:    "corrupted write",
-		inject:  deviceFault(emu.Fault{Times: 1, Action: emu.Corrupt}),
+		inject:  deviceFault(emu.Fault{Action: emu.Corrupt}),
 		outcome: always(stops),
 		cause:   is(safety.ErrMismatch),
 		reads:   true,
@@ -949,10 +949,11 @@ var sessionCases = []sessionCase{
 func staleAckOnDevice(sameAddr bool) func(*srig, plan.Plan, int, context.CancelFunc) (func(safety.OpEvent), func()) {
 	return func(r *srig, p plan.Plan, k int, _ context.CancelFunc) (func(safety.OpEvent), func()) {
 		stale := staleOf(p, k, sameAddr)
-		r.dev.Inject(emu.Fault{Cmd: wire.CmdWrite, Skip: k - 1, Times: 1, Action: emu.Late, Delay: 15 * time.Millisecond})
-		n := 0
-		r.dev.Inject(emu.Fault{Cmd: wire.CmdWrite, Match: func(wire.Packet) bool {
-			if n++; n == k {
+		r.dev.Inject(emu.Fault{Match: emu.Nth(wire.CmdWrite, k), Times: 1, Action: emu.Late, Delay: 15 * time.Millisecond})
+		at, sent := emu.Nth(wire.CmdWrite, k), false
+		r.dev.Inject(emu.Fault{Match: func(p wire.Packet) bool {
+			if at(p) && !sent {
+				sent = true
 				go r.dev.Deliver(stale)
 			}
 			return false
@@ -1165,19 +1166,20 @@ func TestFullBackupResumes(t *testing.T) {
 	}
 }
 
-// fullBackupReads counts the cmd-8 packets of a full backup after a load.
+// fullBackupReads counts the cmd-8 packets of a full backup after a load,
+// resends left out.
 func fullBackupReads(t *testing.T) int {
 	r := newSRig(t, nil, emu.Options{}, emu.Behavior{})
 	r.run()
 	r.await("ready", func(sn *session.Snapshot) bool { return sn.State == session.Ready && sn.Progress.Job == "" })
-	was := cmdCount(r.dev.Writes(), wire.CmdRead)
+	was := len(r.dev.Writes())
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	c, err := r.s.Backup(ctx, true)
 	if err != nil || len(c.Missing) > 0 {
 		t.Fatalf("clean full backup: %v, missing %v", err, c.Missing)
 	}
-	return cmdCount(r.dev.Writes(), wire.CmdRead) - was
+	return cmdCount(emu.Logical(r.dev.Writes()[was:]), wire.CmdRead)
 }
 
 var fullRanges = []flash.Extent{{Addr: 0, Len: 6987}, {Addr: 9504, Len: 256}}
@@ -1191,24 +1193,25 @@ func runBackupFault(t *testing.T, fault string, k int, first bool) {
 	sn := r.await("ready", func(sn *session.Snapshot) bool {
 		return sn.State == session.Ready && sn.Progress.Job == "" && sn.Journal != nil
 	})
-	base := cmdCount(r.dev.Writes(), wire.CmdRead)
+	base := len(r.dev.Writes())
 	var p plan.Plan
 	skip := k - 1
 	if first {
 		p = r.plan(sn, pairChange(t))
 		skip += chunksOf(p)
 	}
+	at := emu.Nth(wire.CmdRead, skip+1)
 
 	switch fault {
 	case "mouse sleep":
-		r.dev.Inject(emu.Fault{Cmd: wire.CmdRead, Skip: skip, Times: 1, Action: emu.Asleep})
+		r.dev.Inject(emu.Fault{Match: at, Times: 1, Action: emu.Asleep})
 	case "reply stealing":
 		// Another client opens the receiver when the k-th read goes out and
 		// takes every reply to that chunk until the session has asked 20
 		// times or gone on to another chunk; then it closes.
 		start, end := make(chan struct{}), make(chan struct{})
 		var left atomic.Bool
-		seen, stolen, ended := 0, 0, false
+		started, stolen, ended := false, 0, false
 		var addr uint16
 		stop := func() {
 			if !ended {
@@ -1216,14 +1219,16 @@ func runBackupFault(t *testing.T, fault string, k int, first bool) {
 				close(end)
 			}
 		}
-		r.dev.Inject(emu.Fault{Cmd: wire.CmdRead, Action: emu.Drop, Match: func(p wire.Packet) bool {
-			seen++
+		r.dev.Inject(emu.Fault{Action: emu.Drop, Match: func(p wire.Packet) bool {
+			hit := at(p) && !started
 			switch {
-			case left.Load() || seen <= skip:
+			case left.Load() || p.Cmd() != wire.CmdRead:
 				return false
-			case seen == skip+1:
-				addr = p.Addr()
+			case hit:
+				started, addr = true, p.Addr()
 				close(start)
+			case !started:
+				return false
 			case p.Addr() != addr:
 				stop()
 				return false
@@ -1314,12 +1319,11 @@ func runBackupFault(t *testing.T, fault string, k int, first bool) {
 		}
 	}
 	var reads []flash.Extent
-	for _, w := range r.dev.Writes() {
+	for _, w := range emu.Logical(r.dev.Writes()[base:]) {
 		if w.Packet.Cmd() == wire.CmdRead {
 			reads = append(reads, flash.Extent{Addr: int(w.Packet.Addr()), Len: w.Packet.Len()})
 		}
 	}
-	reads = reads[base:]
 	failed := reads[k-1]
 	if n := len(slices.DeleteFunc(slices.Clone(reads), func(e flash.Extent) bool { return e != failed })); n < 2 {
 		t.Fatalf("chunk %v was read %d times; the backup did not go back to it", failed, n)
@@ -1374,7 +1378,7 @@ func TestSessionFaultDuringRecovery(t *testing.T) {
 				t.Fatalf("open runs %+v, want the torn one", sn.Journal.Open)
 			}
 
-			r.dev.Inject(emu.Fault{Cmd: wire.CmdWrite, Skip: 1, Times: 1, Action: emu.NAK})
+			r.dev.Inject(emu.Fault{Match: emu.Nth(wire.CmdWrite, 2), Times: 1, Action: emu.NAK})
 			if _, err := r.s.Recover(ctx, run, how, safety.Gates{}, nil); !errors.Is(err, wire.ErrNAK) {
 				t.Fatalf("recovery: %v, want the NAK", err)
 			}
@@ -1434,7 +1438,7 @@ func TestSessionEchoModes(t *testing.T) {
 				pre := r.dev.Image()
 				nak := m.bh.ShortNAK
 				if nak {
-					r.dev.Inject(emu.Fault{Cmd: wire.CmdWrite, Skip: 1, Times: 1, Action: emu.NAK})
+					r.dev.Inject(emu.Fault{Match: emu.Nth(wire.CmdWrite, 2), Times: 1, Action: emu.NAK})
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
